@@ -47,6 +47,8 @@ Inspector interaction
 
 Undo calls `revert` on the last executed command. Redo calls `apply` on the first command in the future branch. Importing or resetting a complete document is also represented as a reversible command.
 
+Selection remains transient Studio state. Document structure and layout remain persistent UI IR state. This separation prevents viewport focus changes from polluting command history.
+
 ## Persistence boundary
 
 The serialized `.afrodite.json` document is the portable representation of the canvas state. Decoding follows three explicit stages:
