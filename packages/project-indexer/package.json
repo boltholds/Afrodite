@@ -17,6 +17,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@afrodite/protocol": "workspace:*",
     "typescript": "^5.8.3"
   },
   "devDependencies": {
