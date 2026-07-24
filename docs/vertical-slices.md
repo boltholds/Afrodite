@@ -1,17 +1,26 @@
 # Vertical slices
 
-## VS-001: Semantic canvas bootstrap
+## VS-001: Semantic canvas bootstrap — complete
 
 **Goal:** prove that the editor can render and edit a framework-neutral UI document.
 
-Acceptance criteria:
+Delivered:
 
-- Studio loads a sample `UiDocument`;
-- the component hierarchy is visible;
-- selecting a node highlights it in the canvas and inspector;
-- changing row/column layout updates the preview;
-- the document validates through `@afrodite/ui-ir`;
-- undo and redo are represented as commands, even if the first implementation is in memory.
+- Studio loads and renders a sample `UiDocument`;
+- the semantic component hierarchy is visible and selectable;
+- selection is synchronized between layers, canvas, and inspector;
+- display, direction, gap, padding, width, and height constraints are editable;
+- every document mutation is represented by a reversible command;
+- undo and redo work through buttons and keyboard shortcuts;
+- JSON documents can be validated, applied, saved in the browser, copied, and downloaded;
+- invalid JSON, schema violations, and duplicate stable IDs produce structured diagnostics;
+- command history and serialization behavior are covered by unit tests.
+
+Verification boundary:
+
+- `pnpm typecheck` passes;
+- `pnpm test` passes;
+- `pnpm build` passes.
 
 ## VS-002: SolidJS component indexing
 
