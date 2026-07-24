@@ -7,6 +7,18 @@ export {
   parseUiDocument,
 } from "./schema";
 
+export {
+  decodeUiDocument,
+  serializeUiDocument,
+  validateUiDocument,
+} from "./serialization";
+
+export type {
+  DecodeUiDocumentResult,
+  UiDiagnostic,
+  UiDiagnosticCode,
+} from "./serialization";
+
 export type {
   Layout,
   LayoutDirection,
