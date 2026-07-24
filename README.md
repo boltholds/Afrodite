@@ -13,7 +13,7 @@ The semantic canvas can now:
 5. validate, import, save, copy, and download Semantic UI IR JSON;
 6. report invalid JSON, schema failures, and duplicate stable IDs explicitly.
 
-The next vertical slice will index exported SolidJS components through static analysis without executing the target project. Its first fixture workspace will stay deliberately small; Gefest CAD will be connected only after component discovery and prop diagnostics are deterministic.
+The next vertical slice will index exported SolidJS components through static analysis without executing the target project. Gefest CAD will be connected after discovery and prop diagnostics are deterministic on a small fixture workspace.
 
 ## Workspace
 
