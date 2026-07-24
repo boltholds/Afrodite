@@ -1,0 +1,23 @@
+{
+  "name": "@afrodite/studio",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@afrodite/canvas-engine": "workspace:*",
+    "@afrodite/ui-ir": "workspace:*",
+    "solid-js": "^1.9.7"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vite": "^7.0.4",
+    "vite-plugin-solid": "^2.11.8",
+    "vitest": "^3.2.4"
+  }
+}
