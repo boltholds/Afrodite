@@ -86,6 +86,35 @@ export function createLayoutCommand(
   };
 }
 
+export function createInsertNodeCommand(
+  document: UiDocument,
+  parentId: string,
+  node: UiNode,
+  index?: number,
+  label = `Insert ${node.name}`,
+): DocumentCommand {
+  const parent = findNode(document.root, parentId);
+  if (!parent) {
+    throw new Error(`Cannot create insert command: parent ${parentId} was not found`);
+  }
+  if (findNode(document.root, node.id)) {
+    throw new Error(`Cannot create insert command: node ${node.id} already exists`);
+  }
+
+  const snapshot = cloneNode(node);
+  const insertionIndex = Math.min(
+    Math.max(index ?? parent.children.length, 0),
+    parent.children.length,
+  );
+
+  return {
+    id: createCommandId("insert", node.id),
+    label,
+    apply: (current) => insertNode(current, parentId, snapshot, insertionIndex),
+    revert: (current) => removeNode(current, node.id),
+  };
+}
+
 export function createReplaceDocumentCommand(
   before: UiDocument,
   after: UiDocument,
@@ -129,6 +158,65 @@ function replaceNodeLayout(
   return { ...document, root };
 }
 
+function insertNode(
+  document: UiDocument,
+  parentId: string,
+  child: UiNode,
+  index: number,
+): UiDocument {
+  if (findNode(document.root, child.id)) {
+    throw new Error(`Cannot insert node: node ${child.id} already exists`);
+  }
+
+  let found = false;
+  const root = updateNode(document.root, parentId, (parent) => {
+    found = true;
+    const children = [...parent.children];
+    children.splice(Math.min(index, children.length), 0, cloneNode(child));
+    return { ...parent, children };
+  });
+
+  if (!found) {
+    throw new Error(`Cannot insert node: parent ${parentId} was not found`);
+  }
+
+  return { ...document, root };
+}
+
+function removeNode(document: UiDocument, nodeId: string): UiDocument {
+  if (document.root.id === nodeId) {
+    throw new Error("Cannot remove the document root node");
+  }
+
+  const result = removeNodeFromTree(document.root, nodeId);
+  if (!result.removed) {
+    throw new Error(`Cannot remove node: node ${nodeId} was not found`);
+  }
+
+  return { ...document, root: result.node };
+}
+
+function removeNodeFromTree(node: UiNode, nodeId: string): { node: UiNode; removed: boolean } {
+  let removed = false;
+  const children: UiNode[] = [];
+
+  for (const child of node.children) {
+    if (child.id === nodeId) {
+      removed = true;
+      continue;
+    }
+
+    const result = removeNodeFromTree(child, nodeId);
+    removed = removed || result.removed;
+    children.push(result.node);
+  }
+
+  return {
+    node: removed ? { ...node, children } : node,
+    removed,
+  };
+}
+
 function updateNode(
   node: UiNode,
   nodeId: string,
@@ -154,6 +242,16 @@ function mergeLayout(layout: Layout, patch: LayoutPatch): Layout {
 
 function cloneLayout(layout: Layout): Layout {
   return { ...layout, sizing: { ...layout.sizing } };
+}
+
+function cloneNode(node: UiNode): UiNode {
+  return {
+    ...node,
+    layout: cloneLayout(node.layout),
+    props: { ...node.props },
+    children: node.children.map(cloneNode),
+    ...(node.sourceBinding ? { sourceBinding: { ...node.sourceBinding } } : {}),
+  };
 }
 
 function createCommandId(kind: string, target: string): string {

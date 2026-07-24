@@ -1,0 +1,194 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  color: #f7efff;
+  background: #05030b;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.preview-shell {
+  display: grid;
+  grid-template-rows: 54px minmax(0, 1fr) auto;
+  height: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 5%, rgb(255 47 166 / 12%), transparent 34%),
+    linear-gradient(180deg, #090513, #040208 65%);
+}
+
+.preview-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0 16px;
+  border-bottom: 1px solid rgb(255 47 166 / 28%);
+  background: rgb(10 5 21 / 88%);
+  box-shadow: 0 0 26px rgb(255 47 166 / 10%);
+}
+
+.preview-status div {
+  display: grid;
+  gap: 3px;
+}
+
+.preview-status strong {
+  color: #ff74c4;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.preview-status span,
+.preview-status code {
+  color: #79dff7;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10px;
+}
+
+.preview-stage {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px;
+  background-image:
+    linear-gradient(rgb(57 217 255 / 6%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(57 217 255 / 6%) 1px, transparent 1px),
+    linear-gradient(rgb(255 47 166 / 3%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 47 166 / 3%) 1px, transparent 1px);
+  background-size: 48px 48px, 48px 48px, 12px 12px, 12px 12px;
+}
+
+.preview-stage > .runtime-node {
+  min-width: 100%;
+  min-height: 100%;
+}
+
+.runtime-node {
+  position: relative;
+  align-content: start;
+  min-width: 72px;
+  min-height: 54px;
+}
+
+.runtime-component {
+  align-items: start;
+}
+
+.runtime-component > button {
+  min-height: 38px;
+  padding: 0 18px;
+  border: 1px solid #ff2fa6;
+  border-radius: 4px;
+  color: #fff5fc;
+  background: linear-gradient(180deg, rgb(255 47 166 / 34%), rgb(255 47 166 / 14%));
+  box-shadow:
+    inset 0 0 16px rgb(255 47 166 / 13%),
+    0 0 18px rgb(255 47 166 / 22%);
+  cursor: pointer;
+}
+
+.runtime-component > button:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgb(255 47 166 / 52%), rgb(255 47 166 / 20%));
+  box-shadow: 0 0 26px rgb(255 47 166 / 36%);
+}
+
+.runtime-component > button:disabled {
+  opacity: 0.45;
+}
+
+.runtime-component > section {
+  min-width: 220px;
+  padding: 18px;
+  border: 1px solid rgb(57 217 255 / 48%);
+  border-radius: 5px;
+  background: rgb(8 8 22 / 82%);
+  box-shadow:
+    inset 0 0 18px rgb(57 217 255 / 5%),
+    0 0 24px rgb(57 217 255 / 11%);
+}
+
+.runtime-component h2 {
+  margin: 0 0 8px;
+  color: #8eeaff;
+  font-size: 14px;
+}
+
+.runtime-component p {
+  margin: 0;
+  color: #b7afc9;
+  font-size: 12px;
+}
+
+.preview-empty,
+.runtime-error,
+.missing-component {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  min-height: 180px;
+  padding: 24px;
+  border: 1px solid rgb(57 217 255 / 24%);
+  color: #a8a1ba;
+  background: rgb(7 5 16 / 72%);
+  text-align: center;
+}
+
+.preview-empty span {
+  color: #39d9ff;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  letter-spacing: 0.24em;
+}
+
+.preview-empty p,
+.runtime-error p {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.runtime-error,
+.missing-component {
+  border-color: rgb(255 47 166 / 45%);
+  color: #ff9fd4;
+}
+
+.preview-diagnostics {
+  display: grid;
+  gap: 4px;
+  max-height: 110px;
+  overflow: auto;
+  padding: 10px 14px;
+  border-top: 1px solid rgb(255 47 166 / 30%);
+  background: #0c0612;
+}
+
+.preview-diagnostics p {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  color: #d5bfd0;
+  font-size: 10px;
+}
+
+.preview-diagnostics code {
+  color: #ff5fb8;
+}

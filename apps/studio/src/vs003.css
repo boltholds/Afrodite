@@ -1,0 +1,291 @@
+.vs003-grid {
+  grid-template-columns: 310px minmax(0, 1fr) 360px;
+}
+
+.library-panel {
+  display: grid;
+  align-content: start;
+  gap: 22px;
+  border-right: 1px solid var(--line, #351430);
+}
+
+.library-section {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.library-section + .library-section {
+  padding-top: 18px;
+  border-top: 1px solid rgb(255 47 166 / 16%);
+}
+
+.library-section h2 {
+  margin: 0;
+}
+
+.panel-hint {
+  margin: -2px 0 4px;
+  color: #8f86a2;
+  font-size: 11px;
+}
+
+.panel-hint strong {
+  color: #73dff7;
+  font-weight: 500;
+}
+
+.component-list {
+  display: grid;
+  gap: 8px;
+}
+
+.component-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px 10px;
+  padding: 11px;
+  border: 1px solid rgb(57 217 255 / 18%);
+  border-radius: 5px;
+  background:
+    linear-gradient(135deg, rgb(57 217 255 / 5%), transparent 42%),
+    rgb(10 7 20 / 76%);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.component-card:hover {
+  border-color: rgb(255 47 166 / 46%);
+  box-shadow: 0 0 20px rgb(255 47 166 / 10%);
+  transform: translateY(-1px);
+}
+
+.component-card > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.component-card strong {
+  color: #f7eefd;
+  font-size: 12px;
+}
+
+.component-card code {
+  overflow: hidden;
+  color: #52cde9;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.component-card p {
+  grid-column: 1;
+  margin: 0;
+  color: #8f87a1;
+  font-size: 10px;
+}
+
+.component-card button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  min-width: 62px;
+  padding: 7px 9px;
+  font-size: 10px;
+}
+
+.catalog-source {
+  border: 1px solid rgb(255 47 166 / 16%);
+  border-radius: 5px;
+  background: rgb(5 3 12 / 58%);
+}
+
+.catalog-source summary {
+  padding: 9px 10px;
+  color: #b7adc8;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.catalog-source[open] summary {
+  border-bottom: 1px solid rgb(255 47 166 / 14%);
+}
+
+.catalog-source textarea {
+  width: 100%;
+  min-height: 150px;
+  padding: 10px;
+  border: 0;
+  border-bottom: 1px solid rgb(57 217 255 / 14%);
+  color: #bdebf5;
+  background: #05030c;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 9px;
+  line-height: 1.45;
+  resize: vertical;
+  outline: none;
+}
+
+.catalog-source .document-actions,
+.catalog-source .diagnostics {
+  margin: 9px;
+}
+
+.layers-section {
+  padding-bottom: 20px;
+}
+
+.composition-panel {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(360px, 1fr);
+  gap: 18px;
+  min-width: 0;
+  min-height: 0;
+  padding: 24px;
+  background-color: #05030b;
+}
+
+.workspace-pane {
+  display: grid;
+  grid-template-rows: 48px minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgb(57 217 255 / 20%);
+  border-radius: 6px;
+  background: rgb(7 4 15 / 82%);
+  box-shadow: 0 18px 70px rgb(0 0 0 / 30%);
+}
+
+.runtime-pane {
+  border-color: rgb(255 47 166 / 24%);
+}
+
+.pane-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  padding: 0 14px;
+  border-bottom: 1px solid rgb(57 217 255 / 16%);
+  background: rgb(10 6 21 / 88%);
+}
+
+.runtime-pane .pane-heading {
+  border-bottom-color: rgb(255 47 166 / 18%);
+}
+
+.pane-heading > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.pane-heading strong {
+  color: #f4eafa;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pane-heading span {
+  overflow: hidden;
+  color: #7f7692;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pane-heading code {
+  color: #39d9ff;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.composition-panel .canvas-frame {
+  width: 100%;
+  height: 100%;
+  min-height: 520px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.preview-node.component {
+  border-color: rgb(255 47 166 / 54%);
+  background:
+    linear-gradient(135deg, rgb(255 47 166 / 10%), transparent 52%),
+    rgb(255 255 255 / 2%);
+}
+
+.preview-node.component > .preview-label {
+  color: #ff9dd3;
+  background: #2b0d25;
+}
+
+.runtime-frame {
+  width: 100%;
+  height: 100%;
+  min-height: 520px;
+  border: 0;
+  background: #05030b;
+}
+
+.preview-result {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
+  max-height: 110px;
+  overflow: auto;
+  backdrop-filter: blur(12px);
+}
+
+.runtime-pane {
+  position: relative;
+}
+
+.source-binding {
+  overflow-wrap: anywhere;
+  color: #39d9ff;
+  font-size: 9px;
+}
+
+.inspector-section pre {
+  overflow: auto;
+  max-height: 180px;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid rgb(57 217 255 / 13%);
+  border-radius: 4px;
+  color: #b9eaf4;
+  background: #05030c;
+  font-size: 10px;
+}
+
+@media (max-width: 1500px) {
+  .vs003-grid {
+    grid-template-columns: 280px minmax(0, 1fr) 330px;
+  }
+
+  .composition-panel {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(520px, 1fr) minmax(520px, 1fr);
+    overflow: auto;
+  }
+}
+
+@media (max-width: 1100px) {
+  .vs003-grid {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+
+  .inspector-panel {
+    display: none;
+  }
+}

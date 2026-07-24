@@ -11,14 +11,27 @@ import {
   canRedo,
   canUndo,
   createCommandHistory,
+  createInsertNodeCommand,
   createLayoutCommand,
   createReplaceDocumentCommand,
   executeCommand,
   findNode,
   redoCommand,
   undoCommand,
+  type DocumentCommand,
   type LayoutPatch,
 } from "@afrodite/canvas-engine";
+import {
+  createPreviewRenderRequest,
+  decodeComponentCatalog,
+  decodePreviewMessage,
+  serializeComponentCatalog,
+  type CatalogProtocolDiagnostic,
+  type ComponentCatalog,
+  type IndexedComponent,
+  type IndexedProp,
+  type PreviewDiagnostic,
+} from "@afrodite/protocol";
 import {
   decodeUiDocument,
   parseUiDocument,
@@ -29,13 +42,15 @@ import {
   type UiDocument,
   type UiNode,
 } from "@afrodite/ui-ir";
+import { sampleCatalog } from "./sampleCatalog";
 
 const STORAGE_KEY = "afrodite.ui-document.v1";
+const PREVIEW_URL = import.meta.env.VITE_PREVIEW_HOST_URL ?? "http://localhost:4174";
 
 const initialDocument = parseUiDocument({
   schemaVersion: 1,
   id: "document.demo",
-  name: "Afrodite bootstrap",
+  name: "Afrodite component composition",
   root: {
     id: "node.workspace",
     kind: "element",
@@ -53,45 +68,49 @@ const initialDocument = parseUiDocument({
         id: "node.sidebar",
         kind: "element",
         element: "aside",
-        name: "Component library",
+        name: "Navigation",
         layout: {
           display: "flex",
           direction: "column",
           gap: 8,
           padding: 16,
-          sizing: { width: 240, height: "fill" },
+          sizing: { width: 220, height: "fill" },
         },
+        props: {},
         children: [],
       },
       {
         id: "node.canvas",
         kind: "element",
         element: "section",
-        name: "Canvas",
+        name: "Content",
         layout: {
           display: "flex",
           direction: "column",
-          gap: 12,
+          gap: 16,
           padding: 24,
           sizing: { width: "fill", height: "fill" },
         },
+        props: {},
         children: [],
       },
       {
         id: "node.inspector",
         kind: "element",
         element: "aside",
-        name: "Inspector",
+        name: "Context panel",
         layout: {
           display: "flex",
           direction: "column",
           gap: 8,
           padding: 16,
-          sizing: { width: 280, height: "fill" },
+          sizing: { width: 260, height: "fill" },
         },
+        props: {},
         children: [],
       },
     ],
+    props: {},
   },
 });
 
@@ -103,13 +122,27 @@ interface FlatNode {
   depth: number;
 }
 
+let insertedNodeSequence = 0;
+let previewRequestSequence = 0;
+
 export function App() {
   const restored = restoreSavedDocument();
   const [history, setHistory] = createSignal(createCommandHistory(restored.document));
-  const [selectedId, setSelectedId] = createSignal(restored.document.root.id);
+  const [selectedId, setSelectedId] = createSignal(
+    findNode(restored.document.root, "node.canvas")?.id ?? restored.document.root.id,
+  );
   const [jsonDraft, setJsonDraft] = createSignal(serializeUiDocument(restored.document));
   const [diagnostics, setDiagnostics] = createSignal<readonly UiDiagnostic[]>(restored.diagnostics);
   const [status, setStatus] = createSignal(restored.status);
+
+  const [catalog, setCatalog] = createSignal<ComponentCatalog>(sampleCatalog);
+  const [catalogDraft, setCatalogDraft] = createSignal(serializeComponentCatalog(sampleCatalog));
+  const [catalogDiagnostics, setCatalogDiagnostics] = createSignal<readonly CatalogProtocolDiagnostic[]>([]);
+
+  const [previewReady, setPreviewReady] = createSignal(false);
+  const [previewDiagnostics, setPreviewDiagnostics] = createSignal<readonly PreviewDiagnostic[]>([]);
+  const [previewRequestId, setPreviewRequestId] = createSignal("waiting");
+  let previewFrame: HTMLIFrameElement | undefined;
 
   const document = createMemo(() => history().present);
   const nodes = createMemo(() => flatten(document().root));
@@ -117,33 +150,46 @@ export function App() {
 
   createEffect(() => {
     const current = document();
-    if (!findNode(current.root, selectedId())) {
-      setSelectedId(current.root.id);
-    }
+    if (!findNode(current.root, selectedId())) setSelectedId(current.root.id);
+    setJsonDraft(serializeUiDocument(current));
   });
 
   createEffect(() => {
-    setJsonDraft(serializeUiDocument(document()));
+    const current = document();
+    if (!previewReady()) return;
+    queueMicrotask(() => sendPreview(current.root));
   });
 
-  const commit = (command: ReturnType<typeof createLayoutCommand>, message = command.label) => {
+  const commit = (command: DocumentCommand, message = command.label) => {
     setHistory((current) => executeCommand(current, command));
     setDiagnostics([]);
     setStatus(message);
   };
 
   const replaceDocument = (next: UiDocument, label: string) => {
-    const command = createReplaceDocumentCommand(document(), next, label);
-    setHistory((current) => executeCommand(current, command));
-    setDiagnostics([]);
+    commit(createReplaceDocumentCommand(document(), next, label), label);
     setSelectedId(next.root.id);
-    setStatus(label);
   };
 
   const updateLayout = (patch: LayoutPatch, label: string) => {
     const selected = selectedNode();
     if (!selected) return;
     commit(createLayoutCommand(document(), selected.id, patch, label), label);
+  };
+
+  const placeComponent = (component: IndexedComponent) => {
+    const parent = selectedNode() ?? document().root;
+    const node = createComponentNode(component);
+    commit(
+      createInsertNodeCommand(
+        document(),
+        parent.id,
+        node,
+        undefined,
+        `Placed ${component.name} inside ${parent.name}`,
+      ),
+    );
+    setSelectedId(node.id);
   };
 
   const undo = () => {
@@ -186,6 +232,26 @@ export function App() {
   const changeFixedSize = (axis: SizingAxis, value: number) => {
     const sizing = axis === "width" ? { width: value } : { height: value };
     updateLayout({ sizing }, `Set ${axis} to ${value}px`);
+  };
+
+  const applyCatalog = () => {
+    const decoded = decodeComponentCatalog(catalogDraft());
+    if (!decoded.ok) {
+      setCatalogDiagnostics(decoded.diagnostics);
+      setStatus("Component catalog contains errors");
+      return;
+    }
+
+    setCatalog(decoded.catalog);
+    setCatalogDiagnostics([]);
+    setStatus(`Loaded ${decoded.catalog.components.length} indexed components`);
+  };
+
+  const restoreSampleCatalog = () => {
+    setCatalog(sampleCatalog);
+    setCatalogDraft(serializeComponentCatalog(sampleCatalog));
+    setCatalogDiagnostics([]);
+    setStatus("Restored fixture component catalog");
   };
 
   const applyJson = () => {
@@ -246,6 +312,17 @@ export function App() {
     setStatus("Downloaded UI document");
   };
 
+  const sendPreview = (node: UiNode) => {
+    if (!previewFrame?.contentWindow || !previewReady()) return;
+    previewRequestSequence += 1;
+    const requestId = `render.${previewRequestSequence}`;
+    setPreviewRequestId(requestId);
+    previewFrame.contentWindow.postMessage(
+      createPreviewRenderRequest(node, requestId),
+      "*",
+    );
+  };
+
   onMount(() => {
     const handleKeyboard = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || isTextEditingTarget(event.target)) return;
@@ -262,8 +339,28 @@ export function App() {
       }
     };
 
+    const handlePreviewMessage = (event: MessageEvent<unknown>) => {
+      if (event.source !== previewFrame?.contentWindow) return;
+      const message = decodePreviewMessage(event.data);
+      if (!message) return;
+
+      if (message.type === "ready") {
+        setPreviewReady(true);
+        setStatus("Sandbox preview host is ready");
+        sendPreview(document().root);
+      } else if (message.type === "render-result") {
+        setPreviewDiagnostics(message.diagnostics);
+        setPreviewRequestId(message.requestId);
+        setStatus(message.ok ? "Runtime preview rendered" : "Runtime preview reported errors");
+      }
+    };
+
     window.addEventListener("keydown", handleKeyboard);
-    onCleanup(() => window.removeEventListener("keydown", handleKeyboard));
+    window.addEventListener("message", handlePreviewMessage);
+    onCleanup(() => {
+      window.removeEventListener("keydown", handleKeyboard);
+      window.removeEventListener("message", handlePreviewMessage);
+    });
   });
 
   return (
@@ -271,7 +368,7 @@ export function App() {
       <header class="topbar">
         <div class="brand">
           <strong>Afrodite</strong>
-          <span>Semantic canvas</span>
+          <span>Component composition</span>
         </div>
         <div class="history-actions" aria-label="Command history">
           <button disabled={!canUndo(history())} onClick={undo} title="Undo (Ctrl+Z)">Undo</button>
@@ -280,27 +377,121 @@ export function App() {
         <span class="status-line">{status()}</span>
       </header>
 
-      <div class="studio-grid">
-        <nav class="panel hierarchy-panel" aria-label="Document hierarchy">
-          <h2>Layers</h2>
-          <For each={nodes()}>
-            {({ node, depth }) => (
-              <button
-                classList={{ "layer-row": true, selected: node.id === selectedId() }}
-                style={{ "padding-left": `${10 + depth * 14}px` }}
-                onClick={() => setSelectedId(node.id)}
-              >
-                <span class="layer-kind">{node.kind === "component" ? "C" : "E"}</span>
-                {node.name}
-              </button>
-            )}
-          </For>
-        </nav>
+      <div class="studio-grid vs003-grid">
+        <aside class="panel library-panel">
+          <section class="library-section">
+            <div class="section-heading">
+              <h2>Components</h2>
+              <span>{catalog().components.length}</span>
+            </div>
+            <p class="panel-hint">Place into: <strong>{selectedNode()?.name ?? "Workspace"}</strong></p>
+            <div class="component-list">
+              <For each={catalog().components}>
+                {(component) => (
+                  <article class="component-card">
+                    <div>
+                      <strong>{component.name}</strong>
+                      <code>{component.sourcePath}</code>
+                    </div>
+                    <p>{component.props.filter((prop) => prop.serializable).length} serializable props</p>
+                    <button class="primary" onClick={() => placeComponent(component)}>Place</button>
+                  </article>
+                )}
+              </For>
+            </div>
 
-        <main class="canvas-panel">
-          <div class="canvas-frame">
-            <NodePreview node={document().root} selectedId={selectedId()} onSelect={setSelectedId} />
-          </div>
+            <details class="catalog-source">
+              <summary>Catalog JSON</summary>
+              <textarea
+                value={catalogDraft()}
+                spellcheck={false}
+                onInput={(event) => setCatalogDraft(event.currentTarget.value)}
+              />
+              <Show when={catalogDiagnostics().length > 0}>
+                <div class="diagnostics" role="alert">
+                  <For each={catalogDiagnostics()}>
+                    {(diagnostic) => (
+                      <p>
+                        <code>{diagnostic.path}</code>
+                        {diagnostic.message}
+                      </p>
+                    )}
+                  </For>
+                </div>
+              </Show>
+              <div class="document-actions">
+                <button class="primary" onClick={applyCatalog}>Apply</button>
+                <button onClick={restoreSampleCatalog}>Fixture</button>
+              </div>
+            </details>
+          </section>
+
+          <section class="library-section layers-section">
+            <div class="section-heading">
+              <h2>Layers</h2>
+              <span>{nodes().length}</span>
+            </div>
+            <For each={nodes()}>
+              {({ node, depth }) => (
+                <button
+                  classList={{ "layer-row": true, selected: node.id === selectedId() }}
+                  style={{ "padding-left": `${10 + depth * 14}px` }}
+                  onClick={() => setSelectedId(node.id)}
+                >
+                  <span class="layer-kind">{node.kind === "component" ? "C" : "E"}</span>
+                  {node.name}
+                </button>
+              )}
+            </For>
+          </section>
+        </aside>
+
+        <main class="canvas-panel composition-panel">
+          <section class="workspace-pane">
+            <div class="pane-heading">
+              <div>
+                <strong>Semantic canvas</strong>
+                <span>Framework-neutral UI IR</span>
+              </div>
+              <code>{document().id}</code>
+            </div>
+            <div class="canvas-frame">
+              <NodePreview node={document().root} selectedId={selectedId()} onSelect={setSelectedId} />
+            </div>
+          </section>
+
+          <section class="workspace-pane runtime-pane">
+            <div class="pane-heading">
+              <div>
+                <strong>Runtime preview</strong>
+                <span>sandbox="allow-scripts" · no same-origin permission</span>
+              </div>
+              <code>{previewReady() ? previewRequestId() : "connecting"}</code>
+            </div>
+            <iframe
+              ref={(element) => { previewFrame = element; }}
+              class="runtime-frame"
+              src={PREVIEW_URL}
+              title="Afrodite isolated runtime preview"
+              sandbox="allow-scripts"
+              onLoad={() => {
+                setPreviewReady(false);
+                setStatus("Waiting for sandbox preview host");
+              }}
+            />
+            <Show when={previewDiagnostics().length > 0}>
+              <div class="preview-result diagnostics">
+                <For each={previewDiagnostics()}>
+                  {(diagnostic) => (
+                    <p>
+                      <code>{diagnostic.code}</code>
+                      {diagnostic.message}
+                    </p>
+                  )}
+                </For>
+              </div>
+            </Show>
+          </section>
         </main>
 
         <aside class="panel inspector-panel">
@@ -311,6 +502,11 @@ export function App() {
                 <div class="node-heading">
                   <strong>{node.name}</strong>
                   <span class="node-id">{node.id}</span>
+                  <Show when={node.kind === "component" && node.sourceBinding}>
+                    <code class="source-binding">
+                      {node.sourceBinding?.repositoryPath}#{node.sourceBinding?.exportName}
+                    </code>
+                  </Show>
                 </div>
 
                 <section class="inspector-section">
@@ -374,6 +570,16 @@ export function App() {
                     onFixedChange={changeFixedSize}
                   />
                 </section>
+
+                <Show when={node.kind === "component"}>
+                  <section class="inspector-section">
+                    <div class="section-heading">
+                      <h3>Props</h3>
+                      <span>JSON-safe only</span>
+                    </div>
+                    <pre>{JSON.stringify(node.props, null, 2)}</pre>
+                  </section>
+                </Show>
 
                 <section class="inspector-section document-section">
                   <div class="section-heading">
@@ -500,7 +706,11 @@ function NodePreview(props: {
 
   return (
     <div
-      classList={{ "preview-node": true, selected: props.node.id === props.selectedId }}
+      classList={{
+        "preview-node": true,
+        selected: props.node.id === props.selectedId,
+        component: props.node.kind === "component",
+      }}
       style={style()}
       onClick={(event) => {
         event.stopPropagation();
@@ -513,6 +723,73 @@ function NodePreview(props: {
       </For>
     </div>
   );
+}
+
+function createComponentNode(component: IndexedComponent): UiNode {
+  insertedNodeSequence += 1;
+  const id = `node.component.${slugify(component.name)}.${insertedNodeSequence}`;
+
+  return {
+    id,
+    kind: "component",
+    component: component.name,
+    name: component.name,
+    layout: {
+      display: "block",
+      direction: "column",
+      gap: 8,
+      padding: 8,
+      sizing: { width: "hug", height: "hug" },
+    },
+    props: createDefaultProps(component),
+    sourceBinding: {
+      repositoryPath: component.sourcePath,
+      exportName: component.exportName,
+      stableMarker: component.id,
+    },
+    children: [],
+  };
+}
+
+function createDefaultProps(component: IndexedComponent): Record<string, unknown> {
+  const props: Record<string, unknown> = {};
+
+  for (const prop of component.props) {
+    if (!prop.serializable) continue;
+    if (prop.defaultValue !== undefined) {
+      props[prop.name] = cloneJsonValue(prop.defaultValue);
+    } else if (prop.required) {
+      props[prop.name] = fallbackPropValue(component, prop);
+    }
+  }
+
+  return props;
+}
+
+function fallbackPropValue(component: IndexedComponent, prop: IndexedProp): unknown {
+  switch (prop.valueKind) {
+    case "string":
+      return component.name;
+    case "number":
+      return 0;
+    case "boolean":
+      return false;
+    case "array":
+      return [];
+    case "object":
+      return {};
+    case "enum":
+    case "literal":
+      return prop.typeText.match(/["']([^"']+)["']/)?.[1] ?? "default";
+    case "null":
+      return null;
+    default:
+      return null;
+  }
+}
+
+function cloneJsonValue(value: unknown): unknown {
+  return JSON.parse(JSON.stringify(value));
 }
 
 function flatten(node: UiNode, depth = 0): FlatNode[] {
@@ -532,9 +809,7 @@ function restoreSavedDocument(): {
   diagnostics: readonly UiDiagnostic[];
 } {
   const source = localStorage.getItem(STORAGE_KEY);
-  if (!source) {
-    return { document: initialDocument, status: "Ready", diagnostics: [] };
-  }
+  if (!source) return { document: initialDocument, status: "Ready", diagnostics: [] };
 
   const decoded = decodeUiDocument(source);
   if (!decoded.ok) {
@@ -561,7 +836,7 @@ function isTextEditingTarget(target: EventTarget | null): boolean {
 }
 
 function slugify(value: string): string {
-  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "document";
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "node";
 }
 
 function capitalize(value: string): string {

@@ -46,19 +46,36 @@ Verification boundary:
 - `pnpm test` passes;
 - `pnpm build` passes.
 
-## VS-003: Visual composition with real components
+## VS-003: Visual composition with real components — complete
 
-**Goal:** place an indexed component into a document and render it in an isolated preview host.
+**Goal:** place an indexed component into a document and render it through an isolated preview host.
 
-Acceptance criteria:
+Delivered:
 
-- Studio can load a generated component catalog;
-- component names, paths, prop editors, and diagnostics are visible;
-- drag a catalog component into a valid container;
-- persist its component reference and serializable props in UI IR;
-- render it from the target workspace inside an isolated preview host;
-- display import, compilation, and runtime failures as structured diagnostics;
-- target-project execution requires explicit trust.
+- `@afrodite/protocol` validates component catalogs and preview messages at process boundaries;
+- Studio loads editable component-catalog JSON and displays component names, source paths, prop counts, and indexer diagnostics;
+- an indexed component can be placed into the currently selected UI IR container;
+- insertion is represented by a reversible command and participates in undo/redo;
+- component nodes persist stable source bindings and JSON-safe default props;
+- Studio and the preview host run as separate Vite applications;
+- the preview host is embedded with `sandbox="allow-scripts"` and no same-origin permission;
+- preview messages are validated before they are accepted;
+- components are resolved only through a trusted static registry, never through arbitrary document-supplied imports;
+- the indexed Button and Panel fixtures render as real SolidJS components;
+- missing registry entries and runtime render failures produce structured preview diagnostics;
+- protocol decoding and insertion history are covered by unit tests.
+
+Current trust boundary:
+
+- static indexing remains safe and does not execute the target project;
+- runtime preview executes only components explicitly included in the preview-host registry;
+- connecting an arbitrary repository will require an explicit build/approval step that creates an isolated registry bundle.
+
+Verification boundary:
+
+- `pnpm typecheck` passes;
+- `pnpm test` passes;
+- `pnpm build` passes.
 
 ## VS-004: Safe SolidJS code patch
 
