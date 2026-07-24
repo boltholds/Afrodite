@@ -24,6 +24,29 @@ export const sourceBindingSchema = z.object({
   stableMarker: z.string().min(1).optional(),
 });
 
+export type LayoutDirection = z.infer<typeof layoutDirectionSchema>;
+export type Layout = z.infer<typeof layoutSchema>;
+export type SourceBinding = z.infer<typeof sourceBindingSchema>;
+
+interface UiNodeBase {
+  id: string;
+  name: string;
+  layout: Layout;
+  props: Record<string, unknown>;
+  sourceBinding?: SourceBinding | undefined;
+  children: UiNode[];
+}
+
+export type UiNode =
+  | (UiNodeBase & {
+      kind: "element";
+      element: string;
+    })
+  | (UiNodeBase & {
+      kind: "component";
+      component: string;
+    });
+
 const uiNodeBaseSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -32,19 +55,7 @@ const uiNodeBaseSchema = z.object({
   sourceBinding: sourceBindingSchema.optional(),
 });
 
-export type UiNode = z.infer<typeof uiNodeSchema>;
-
-export const uiNodeSchema: z.ZodType<{
-  id: string;
-  name: string;
-  layout: z.infer<typeof layoutSchema>;
-  props: Record<string, unknown>;
-  sourceBinding?: z.infer<typeof sourceBindingSchema>;
-  children: UiNode[];
-} & (
-  | { kind: "element"; element: string }
-  | { kind: "component"; component: string }
-)> = z.lazy(() =>
+export const uiNodeSchema: z.ZodType<UiNode> = z.lazy(() =>
   z.intersection(
     uiNodeBaseSchema,
     z.discriminatedUnion("kind", [
@@ -69,9 +80,6 @@ export const uiDocumentSchema = z.object({
   root: uiNodeSchema,
 });
 
-export type LayoutDirection = z.infer<typeof layoutDirectionSchema>;
-export type Layout = z.infer<typeof layoutSchema>;
-export type SourceBinding = z.infer<typeof sourceBindingSchema>;
 export type UiDocument = z.infer<typeof uiDocumentSchema>;
 
 export function parseUiDocument(input: unknown): UiDocument {
