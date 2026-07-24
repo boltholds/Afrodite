@@ -22,26 +22,29 @@ Verification boundary:
 - `pnpm test` passes;
 - `pnpm build` passes.
 
-## VS-002: SolidJS component indexing
+## VS-002: SolidJS component indexing — complete
 
-**Goal:** build a component catalog from an existing SolidJS workspace.
+**Goal:** build a component catalog from an existing SolidJS workspace without executing its code.
 
-Implementation order:
+Delivered:
 
-1. define a framework-neutral component catalog and diagnostic model;
-2. parse TypeScript/TSX source files through static analysis;
-3. discover exported SolidJS components and their source locations;
-4. extract serializable public props where possible;
-5. expose the catalog to Studio through a deterministic JSON boundary;
-6. test the indexer against a small fixture workspace before connecting Gefest CAD.
+- a framework-neutral `ComponentCatalog` and diagnostic model;
+- tsconfig discovery and parsing through the TypeScript compiler API;
+- exported PascalCase function and variable component discovery;
+- barrel re-export resolution and declaration deduplication;
+- component source paths, lines, columns, declaration kinds, and public export names;
+- typed prop extraction with required state, documentation, type text, and simple defaults;
+- JSON-safe classification for primitives, literal unions, arrays, tuples, and plain objects;
+- explicit diagnostics for callbacks, runtime objects, unconstrained types, and compiler failures;
+- a Node CLI that writes deterministic component-catalog JSON;
+- fixture coverage proving components are found while ordinary functions are ignored;
+- no use of dynamic imports, target application startup, Vite, or package-script execution.
 
-Acceptance criteria:
+Verification boundary:
 
-- exported JSX components are discovered through static analysis;
-- component names and source paths are shown;
-- serializable props are extracted where possible;
-- unsupported types produce diagnostics rather than silent guesses;
-- no target-project code is executed during indexing.
+- `pnpm typecheck` passes;
+- `pnpm test` passes;
+- `pnpm build` passes.
 
 ## VS-003: Visual composition with real components
 
@@ -49,10 +52,13 @@ Acceptance criteria:
 
 Acceptance criteria:
 
+- Studio can load a generated component catalog;
+- component names, paths, prop editors, and diagnostics are visible;
 - drag a catalog component into a valid container;
-- persist its component reference and props in UI IR;
-- render it from the target workspace;
-- display import or runtime failures as structured diagnostics.
+- persist its component reference and serializable props in UI IR;
+- render it from the target workspace inside an isolated preview host;
+- display import, compilation, and runtime failures as structured diagnostics;
+- target-project execution requires explicit trust.
 
 ## VS-004: Safe SolidJS code patch
 
