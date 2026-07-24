@@ -48,9 +48,15 @@ function PreviewHost() {
       );
     };
 
+    const announceReady = () => window.parent.postMessage(createPreviewReadyMessage(), "*");
     window.addEventListener("message", handleMessage);
-    window.parent.postMessage(createPreviewReadyMessage(), "*");
-    onCleanup(() => window.removeEventListener("message", handleMessage));
+    announceReady();
+    const readyTimer = window.setTimeout(announceReady, 120);
+
+    onCleanup(() => {
+      window.clearTimeout(readyTimer);
+      window.removeEventListener("message", handleMessage);
+    });
   });
 
   return (
@@ -76,10 +82,12 @@ function PreviewHost() {
           {(node) => (
             <ErrorBoundary
               fallback={(error) => (
-                <div class="runtime-error">
-                  <strong>Render failed</strong>
-                  <p>{error instanceof Error ? error.message : String(error)}</p>
-                </div>
+                <RenderFailure
+                  error={error}
+                  requestId={requestId()}
+                  existingDiagnostics={diagnostics()}
+                  onReport={setDiagnostics}
+                />
               )}
             >
               <RuntimeNode node={node()} />
@@ -100,6 +108,38 @@ function PreviewHost() {
           </For>
         </footer>
       </Show>
+    </div>
+  );
+}
+
+function RenderFailure(props: {
+  error: unknown;
+  requestId: string;
+  existingDiagnostics: readonly PreviewDiagnostic[];
+  onReport: (diagnostics: readonly PreviewDiagnostic[]) => void;
+}) {
+  const message = () => props.error instanceof Error ? props.error.message : String(props.error);
+
+  onMount(() => {
+    const nextDiagnostics: PreviewDiagnostic[] = [
+      ...props.existingDiagnostics,
+      {
+        code: "RENDER_FAILED",
+        severity: "error",
+        message: message(),
+      },
+    ];
+    props.onReport(nextDiagnostics);
+    window.parent.postMessage(
+      createPreviewRenderResult(props.requestId, nextDiagnostics),
+      "*",
+    );
+  });
+
+  return (
+    <div class="runtime-error">
+      <strong>Render failed</strong>
+      <p>{message()}</p>
     </div>
   );
 }
