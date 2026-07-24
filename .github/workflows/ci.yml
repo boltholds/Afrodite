@@ -31,10 +31,21 @@ jobs:
         run: pnpm install --frozen-lockfile=false
 
       - name: Typecheck
-        run: pnpm typecheck
+        run: |
+          mkdir -p .ci-logs
+          pnpm typecheck 2>&1 | tee .ci-logs/typecheck.log
 
       - name: Test
-        run: pnpm test
+        run: pnpm test 2>&1 | tee .ci-logs/test.log
 
       - name: Build
-        run: pnpm build
+        run: pnpm build 2>&1 | tee .ci-logs/build.log
+
+      - name: Upload verification logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-logs
+          path: .ci-logs
+          if-no-files-found: ignore
+          retention-days: 3
