@@ -26,6 +26,15 @@ Verification boundary:
 
 **Goal:** build a component catalog from an existing SolidJS workspace.
 
+Implementation order:
+
+1. define a framework-neutral component catalog and diagnostic model;
+2. parse TypeScript/TSX source files through static analysis;
+3. discover exported SolidJS components and their source locations;
+4. extract serializable public props where possible;
+5. expose the catalog to Studio through a deterministic JSON boundary;
+6. test the indexer against a small fixture workspace before connecting Gefest CAD.
+
 Acceptance criteria:
 
 - exported JSX components are discovered through static analysis;
