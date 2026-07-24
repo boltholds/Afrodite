@@ -23,9 +23,11 @@ Framework-neutral document model. It owns stable node identifiers, component ref
 
 Owns reversible document commands and in-memory command history. Studio does not mutate `UiDocument` objects directly. A layout change is created as a command with `apply` and `revert`, then executed through the history state. New commands clear the redo branch.
 
-### `@afrodite/project-indexer` — planned
+### `@afrodite/project-indexer`
 
-Discovers components, public props, design tokens, exports, stories, and safe insertion points in a target repository.
+Builds a deterministic catalog from a SolidJS or TypeScript workspace through the TypeScript compiler API. It resolves exported symbols and barrel aliases, identifies PascalCase JSX components, extracts typed props and source locations, classifies JSON-safe values, and emits structured diagnostics for unsupported types.
+
+The indexer never imports target modules or executes application code. Its output is a JSON boundary that Studio and later protocol packages can consume without sharing TypeScript compiler objects.
 
 ### `@afrodite/code-adapters` — planned
 
@@ -48,6 +50,20 @@ Inspector interaction
 Undo calls `revert` on the last executed command. Redo calls `apply` on the first command in the future branch. Importing or resetting a complete document is also represented as a reversible command.
 
 Selection remains transient Studio state. Document structure and layout remain persistent UI IR state. This separation prevents viewport focus changes from polluting command history.
+
+## Project indexing boundary
+
+```text
+tsconfig.json
+    -> TypeScript Program
+    -> module export symbols
+    -> component declarations
+    -> prop types
+    -> serializability classifier
+    -> ComponentCatalog JSON
+```
+
+Compiler objects remain inside `@afrodite/project-indexer`. The catalog contains only stable strings, source coordinates, prop metadata, JSON-safe defaults, and diagnostics. This prevents Studio from depending directly on the TypeScript compiler and gives future indexer implementations a stable interchange format.
 
 ## Persistence boundary
 
@@ -82,4 +98,4 @@ Afrodite must not rewrite arbitrary source files from templates. A code update f
 
 ## Security boundary
 
-Imported projects and preview code must run in an isolated process or sandbox. Indexing should begin as static analysis; executing project code requires explicit trust.
+Imported projects and preview code must run in an isolated process or sandbox. Indexing begins as static analysis and does not execute target-project modules, scripts, Vite plugins, or application configuration. Rendering real project components requires a separate explicit trust boundary in VS-003.
