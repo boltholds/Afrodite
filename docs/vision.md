@@ -21,6 +21,12 @@ A UI document should preserve developer intent explicitly:
 
 Small product teams and individual developers building component-based web applications with AI-assisted coding workflows.
 
+## Visual identity
+
+Afrodite is visually independent from Gefest CAD. Its workspace uses a near-black violet foundation, neon pink as the primary creative and selection accent, and cyan for system signals, stable identifiers, and synchronization state.
+
+The interface should feel technological, precise, elegant, and cinematic, with restrained luminous lines, grid structures, localized glow, and compact geometry. The detailed rules are defined in `docs/visual-language.md`.
+
 ## Non-goals for the first releases
 
 - a general-purpose vector illustration editor;
@@ -37,3 +43,4 @@ Small product teams and individual developers building component-based web appli
 4. Reuse the repository's real components and tokens.
 5. Keep the intermediate representation framework-neutral.
 6. Treat visual editing as constrained source transformation.
+7. Keep the Afrodite visual language distinct from the industrial Gefest identity.
