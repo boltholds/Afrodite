@@ -1,4 +1,4 @@
-import type { Layout, UiDocument, UiNode } from "@afrodite/ui-ir";
+import type { Layout, SourceBinding, UiDocument, UiNode } from "@afrodite/ui-ir";
 
 export type LayoutPatch = Partial<Omit<Layout, "sizing">> & {
   sizing?: Partial<Layout["sizing"]>;
@@ -101,7 +101,7 @@ export function createInsertNodeCommand(
     throw new Error(`Cannot create insert command: node ${node.id} already exists`);
   }
 
-  const snapshot = cloneNode(node);
+  const snapshot = normalizeNodeBinding(cloneNode(node));
   const insertionIndex = Math.min(
     Math.max(index ?? parent.children.length, 0),
     parent.children.length,
@@ -251,6 +251,31 @@ function cloneNode(node: UiNode): UiNode {
     props: { ...node.props },
     children: node.children.map(cloneNode),
     ...(node.sourceBinding ? { sourceBinding: { ...node.sourceBinding } } : {}),
+  };
+}
+
+function normalizeNodeBinding(node: UiNode): UiNode {
+  const children = node.children.map(normalizeNodeBinding);
+  if (!node.sourceBinding) return { ...node, children };
+
+  return {
+    ...node,
+    children,
+    sourceBinding: normalizeSourceBinding(node.sourceBinding),
+  };
+}
+
+function normalizeSourceBinding(binding: SourceBinding): SourceBinding {
+  if (binding.frameworkId) return { ...binding };
+
+  const marker = binding.componentId ?? binding.stableMarker;
+  const match = marker?.match(/^([a-z][a-z0-9.-]*):(.+)$/);
+  if (!match) return { ...binding };
+
+  return {
+    ...binding,
+    frameworkId: match[1],
+    componentId: binding.componentId ?? marker,
   };
 }
 
