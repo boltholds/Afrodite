@@ -26,22 +26,6 @@ export const frameworkDescriptorSchema = z.object({
   capabilities: frameworkCapabilitiesSchema,
 });
 
-const legacySolidDescriptor = {
-  frameworkId: "solid",
-  adapterId: "afrodite.adapter.solid",
-  displayName: "SolidJS",
-  adapterVersion: "0.1.0",
-  sourceExtensions: [".tsx", ".jsx"],
-  runtimePackages: ["solid-js"],
-  capabilities: {
-    projectDetection: true,
-    staticIndexing: true,
-    runtimePreview: true,
-    sourcePatching: false,
-    propEditing: true,
-  },
-} as const;
-
 export const diagnosticSeveritySchema = z.enum(["info", "warning", "error"]);
 export const indexDiagnosticCodeSchema = z.enum([
   "TSCONFIG_NOT_FOUND",
@@ -102,8 +86,8 @@ export const indexedPropSchema = z.object({
 
 export const indexedComponentSchema = z.object({
   id: z.string().min(1),
-  frameworkId: frameworkIdSchema.default("solid"),
-  adapterId: z.string().min(1).default("afrodite.adapter.solid"),
+  frameworkId: frameworkIdSchema.optional(),
+  adapterId: z.string().min(1).optional(),
   name: z.string().min(1),
   exportName: z.string().min(1),
   sourcePath: z.string().min(1),
@@ -116,7 +100,7 @@ export const componentCatalogSchema = z.object({
   schemaVersion: z.literal(1),
   projectRoot: z.string().min(1),
   tsconfigPath: z.string().min(1),
-  frameworks: z.array(frameworkDescriptorSchema).default([legacySolidDescriptor]),
+  frameworks: z.array(frameworkDescriptorSchema).optional(),
   components: z.array(indexedComponentSchema),
   diagnostics: z.array(indexDiagnosticSchema),
 });
