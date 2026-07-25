@@ -48,6 +48,10 @@ export interface SourceSnapshot {
   readonly version?: string;
 }
 
+export interface VersionedSourceSnapshot extends SourceSnapshot {
+  readonly version: string;
+}
+
 export interface TextEdit {
   readonly start: number;
   readonly end: number;
@@ -80,15 +84,36 @@ export interface VerificationStep {
 }
 
 export interface SourcePatchPlan {
+  readonly planId: string;
   readonly frameworkId: FrameworkId;
   readonly adapterId: string;
   readonly operation: FrameworkOperation["kind"];
   readonly repositoryPath: string;
-  readonly sourceVersion?: string;
+  readonly sourceVersion: string;
   readonly edits: readonly TextEdit[];
   readonly diagnostics: readonly AdapterDiagnostic[];
   readonly verification: readonly VerificationStep[];
   readonly requiresApproval: true;
+}
+
+export interface PatchPreview {
+  readonly planId: string;
+  readonly repositoryPath: string;
+  readonly sourceVersion: string;
+  readonly before: string;
+  readonly after: string;
+  readonly changed: boolean;
+  readonly diagnostics: readonly AdapterDiagnostic[];
+}
+
+export interface CreateSourcePatchPlanInput {
+  readonly frameworkId: FrameworkId;
+  readonly adapterId: string;
+  readonly operation: FrameworkOperation["kind"];
+  readonly source: SourceSnapshot;
+  readonly edits: readonly TextEdit[];
+  readonly diagnostics?: readonly AdapterDiagnostic[];
+  readonly verification?: readonly VerificationStep[];
 }
 
 export interface FrameworkAdapter {
@@ -160,5 +185,126 @@ export function createDependencyDetection(
     confidence,
     matched: evidence.length > 0,
     evidence,
+  };
+}
+
+export function createSourceVersion(content: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < content.length; index += 1) {
+    hash ^= content.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `fnv1a32:${(hash >>> 0).toString(16).padStart(8, "0")}:${content.length}`;
+}
+
+export function createSourcePatchPlan(input: CreateSourcePatchPlanInput): SourcePatchPlan {
+  const sourceVersion = input.source.version ?? createSourceVersion(input.source.content);
+  const edits = [...input.edits].sort((left, right) => left.start - right.start || left.end - right.end);
+  const identity = [
+    input.frameworkId,
+    input.adapterId,
+    input.operation,
+    input.source.repositoryPath,
+    sourceVersion,
+    ...edits.map((edit) => `${edit.start}:${edit.end}:${createSourceVersion(edit.replacement)}`),
+  ].join("|");
+
+  return {
+    planId: `patch:${createSourceVersion(identity).replace(/[:]/g, "-")}`,
+    frameworkId: input.frameworkId,
+    adapterId: input.adapterId,
+    operation: input.operation,
+    repositoryPath: input.source.repositoryPath,
+    sourceVersion,
+    edits,
+    diagnostics: [...(input.diagnostics ?? [])],
+    verification: [...(input.verification ?? [])],
+    requiresApproval: true,
+  };
+}
+
+export function validatePatchPlan(
+  plan: SourcePatchPlan,
+  source: SourceSnapshot,
+): readonly AdapterDiagnostic[] {
+  const diagnostics: AdapterDiagnostic[] = [];
+  const sourceVersion = source.version ?? createSourceVersion(source.content);
+
+  if (source.repositoryPath !== plan.repositoryPath) {
+    diagnostics.push({
+      code: "SOURCE_PATH_MISMATCH",
+      severity: "error",
+      message: `Patch targets ${plan.repositoryPath}, but the source snapshot is ${source.repositoryPath}.`,
+      repositoryPath: source.repositoryPath,
+    });
+  }
+
+  if (sourceVersion !== plan.sourceVersion) {
+    diagnostics.push({
+      code: "SOURCE_VERSION_MISMATCH",
+      severity: "error",
+      message: "The source changed after this patch was planned. Re-plan against the current file.",
+      repositoryPath: source.repositoryPath,
+    });
+  }
+
+  let previousEnd = -1;
+  for (const edit of plan.edits) {
+    if (!Number.isInteger(edit.start) || !Number.isInteger(edit.end)) {
+      diagnostics.push({
+        code: "INVALID_EDIT_RANGE",
+        severity: "error",
+        message: "Text edit offsets must be integers.",
+        repositoryPath: plan.repositoryPath,
+      });
+      continue;
+    }
+    if (edit.start < 0 || edit.end < edit.start || edit.end > source.content.length) {
+      diagnostics.push({
+        code: "EDIT_OUT_OF_BOUNDS",
+        severity: "error",
+        message: `Text edit [${edit.start}, ${edit.end}) is outside the source bounds.`,
+        repositoryPath: plan.repositoryPath,
+      });
+    }
+    if (edit.start < previousEnd) {
+      diagnostics.push({
+        code: "OVERLAPPING_EDITS",
+        severity: "error",
+        message: "Patch edits overlap and cannot be applied deterministically.",
+        repositoryPath: plan.repositoryPath,
+      });
+    }
+    previousEnd = Math.max(previousEnd, edit.end);
+  }
+
+  return diagnostics;
+}
+
+export function applyTextEdits(content: string, edits: readonly TextEdit[]): string {
+  let next = content;
+  const descending = [...edits].sort((left, right) => right.start - left.start || right.end - left.end);
+  for (const edit of descending) {
+    next = `${next.slice(0, edit.start)}${edit.replacement}${next.slice(edit.end)}`;
+  }
+  return next;
+}
+
+export function createPatchPreview(
+  plan: SourcePatchPlan,
+  source: SourceSnapshot,
+): PatchPreview {
+  const diagnostics = [...plan.diagnostics, ...validatePatchPlan(plan, source)];
+  const blocked = diagnostics.some((diagnostic) => diagnostic.severity === "error");
+  const after = blocked ? source.content : applyTextEdits(source.content, plan.edits);
+
+  return {
+    planId: plan.planId,
+    repositoryPath: plan.repositoryPath,
+    sourceVersion: source.version ?? createSourceVersion(source.content),
+    before: source.content,
+    after,
+    changed: after !== source.content,
+    diagnostics,
   };
 }

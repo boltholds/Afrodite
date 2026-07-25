@@ -1,28 +1,17 @@
 import {
   createDependencyDetection,
   type FrameworkAdapter,
-  type FrameworkDescriptor,
 } from "@afrodite/framework-core";
+import { solidFrameworkDescriptor } from "./descriptor.js";
+import { planSolidLayoutPatch } from "./patch.js";
 
-export const solidFrameworkDescriptor: FrameworkDescriptor = {
-  frameworkId: "solid",
-  adapterId: "afrodite.adapter.solid",
-  displayName: "SolidJS",
-  adapterVersion: "0.1.0",
-  sourceExtensions: [".tsx", ".jsx"],
-  runtimePackages: ["solid-js"],
-  capabilities: {
-    projectDetection: true,
-    staticIndexing: true,
-    runtimePreview: true,
-    sourcePatching: false,
-    propEditing: true,
-  },
-};
+export { solidFrameworkDescriptor } from "./descriptor.js";
+export { planSolidLayoutPatch } from "./patch.js";
 
 export function createSolidFrameworkAdapter(): FrameworkAdapter {
   return {
     descriptor: solidFrameworkDescriptor,
     detect: (manifest) => createDependencyDetection(solidFrameworkDescriptor, manifest),
+    planPatch: planSolidLayoutPatch,
   };
 }
