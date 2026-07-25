@@ -6,105 +6,83 @@
 
 Delivered:
 
-- Studio loads and renders a sample `UiDocument`;
-- the semantic component hierarchy is visible and selectable;
-- selection is synchronized between layers, canvas, and inspector;
-- display, direction, gap, padding, width, and height constraints are editable;
-- every document mutation is represented by a reversible command;
-- undo and redo work through buttons and keyboard shortcuts;
-- JSON documents can be validated, applied, saved in the browser, copied, and downloaded;
-- invalid JSON, schema violations, and duplicate stable IDs produce structured diagnostics;
-- command history and serialization behavior are covered by unit tests.
+- Studio loads and renders a `UiDocument`;
+- hierarchy, canvas, and inspector selection are synchronized;
+- layout constraints are editable through reversible commands;
+- undo, redo, serialization, persistence, and structured diagnostics are covered by tests.
 
 ## VS-002: SolidJS component indexing — complete
 
-**Goal:** build a component catalog from an existing SolidJS workspace without executing its code.
+**Goal:** build a component catalog from a SolidJS workspace without executing its code.
 
 Delivered:
 
-- a serializable `ComponentCatalog` and diagnostic model;
-- tsconfig discovery and parsing through the TypeScript compiler API;
-- exported PascalCase function and variable component discovery;
-- barrel re-export resolution and declaration deduplication;
-- component source paths, locations, declaration kinds, public names, props, and defaults;
-- JSON-safe classification and explicit unsupported-type diagnostics;
-- a deterministic CLI output;
-- no target-project module, Vite configuration, or package script execution.
+- TypeScript compiler-based static discovery;
+- barrel export resolution and component deduplication;
+- public prop, default, source-location, and serializability metadata;
+- deterministic catalog JSON and explicit unsupported-type diagnostics;
+- no target-project module, Vite configuration, or package-script execution.
 
 ## VS-003: Visual composition with real components — complete
 
-**Goal:** place an indexed component into a document and render it through an isolated preview host.
+**Goal:** place an indexed component into UI IR and render it through an isolated preview host.
 
 Delivered:
 
 - validated catalog and preview protocols;
 - a component library in Studio;
 - reversible insertion of source-bound component nodes;
-- separate Studio and preview-host applications;
-- an opaque-origin sandbox iframe;
-- a trusted static component registry;
-- structured missing-component and runtime-failure diagnostics.
+- separate Studio and opaque-origin preview-host applications;
+- a trusted component registry and structured runtime diagnostics.
 
 ## VS-003.5: Framework adapter foundation — complete
 
-**Goal:** remove SolidJS assumptions from the extension and safe-write boundaries before implementing source patching.
+**Goal:** remove SolidJS assumptions from extension and safe-write boundaries.
 
 Delivered:
 
-- `@afrodite/framework-core` with adapter descriptors, capability flags, detection, registry, operations, source snapshots, text edits, patch plans, diagnostics, and verification steps;
-- `@afrodite/adapter-solid` as the first active framework identity;
-- `@afrodite/adapter-react` as an independently detected expansion target;
-- optional `frameworkId`, `adapterId`, and `componentId` fields in UI IR source bindings;
-- framework descriptors and component identities in the catalog protocol;
-- required-framework and available-runtime metadata in the preview protocol;
-- `FRAMEWORK_NOT_SUPPORTED` diagnostics from the preview host;
-- backward compatibility for documents and catalogs created before adapter metadata existed;
-- documentation defining how Vue, Svelte, Qwik, and other adapters can be added.
+- `@afrodite/framework-core` with adapter descriptors, capabilities, detection, registry, operations, source snapshots, patch plans, diagnostics, and verification steps;
+- independent SolidJS and React adapter identities;
+- framework metadata in UI IR, catalogs, and preview messages;
+- explicit unsupported-runtime diagnostics;
+- backward compatibility for older Solid-only documents and catalogs.
 
-Verification criteria:
+## VS-004: Framework-neutral safe source patch — complete
 
-- SolidJS and React projects can be detected independently from package manifests;
-- multiple adapters can be registered without framework conditionals in shared code;
-- a source binding resolves to an adapter through stable IDs;
-- preview requests identify the frameworks required by a subtree;
-- unsupported preview runtimes fail explicitly;
-- all packages pass typecheck, tests, and build.
+**Goal:** convert a visual layout edit into an approved and verified source patch, with SolidJS as the first syntax adapter.
 
-## VS-004: Framework-neutral safe source patch
+Delivered in the shared boundary:
 
-**Goal:** convert one visual layout edit into a reviewed and verified source patch, with SolidJS as the first syntax adapter.
+- deterministic content versions and patch IDs;
+- sorted, non-overlapping text edits;
+- path, bounds, overlap, and stale-source validation;
+- deterministic before/after previews;
+- approvals bound to `planId` and `sourceVersion`;
+- compare-and-swap filesystem writes below a configured project root;
+- formatter, typecheck, test, build, or custom verification steps;
+- automatic compare-and-swap rollback when a required check fails;
+- explicit `applied`, `rejected`, `rolled-back`, and `rollback-failed` results.
 
-Shared acceptance criteria:
+Delivered in the SolidJS adapter:
 
-- compare the before and after UI IR state and create a `FrameworkOperation`;
-- resolve the adapter from `SourceBinding.frameworkId` and `adapterId`;
-- reject missing, ambiguous, or capability-incompatible adapters;
-- pass an immutable `SourceSnapshot` to the adapter;
-- receive a `SourcePatchPlan` containing non-overlapping text edits, diagnostics, source version, and verification steps;
-- generate a minimal unified diff independently from the framework;
-- preserve unrelated source text and handwritten behavior;
-- reject stale source snapshots before applying changes;
-- require explicit approval for every plan;
-- apply edits atomically and support rollback;
-- run formatter, typecheck, tests, or build commands declared by the adapter.
+- `sourcePatching: true` and a real `planPatch` implementation;
+- binding through a unique static `data-afrodite-id` marker;
+- AST-informed replacement of an existing static `style` object;
+- insertion of a style object when the marked JSX element has none;
+- preservation of event handlers, expressions, children, attributes, spreads, and unmanaged CSS properties;
+- refusal to guess when markers are absent or duplicated, bindings target another file/framework, or styles are dynamic;
+- formatter and TypeScript verification declarations.
 
-SolidJS adapter acceptance criteria:
+Verification boundary:
 
-- bind a UI IR node to an existing TSX/JSX element;
-- change one supported layout property;
-- preserve signals, event handlers, expressions, spreads, and component children;
-- generate a minimal AST-informed patch rather than rewriting the file;
-- verify formatting and TypeScript.
-
-React expansion contract:
-
-- React source patching is implemented in `@afrodite/adapter-react` later;
-- it consumes the same `FrameworkOperation` and returns the same `SourcePatchPlan`;
-- Studio, UI IR, command history, diff review, approval, apply, rollback, and verification orchestration remain unchanged.
+- framework-core patch planning tests pass;
+- SolidJS planner preservation and refusal tests pass;
+- approval, compare-and-swap, successful apply, and rollback tests pass;
+- workspace typecheck, tests, and production builds pass.
 
 ## VS-005: React indexing and preview parity
 
-**Goal:** prove the extension model by adding React without modifying the shared editor architecture.
+**Goal:** prove the adapter model by adding React without modifying the shared editor architecture.
 
 Acceptance criteria:
 
@@ -114,4 +92,16 @@ Acceptance criteria:
 - compile a trusted React preview runtime registry;
 - render React components in an isolated preview host;
 - report unsupported server-only, async, context-dependent, or runtime props explicitly;
-- reuse the existing catalog, UI IR, preview, command, and diagnostic contracts.
+- reuse the existing catalog, UI IR, preview, command, patch-plan, approval, write, verification, and rollback contracts.
+
+## VS-006: React source patch parity
+
+**Goal:** implement React syntax planning against the same verified-write boundary.
+
+Acceptance criteria:
+
+- consume the existing `FrameworkOperation` contract;
+- bind React JSX through stable markers;
+- return the same `SourcePatchPlan` shape;
+- preserve hooks, callbacks, expressions, children, and unrelated styles;
+- use the existing preview, approval, compare-and-swap, verification, and rollback services unchanged.
