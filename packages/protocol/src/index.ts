@@ -2,6 +2,9 @@ export {
   componentCatalogSchema,
   decodeComponentCatalog,
   diagnosticSeveritySchema,
+  frameworkCapabilitiesSchema,
+  frameworkDescriptorSchema,
+  frameworkIdSchema,
   indexedComponentSchema,
   indexedPropSchema,
   indexDiagnosticCodeSchema,
@@ -21,6 +24,7 @@ export {
   previewReadyMessageSchema,
   previewRenderRequestSchema,
   previewRenderResultSchema,
+  previewRuntimeSchema,
 } from "./preview";
 
 export type {
@@ -28,6 +32,8 @@ export type {
   CatalogProtocolDiagnostic,
   ComponentCatalog,
   DiagnosticSeverity,
+  FrameworkCapabilities,
+  FrameworkDescriptor,
   IndexDiagnostic,
   IndexDiagnosticCode,
   IndexedComponent,
@@ -42,4 +48,5 @@ export type {
   PreviewReadyMessage,
   PreviewRenderRequest,
   PreviewRenderResult,
+  PreviewRuntime,
 } from "./preview";
