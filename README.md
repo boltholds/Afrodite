@@ -14,7 +14,7 @@ The semantic canvas can:
 6. validate, import, save, copy, and download Semantic UI IR JSON;
 7. report invalid JSON, schema failures, and duplicate stable IDs explicitly.
 
-The SolidJS project indexer can:
+The current SolidJS project indexer can:
 
 1. parse a workspace through the TypeScript compiler API;
 2. discover exported PascalCase JSX components and barrel re-exports;
@@ -31,18 +31,37 @@ The component composition slice can:
 3. place a component into the selected UI IR container;
 4. persist source bindings and JSON-safe initial props;
 5. send the document to a separate preview application through a versioned protocol;
-6. render trusted SolidJS components inside an iframe with `sandbox="allow-scripts"` and no same-origin permission;
-7. report missing registry entries and runtime render failures as structured diagnostics.
+6. render trusted components inside an iframe with `sandbox="allow-scripts"` and no same-origin permission;
+7. report unsupported frameworks, missing registry entries, and runtime failures as structured diagnostics.
+
+## Framework adapters
+
+Afrodite no longer treats SolidJS as part of the shared architecture.
+
+- `@afrodite/framework-core` defines framework descriptors, capability flags, detection, adapter registration, framework-neutral operations, source snapshots, patch plans, diagnostics, and verification steps.
+- `@afrodite/adapter-solid` declares the active SolidJS capabilities.
+- `@afrodite/adapter-react` declares React as an independent expansion target and already supports static project detection.
+- UI IR source bindings can carry `frameworkId`, `adapterId`, and `componentId`.
+- catalogs can describe multiple frameworks;
+- preview requests declare required frameworks;
+- preview hosts announce available runtime adapters.
+
+The next safe-write slice resolves an adapter from the source binding and asks it for a `SourcePatchPlan`. Diff generation, approval, application, rollback, and verification stay shared across SolidJS, React, and later frameworks.
+
+See `docs/framework-adapters.md` for the extension contract.
 
 ## Workspace
 
-- `apps/studio` — SolidJS visual editor, component library, layout inspector, and preview client.
-- `apps/preview-host` — isolated runtime component renderer.
-- `packages/ui-ir` — framework-neutral Semantic UI IR, serialization, and diagnostics.
+- `apps/studio` — visual editor, component library, layout inspector, and preview client.
+- `apps/preview-host` — isolated runtime component renderer with a framework runtime registry.
+- `packages/ui-ir` — framework-neutral Semantic UI IR, serialization, diagnostics, and source bindings.
 - `packages/canvas-engine` — immutable document commands with undo/redo history.
-- `packages/project-indexer` — static SolidJS component and prop discovery.
-- `packages/protocol` — catalog and preview message schemas.
-- `docs` — product vision, architecture, visual language, indexing, preview security, and vertical slices.
+- `packages/framework-core` — shared adapter and source-patch contracts.
+- `packages/adapter-solid` — SolidJS adapter identity and detection.
+- `packages/adapter-react` — React adapter identity and detection.
+- `packages/project-indexer` — current static SolidJS component and prop discovery.
+- `packages/protocol` — framework-aware catalog and preview schemas.
+- `docs` — product vision, architecture, visual language, framework adapters, indexing, preview security, and vertical slices.
 
 ## Development
 
@@ -62,7 +81,7 @@ pnpm test
 pnpm build
 ```
 
-Build and run the indexer:
+Build and run the current SolidJS indexer:
 
 ```bash
 pnpm --filter @afrodite/project-indexer build

@@ -18,7 +18,15 @@ export const layoutSchema = z.object({
   }),
 });
 
+const frameworkIdentifierSchema = z.string().regex(
+  /^[a-z][a-z0-9.-]*$/,
+  "Framework identifiers must use lowercase letters, digits, dots, and hyphens.",
+);
+
 export const sourceBindingSchema = z.object({
+  frameworkId: frameworkIdentifierSchema.optional(),
+  adapterId: z.string().min(1).optional(),
+  componentId: z.string().min(1).optional(),
   repositoryPath: z.string().min(1),
   exportName: z.string().min(1).optional(),
   stableMarker: z.string().min(1).optional(),
