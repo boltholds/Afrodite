@@ -33,6 +33,9 @@ export const indexDiagnosticCodeSchema = z.enum([
   "TYPESCRIPT_DIAGNOSTIC",
   "UNRESOLVED_PROPS",
   "UNSUPPORTED_PROP_TYPE",
+  "ASYNC_COMPONENT_UNSUPPORTED",
+  "SERVER_COMPONENT_UNSUPPORTED",
+  "CONTEXT_DEPENDENCY_UNSUPPORTED",
 ]);
 export const propValueKindSchema = z.enum([
   "string",

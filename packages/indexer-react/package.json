@@ -1,0 +1,30 @@
+{
+  "name": "@afrodite/indexer-react",
+  "version": "0.0.0",
+  "type": "module",
+  "bin": {
+    "afrodite-index-react": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit --pretty false",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@afrodite/adapter-react": "workspace:*",
+    "@afrodite/protocol": "workspace:*",
+    "typescript": "^5.8.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "@types/react": "^19.1.8",
+    "react": "^19.1.0",
+    "vitest": "^3.2.4"
+  }
+}
