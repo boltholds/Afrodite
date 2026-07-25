@@ -8,6 +8,7 @@ import {
   type Component,
 } from "solid-js";
 import { Dynamic, render } from "solid-js/web";
+import { solidFrameworkDescriptor } from "@afrodite/adapter-solid";
 import {
   createPreviewReadyMessage,
   createPreviewRenderResult,
@@ -21,11 +22,20 @@ import "./styles.css";
 
 type RegistryComponent = Component<Record<string, unknown>>;
 
+const previewRuntimes = [
+  {
+    frameworkId: solidFrameworkDescriptor.frameworkId,
+    adapterId: solidFrameworkDescriptor.adapterId,
+    adapterVersion: solidFrameworkDescriptor.adapterVersion,
+  },
+] as const;
+const supportedFrameworks = new Set(previewRuntimes.map((runtime) => runtime.frameworkId));
+
 const componentRegistry: Readonly<Record<string, RegistryComponent>> = {
-  "src/Button.tsx#Button": Button as unknown as RegistryComponent,
-  "src/Panel.tsx#default": Panel as unknown as RegistryComponent,
-  Button: Button as unknown as RegistryComponent,
-  Panel: Panel as unknown as RegistryComponent,
+  "solid:src/Button.tsx#Button": Button as unknown as RegistryComponent,
+  "solid:src/Panel.tsx#default": Panel as unknown as RegistryComponent,
+  "solid:Button": Button as unknown as RegistryComponent,
+  "solid:Panel": Panel as unknown as RegistryComponent,
 };
 
 function PreviewHost() {
@@ -48,7 +58,10 @@ function PreviewHost() {
       );
     };
 
-    const announceReady = () => window.parent.postMessage(createPreviewReadyMessage(), "*");
+    const announceReady = () => window.parent.postMessage(
+      createPreviewReadyMessage(previewRuntimes),
+      "*",
+    );
     window.addEventListener("message", handleMessage);
     announceReady();
     const readyTimer = window.setTimeout(announceReady, 120);
@@ -64,7 +77,7 @@ function PreviewHost() {
       <header class="preview-status">
         <div>
           <strong>Afrodite Runtime Preview</strong>
-          <span>opaque-origin iframe · static registry only</span>
+          <span>opaque-origin iframe · framework runtime registry</span>
         </div>
         <code>{requestId()}</code>
       </header>
@@ -156,6 +169,7 @@ function RuntimeNode(props: { node: UiNode }) {
         "runtime-component": props.node.kind === "component",
       }}
       data-node-id={props.node.id}
+      data-framework={frameworkId(props.node)}
       style={layoutStyle(props.node.layout)}
     >
       <Show
@@ -188,23 +202,39 @@ function RuntimeNode(props: { node: UiNode }) {
   );
 }
 
+function frameworkId(node: UiNode): string {
+  return node.sourceBinding?.frameworkId ?? "solid";
+}
+
 function componentKey(node: UiNode): string {
   if (node.kind !== "component") return "";
+  const framework = frameworkId(node);
   const binding = node.sourceBinding;
-  if (!binding) return node.component;
-  return `${binding.repositoryPath}#${binding.exportName ?? node.component}`;
+  if (!binding) return `${framework}:${node.component}`;
+  return `${framework}:${binding.repositoryPath}#${binding.exportName ?? node.component}`;
 }
 
 function collectDiagnostics(node: UiNode): PreviewDiagnostic[] {
   const diagnostics: PreviewDiagnostic[] = [];
+  const framework = frameworkId(node);
 
-  if (node.kind === "component" && !componentRegistry[componentKey(node)]) {
+  if (node.kind === "component" && !supportedFrameworks.has(framework)) {
+    diagnostics.push({
+      code: "FRAMEWORK_NOT_SUPPORTED",
+      severity: "error",
+      message: `The preview host has no runtime adapter for ${framework}.`,
+      nodeId: node.id,
+      componentName: node.component,
+      frameworkId: framework,
+    });
+  } else if (node.kind === "component" && !componentRegistry[componentKey(node)]) {
     diagnostics.push({
       code: "COMPONENT_NOT_REGISTERED",
       severity: "error",
-      message: `The preview host has no trusted registry entry for ${componentKey(node)}.`,
+      message: `The ${framework} preview registry has no entry for ${componentKey(node)}.`,
       nodeId: node.id,
       componentName: node.component,
+      frameworkId: framework,
     });
   }
 
