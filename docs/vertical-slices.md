@@ -56,7 +56,7 @@ Delivered in the shared boundary:
 - deterministic content versions and patch IDs;
 - sorted, non-overlapping text edits;
 - path, bounds, overlap, and stale-source validation;
-- deterministic before/after previews;
+- deterministic before/after previews and unified diffs;
 - approvals bound to `planId` and `sourceVersion`;
 - compare-and-swap filesystem writes below a configured project root;
 - formatter, typecheck, test, build, or custom verification steps;
@@ -73,26 +73,31 @@ Delivered in the SolidJS adapter:
 - refusal to guess when markers are absent or duplicated, bindings target another file/framework, or styles are dynamic;
 - formatter and TypeScript verification declarations.
 
-Verification boundary:
-
-- framework-core patch planning tests pass;
-- SolidJS planner preservation and refusal tests pass;
-- approval, compare-and-swap, successful apply, and rollback tests pass;
-- workspace typecheck, tests, and production builds pass.
-
-## VS-005: React indexing and preview parity
+## VS-005: React indexing and preview parity — complete
 
 **Goal:** prove the adapter model by adding React without modifying the shared editor architecture.
 
-Acceptance criteria:
+Delivered:
 
-- discover exported React function components and serializable props;
-- distinguish components from hooks and ordinary functions;
-- generate catalog entries with `frameworkId: "react"`;
-- compile a trusted React preview runtime registry;
-- render React components in an isolated preview host;
-- report unsupported server-only, async, context-dependent, or runtime props explicitly;
-- reuse the existing catalog, UI IR, preview, command, patch-plan, approval, write, verification, and rollback contracts.
+- `@afrodite/indexer-react` performs static TypeScript/TSX analysis without importing project modules;
+- exported React function components and barrel re-exports are discovered and deduplicated;
+- hooks and ordinary lowercase functions are ignored;
+- serializable props, defaults, descriptions, source locations, framework IDs, and adapter IDs are emitted into the shared `ComponentCatalog`;
+- callbacks and React/platform runtime objects are reported as `UNSUPPORTED_PROP_TYPE`;
+- async client components, server-only modules, and context-dependent components receive explicit diagnostics;
+- React capabilities now advertise static indexing, runtime preview, and serializable prop editing;
+- the preview host announces both SolidJS and React runtimes through the existing protocol;
+- React components mount through `react-dom/client` behind the same runtime-adapter registry used by SolidJS;
+- React render failures are returned through the existing `PreviewRenderResult` diagnostic channel;
+- framework-qualified catalog markers are preserved by the shared insertion command so Studio-created React nodes retain framework identity;
+- Studio's fixture catalog contains trusted SolidJS and React components;
+- workspace typecheck, tests, and production builds pass.
+
+Trust boundary:
+
+- indexing remains static and does not execute React application code;
+- preview executes only React components compiled into the trusted registry;
+- arbitrary repositories still require a separately approved, isolated preview-bundle build.
 
 ## VS-006: React source patch parity
 
@@ -104,4 +109,5 @@ Acceptance criteria:
 - bind React JSX through stable markers;
 - return the same `SourcePatchPlan` shape;
 - preserve hooks, callbacks, expressions, children, and unrelated styles;
-- use the existing preview, approval, compare-and-swap, verification, and rollback services unchanged.
+- refuse dynamic or ambiguous style expressions instead of guessing;
+- use the existing diff, approval, compare-and-swap, verification, and rollback services unchanged.
