@@ -6,6 +6,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./diff": {
+      "types": "./dist/diff.d.ts",
+      "import": "./dist/diff.js"
     }
   },
   "scripts": {
