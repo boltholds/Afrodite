@@ -8,6 +8,40 @@ export type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue };
 
+export const frameworkIdSchema = z.string().regex(/^[a-z][a-z0-9.-]*$/);
+export const frameworkCapabilitiesSchema = z.object({
+  projectDetection: z.boolean(),
+  staticIndexing: z.boolean(),
+  runtimePreview: z.boolean(),
+  sourcePatching: z.boolean(),
+  propEditing: z.boolean(),
+});
+export const frameworkDescriptorSchema = z.object({
+  frameworkId: frameworkIdSchema,
+  adapterId: z.string().min(1),
+  displayName: z.string().min(1),
+  adapterVersion: z.string().min(1),
+  sourceExtensions: z.array(z.string().min(1)),
+  runtimePackages: z.array(z.string().min(1)),
+  capabilities: frameworkCapabilitiesSchema,
+});
+
+const legacySolidDescriptor = {
+  frameworkId: "solid",
+  adapterId: "afrodite.adapter.solid",
+  displayName: "SolidJS",
+  adapterVersion: "0.1.0",
+  sourceExtensions: [".tsx", ".jsx"],
+  runtimePackages: ["solid-js"],
+  capabilities: {
+    projectDetection: true,
+    staticIndexing: true,
+    runtimePreview: true,
+    sourcePatching: false,
+    propEditing: true,
+  },
+} as const;
+
 export const diagnosticSeveritySchema = z.enum(["info", "warning", "error"]);
 export const indexDiagnosticCodeSchema = z.enum([
   "TSCONFIG_NOT_FOUND",
@@ -52,6 +86,8 @@ export const indexDiagnosticSchema = z.object({
   location: sourceLocationSchema.optional(),
   componentName: z.string().min(1).optional(),
   propName: z.string().min(1).optional(),
+  frameworkId: frameworkIdSchema.optional(),
+  adapterId: z.string().min(1).optional(),
 });
 
 export const indexedPropSchema = z.object({
@@ -66,6 +102,8 @@ export const indexedPropSchema = z.object({
 
 export const indexedComponentSchema = z.object({
   id: z.string().min(1),
+  frameworkId: frameworkIdSchema.default("solid"),
+  adapterId: z.string().min(1).default("afrodite.adapter.solid"),
   name: z.string().min(1),
   exportName: z.string().min(1),
   sourcePath: z.string().min(1),
@@ -78,10 +116,13 @@ export const componentCatalogSchema = z.object({
   schemaVersion: z.literal(1),
   projectRoot: z.string().min(1),
   tsconfigPath: z.string().min(1),
+  frameworks: z.array(frameworkDescriptorSchema).default([legacySolidDescriptor]),
   components: z.array(indexedComponentSchema),
   diagnostics: z.array(indexDiagnosticSchema),
 });
 
+export type FrameworkCapabilities = z.infer<typeof frameworkCapabilitiesSchema>;
+export type FrameworkDescriptor = z.infer<typeof frameworkDescriptorSchema>;
 export type DiagnosticSeverity = z.infer<typeof diagnosticSeveritySchema>;
 export type IndexDiagnosticCode = z.infer<typeof indexDiagnosticCodeSchema>;
 export type PropValueKind = z.infer<typeof propValueKindSchema>;
