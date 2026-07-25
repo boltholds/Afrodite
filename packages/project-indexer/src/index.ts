@@ -1,3 +1,4 @@
+export { solidFrameworkDescriptor } from "@afrodite/adapter-solid";
 export { indexSolidProject } from "./indexer.js";
 export { serializeComponentCatalog } from "./catalog.js";
 
