@@ -86,6 +86,30 @@ describe("command history", () => {
     expect(findNode(redone.present.root, "node.button")?.sourceBinding?.exportName).toBe("Button");
   });
 
+  it("derives framework metadata from a framework-qualified catalog marker", () => {
+    const reactNode: UiNode = {
+      ...buttonNode,
+      id: "node.react-card",
+      component: "ActionCard",
+      name: "ActionCard",
+      sourceBinding: {
+        repositoryPath: "src/ActionCard.tsx",
+        exportName: "ActionCard",
+        stableMarker: "react:src/ActionCard.tsx#ActionCard",
+      },
+    };
+
+    const command = createInsertNodeCommand(document, "node.root", reactNode);
+    const executed = executeCommand(createCommandHistory(document), command);
+    const inserted = findNode(executed.present.root, reactNode.id);
+
+    expect(inserted?.sourceBinding).toMatchObject({
+      frameworkId: "react",
+      componentId: "react:src/ActionCard.tsx#ActionCard",
+      repositoryPath: "src/ActionCard.tsx",
+    });
+  });
+
   it("clears the redo branch when a new command is executed", () => {
     const first = executeCommand(
       createCommandHistory(document),
