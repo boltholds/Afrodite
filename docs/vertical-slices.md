@@ -16,35 +16,20 @@ Delivered:
 - invalid JSON, schema violations, and duplicate stable IDs produce structured diagnostics;
 - command history and serialization behavior are covered by unit tests.
 
-Verification boundary:
-
-- `pnpm typecheck` passes;
-- `pnpm test` passes;
-- `pnpm build` passes.
-
 ## VS-002: SolidJS component indexing — complete
 
 **Goal:** build a component catalog from an existing SolidJS workspace without executing its code.
 
 Delivered:
 
-- a framework-neutral `ComponentCatalog` and diagnostic model;
+- a serializable `ComponentCatalog` and diagnostic model;
 - tsconfig discovery and parsing through the TypeScript compiler API;
 - exported PascalCase function and variable component discovery;
 - barrel re-export resolution and declaration deduplication;
-- component source paths, lines, columns, declaration kinds, and public export names;
-- typed prop extraction with required state, documentation, type text, and simple defaults;
-- JSON-safe classification for primitives, literal unions, arrays, tuples, and plain objects;
-- explicit diagnostics for callbacks, runtime objects, unconstrained types, and compiler failures;
-- a Node CLI that writes deterministic component-catalog JSON;
-- fixture coverage proving components are found while ordinary functions are ignored;
-- no use of dynamic imports, target application startup, Vite, or package-script execution.
-
-Verification boundary:
-
-- `pnpm typecheck` passes;
-- `pnpm test` passes;
-- `pnpm build` passes.
+- component source paths, locations, declaration kinds, public names, props, and defaults;
+- JSON-safe classification and explicit unsupported-type diagnostics;
+- a deterministic CLI output;
+- no target-project module, Vite configuration, or package script execution.
 
 ## VS-003: Visual composition with real components — complete
 
@@ -52,40 +37,81 @@ Verification boundary:
 
 Delivered:
 
-- `@afrodite/protocol` validates component catalogs and preview messages at process boundaries;
-- Studio loads editable component-catalog JSON and displays component names, source paths, prop counts, and indexer diagnostics;
-- an indexed component can be placed into the currently selected UI IR container;
-- insertion is represented by a reversible command and participates in undo/redo;
-- component nodes persist stable source bindings and JSON-safe default props;
-- Studio and the preview host run as separate Vite applications;
-- the preview host is embedded with `sandbox="allow-scripts"` and no same-origin permission;
-- preview messages are validated before they are accepted;
-- components are resolved only through a trusted static registry, never through arbitrary document-supplied imports;
-- the indexed Button and Panel fixtures render as real SolidJS components;
-- missing registry entries and runtime render failures produce structured preview diagnostics;
-- protocol decoding and insertion history are covered by unit tests.
+- validated catalog and preview protocols;
+- a component library in Studio;
+- reversible insertion of source-bound component nodes;
+- separate Studio and preview-host applications;
+- an opaque-origin sandbox iframe;
+- a trusted static component registry;
+- structured missing-component and runtime-failure diagnostics.
 
-Current trust boundary:
+## VS-003.5: Framework adapter foundation — complete
 
-- static indexing remains safe and does not execute the target project;
-- runtime preview executes only components explicitly included in the preview-host registry;
-- connecting an arbitrary repository will require an explicit build/approval step that creates an isolated registry bundle.
+**Goal:** remove SolidJS assumptions from the extension and safe-write boundaries before implementing source patching.
 
-Verification boundary:
+Delivered:
 
-- `pnpm typecheck` passes;
-- `pnpm test` passes;
-- `pnpm build` passes.
+- `@afrodite/framework-core` with adapter descriptors, capability flags, detection, registry, operations, source snapshots, text edits, patch plans, diagnostics, and verification steps;
+- `@afrodite/adapter-solid` as the first active framework identity;
+- `@afrodite/adapter-react` as an independently detected expansion target;
+- optional `frameworkId`, `adapterId`, and `componentId` fields in UI IR source bindings;
+- framework descriptors and component identities in the catalog protocol;
+- required-framework and available-runtime metadata in the preview protocol;
+- `FRAMEWORK_NOT_SUPPORTED` diagnostics from the preview host;
+- backward compatibility for documents and catalogs created before adapter metadata existed;
+- documentation defining how Vue, Svelte, Qwik, and other adapters can be added.
 
-## VS-004: Safe SolidJS code patch
+Verification criteria:
 
-**Goal:** write one visual layout change back to TypeScript/JSX.
+- SolidJS and React projects can be detected independently from package manifests;
+- multiple adapters can be registered without framework conditionals in shared code;
+- a source binding resolves to an adapter through stable IDs;
+- preview requests identify the frameworks required by a subtree;
+- unsupported preview runtimes fail explicitly;
+- all packages pass typecheck, tests, and build.
+
+## VS-004: Framework-neutral safe source patch
+
+**Goal:** convert one visual layout edit into a reviewed and verified source patch, with SolidJS as the first syntax adapter.
+
+Shared acceptance criteria:
+
+- compare the before and after UI IR state and create a `FrameworkOperation`;
+- resolve the adapter from `SourceBinding.frameworkId` and `adapterId`;
+- reject missing, ambiguous, or capability-incompatible adapters;
+- pass an immutable `SourceSnapshot` to the adapter;
+- receive a `SourcePatchPlan` containing non-overlapping text edits, diagnostics, source version, and verification steps;
+- generate a minimal unified diff independently from the framework;
+- preserve unrelated source text and handwritten behavior;
+- reject stale source snapshots before applying changes;
+- require explicit approval for every plan;
+- apply edits atomically and support rollback;
+- run formatter, typecheck, tests, or build commands declared by the adapter.
+
+SolidJS adapter acceptance criteria:
+
+- bind a UI IR node to an existing TSX/JSX element;
+- change one supported layout property;
+- preserve signals, event handlers, expressions, spreads, and component children;
+- generate a minimal AST-informed patch rather than rewriting the file;
+- verify formatting and TypeScript.
+
+React expansion contract:
+
+- React source patching is implemented in `@afrodite/adapter-react` later;
+- it consumes the same `FrameworkOperation` and returns the same `SourcePatchPlan`;
+- Studio, UI IR, command history, diff review, approval, apply, rollback, and verification orchestration remain unchanged.
+
+## VS-005: React indexing and preview parity
+
+**Goal:** prove the extension model by adding React without modifying the shared editor architecture.
 
 Acceptance criteria:
 
-- bind an IR node to an existing JSX element;
-- change a supported layout property visually;
-- generate a minimal source diff;
-- preserve unrelated event handlers and expressions;
-- run formatter and TypeScript checks;
-- require approval before applying the patch.
+- discover exported React function components and serializable props;
+- distinguish components from hooks and ordinary functions;
+- generate catalog entries with `frameworkId: "react"`;
+- compile a trusted React preview runtime registry;
+- render React components in an isolated preview host;
+- report unsupported server-only, async, context-dependent, or runtime props explicitly;
+- reuse the existing catalog, UI IR, preview, command, and diagnostic contracts.
