@@ -10,6 +10,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@afrodite/adapter-react": "workspace:*",
+    "@afrodite/adapter-solid": "workspace:*",
     "@afrodite/canvas-engine": "workspace:*",
     "@afrodite/protocol": "workspace:*",
     "@afrodite/ui-ir": "workspace:*",
