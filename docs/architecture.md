@@ -4,14 +4,19 @@
 
 ```text
 Git repository
-    -> project indexer
-    -> component and token catalog
+    -> framework detection
+    -> framework-specific static indexer
+    -> framework-neutral component catalog
     -> Afrodite Studio
     -> Semantic UI IR
-    -> isolated preview host
-    -> framework adapter / AST patcher
-    -> reviewable source diff
+    -> isolated preview host with runtime adapters
+    -> FrameworkOperation
+    -> framework adapter / AST patch planner
+    -> reviewable SourcePatchPlan
+    -> verified write boundary
 ```
+
+SolidJS is the first implemented indexing and preview target. React is registered as a separate adapter identity and can gain the same capabilities without changing UI IR, Studio history, protocol transport, diff review, or patch application.
 
 ## Workspace packages
 
@@ -19,30 +24,62 @@ Git repository
 
 Framework-neutral document model. It owns stable node identifiers, component references, props, layout constraints, schema versioning, JSON serialization, and structured validation diagnostics.
 
+`SourceBinding` may identify a framework and adapter:
+
+```text
+frameworkId
+adapterId
+componentId
+repositoryPath
+exportName
+stableMarker
+```
+
+The path and identifiers are descriptive metadata. They never authorize dynamic imports or source writes by themselves.
+
 ### `@afrodite/canvas-engine`
 
 Owns reversible document commands and in-memory command history. Studio does not mutate `UiDocument` objects directly. Layout changes, document replacement, and component insertion are represented by commands with `apply` and `revert`. New commands clear the redo branch.
 
+### `@afrodite/framework-core`
+
+Owns the framework extension contract:
+
+- `FrameworkDescriptor` and explicit capability flags;
+- manifest-based project detection;
+- `FrameworkAdapter` and `FrameworkAdapterRegistry`;
+- framework-neutral `FrameworkOperation` values;
+- immutable `SourceSnapshot` input;
+- reviewable `SourcePatchPlan` output;
+- text edits, adapter diagnostics, and verification steps.
+
+The shared layer does not know SolidJS JSX semantics, React hooks, Vue SFC syntax, or Svelte compilation rules.
+
+### `@afrodite/adapter-solid`
+
+Declares the SolidJS framework identity, package evidence, source extensions, and current capabilities. Static indexing and preview are available. Source patching is enabled only after the VS-004 planner is implemented and verified.
+
+### `@afrodite/adapter-react`
+
+Declares React as an independent framework target. Detection is implemented. Indexing, runtime preview, prop editing, and source patching remain capability-gated until their adapters are delivered.
+
 ### `@afrodite/project-indexer`
 
-Builds a deterministic catalog from a SolidJS or TypeScript workspace through the TypeScript compiler API. It resolves exported symbols and barrel aliases, identifies PascalCase JSX components, extracts typed props and source locations, classifies JSON-safe values, and emits structured diagnostics for unsupported types.
+The current implementation is the SolidJS static indexer. It builds a deterministic catalog through the TypeScript compiler API, resolves exported symbols and barrel aliases, identifies PascalCase JSX components, extracts typed props and source locations, classifies JSON-safe values, and emits structured diagnostics.
 
-The indexer never imports target modules or executes application code. Its output is a JSON boundary that Studio consumes without sharing TypeScript compiler objects.
+The indexer never imports target modules or executes application code. Future React indexing should be a separate implementation registered under `afrodite.adapter.react`, not a growing set of Solid-vs-React conditionals inside this package.
 
 ### `@afrodite/protocol`
 
 Owns validated data exchanged across package and iframe boundaries:
 
-- component catalog schema and decoding diagnostics;
-- preview render requests;
-- preview readiness and render-result messages;
-- structured runtime-preview diagnostics.
+- component catalogs with optional framework descriptors;
+- component-level framework and adapter identities;
+- preview render requests listing required frameworks;
+- preview readiness messages listing available runtimes;
+- structured indexing and runtime diagnostics.
 
-Studio and the preview host reject messages that do not match the protocol schema.
-
-### `@afrodite/code-adapters` — planned
-
-Framework-specific readers and writers. The first adapter will target SolidJS and operate on TypeScript/JSX syntax trees.
+Legacy Solid-only catalogs remain readable. New producers should write explicit framework metadata.
 
 ## Applications
 
@@ -50,11 +87,19 @@ Framework-specific readers and writers. The first adapter will target SolidJS an
 
 The visual editor. It loads component catalogs, creates UI IR component nodes, owns command history, edits layout constraints, and sends validated render requests to the preview host.
 
+Studio must use adapter capabilities to decide which actions are available. Missing functionality is reported as a capability diagnostic; Studio must not silently run SolidJS logic against a React component.
+
 ### `apps/preview-host`
 
-A separate Vite application embedded in Studio as an iframe. The iframe currently uses `sandbox="allow-scripts"` without `allow-same-origin`, giving it an opaque origin. It accepts only validated protocol messages and resolves component bindings through a static trusted registry.
+A separate Vite application embedded in Studio as an iframe. The iframe uses `sandbox="allow-scripts"` without `allow-same-origin`, giving it an opaque origin. It accepts only validated protocol messages and resolves component bindings through trusted runtime registries.
 
-The host does not perform arbitrary dynamic imports from `sourceBinding.repositoryPath`. A path in UI IR is descriptive metadata until a trusted registry build explicitly maps it to executable code.
+The current host announces one runtime:
+
+```text
+solid -> afrodite.adapter.solid
+```
+
+A React runtime can be added as a second registry implementation. A render request requiring a framework that is absent returns `FRAMEWORK_NOT_SUPPORTED`.
 
 ## Editor mutation boundary
 
@@ -73,38 +118,36 @@ Selection remains transient Studio state. Document structure, component bindings
 ## Project indexing boundary
 
 ```text
-tsconfig.json
-    -> TypeScript Program
-    -> module export symbols
-    -> component declarations
-    -> prop types
-    -> serializability classifier
+project manifest and config
+    -> FrameworkAdapterRegistry.detect(...)
+    -> chosen indexing capability
+    -> framework-specific compiler analysis
     -> ComponentCatalog JSON
     -> protocol validation
 ```
 
-Compiler objects remain inside `@afrodite/project-indexer`. The catalog contains stable strings, source coordinates, prop metadata, JSON-safe defaults, and diagnostics.
+Compiler objects remain inside an indexer implementation. The catalog contains stable strings, framework metadata, source coordinates, prop metadata, JSON-safe defaults, capability declarations, and diagnostics.
 
 ## Runtime preview boundary
 
 ```text
 UiDocument root
+    -> collect required framework IDs
     -> PreviewRenderRequest
     -> sandboxed iframe
+    -> runtime adapter registry
     -> trusted component registry lookup
-    -> SolidJS render
+    -> framework runtime render
     -> PreviewRenderResult
 ```
 
-The preview host can execute component code and is therefore a different trust level from static indexing. The current vertical slice registers only repository fixtures at build time. A future arbitrary-project workflow must:
+The preview host can execute component code and is therefore a different trust level from static indexing. A future arbitrary-project workflow must:
 
-1. show the project and dependency set to the user;
+1. show the project, framework adapters, and dependency set to the user;
 2. require explicit approval before executing build tooling;
-3. create a dedicated preview bundle in an isolated worker, process, or container;
+3. create dedicated preview bundles in isolated workers, processes, or containers;
 4. apply CPU, memory, filesystem, network, and time limits;
-5. expose only a generated registry manifest to Studio.
-
-Missing registry entries and render exceptions are returned as structured diagnostics rather than silently replaced.
+5. expose only generated runtime registry manifests to Studio.
 
 ## Persistence boundary
 
@@ -114,18 +157,28 @@ The serialized `.afrodite.json` document is the portable representation of the c
 2. UI IR schema validation;
 3. semantic invariant validation, including duplicate stable node IDs.
 
-Failures return structured diagnostics with a code, path, severity, and message. Studio can persist a validated document in browser storage or download it as a file.
+Framework metadata is optional for backward compatibility but should be explicit in newly created source bindings.
 
-## Source-code write boundary
+## Framework-neutral source-code write boundary
 
-Afrodite must not rewrite arbitrary source files from templates. A code update follows this pipeline:
+Afrodite must not rewrite arbitrary source files from templates. A visual edit follows this pipeline:
 
-1. read the current syntax tree;
-2. locate nodes through stable bindings and structural checks;
-3. calculate a minimal patch;
-4. verify formatting and type safety;
-5. show the diff;
-6. apply only after explicit approval.
+```text
+UI IR before and after state
+    -> FrameworkOperation
+    -> resolve adapter from SourceBinding
+    -> adapter.planPatch(operation, SourceSnapshot)
+    -> SourcePatchPlan
+    -> validate edit ranges and source version
+    -> show unified diff
+    -> explicit approval
+    -> apply edits
+    -> run required verification steps
+```
+
+The common write boundary owns stale-source detection, edit-overlap checks, diff presentation, approval, application, rollback, and command execution. Framework adapters own only syntax-specific discovery and patch planning.
+
+Every `SourcePatchPlan` has `requiresApproval: true`. An adapter cannot bypass review.
 
 ## Semantic UI IR invariants
 
@@ -134,5 +187,6 @@ Afrodite must not rewrite arbitrary source files from templates. A code update f
 - a node is either an intrinsic element or a component reference;
 - children are ordered explicitly;
 - layout is represented separately from visual styling;
-- source bindings are optional and never treated as executable imports without registry verification;
+- source bindings are optional and never treated as executable imports without adapter and registry verification;
+- framework identities use stable lowercase identifiers;
 - schema versions are explicit and migrations are deterministic.
