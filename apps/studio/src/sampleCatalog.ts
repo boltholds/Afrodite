@@ -1,12 +1,17 @@
+import { reactFrameworkDescriptor } from "@afrodite/adapter-react";
+import { solidFrameworkDescriptor } from "@afrodite/adapter-solid";
 import { componentCatalogSchema } from "@afrodite/protocol";
 
 export const sampleCatalog = componentCatalogSchema.parse({
   schemaVersion: 1,
   projectRoot: "packages/project-indexer/test/fixtures/solid-app",
   tsconfigPath: "packages/project-indexer/test/fixtures/solid-app/tsconfig.json",
+  frameworks: [solidFrameworkDescriptor, reactFrameworkDescriptor],
   components: [
     {
       id: "src/Button.tsx#Button",
+      frameworkId: "solid",
+      adapterId: "afrodite.adapter.solid",
       name: "Button",
       exportName: "Button",
       sourcePath: "src/Button.tsx",
@@ -55,6 +60,8 @@ export const sampleCatalog = componentCatalogSchema.parse({
     },
     {
       id: "src/Panel.tsx#default",
+      frameworkId: "solid",
+      adapterId: "afrodite.adapter.solid",
       name: "Panel",
       exportName: "default",
       sourcePath: "src/Panel.tsx",
@@ -95,6 +102,8 @@ export const sampleCatalog = componentCatalogSchema.parse({
       sourcePath: "src/Button.tsx",
       componentName: "Button",
       propName: "onClick",
+      frameworkId: "solid",
+      adapterId: "afrodite.adapter.solid",
     },
   ],
 });
