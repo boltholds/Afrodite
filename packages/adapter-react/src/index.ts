@@ -8,15 +8,15 @@ export const reactFrameworkDescriptor: FrameworkDescriptor = {
   frameworkId: "react",
   adapterId: "afrodite.adapter.react",
   displayName: "React",
-  adapterVersion: "0.1.0",
+  adapterVersion: "0.2.0",
   sourceExtensions: [".tsx", ".jsx"],
   runtimePackages: ["react", "react-dom"],
   capabilities: {
     projectDetection: true,
-    staticIndexing: false,
-    runtimePreview: false,
+    staticIndexing: true,
+    runtimePreview: true,
     sourcePatching: false,
-    propEditing: false,
+    propEditing: true,
   },
 };
 
