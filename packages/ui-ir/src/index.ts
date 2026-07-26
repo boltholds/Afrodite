@@ -2,6 +2,8 @@ export {
   layoutDirectionSchema,
   layoutSchema,
   sourceBindingSchema,
+  styleOwnershipSchema,
+  stylePropertySchema,
   uiDocumentSchema,
   uiNodeSchema,
   parseUiDocument,
@@ -23,6 +25,8 @@ export type {
   Layout,
   LayoutDirection,
   SourceBinding,
+  StyleOwnership,
+  StyleProperty,
   UiDocument,
   UiNode,
 } from "./schema";
