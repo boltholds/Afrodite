@@ -14,6 +14,7 @@ import {
   type FrameworkOperation,
   type PatchPreview,
   type SourcePatchPlan,
+  type SourceSnapshot,
 } from "@afrodite/framework-core";
 import type {
   BindingDiscoveryRequest,
@@ -25,7 +26,13 @@ import type {
   BridgeOperation,
   BridgePatchPlanView,
   BridgeSourceSnapshot,
+  BridgeStyleOperation,
 } from "@afrodite/protocol";
+import {
+  createDefaultStyleStrategyRegistry,
+  resolveStyleSourcePath,
+  type StylePatchOperation,
+} from "@afrodite/style-core";
 import {
   FileSystemSourceRepository,
   ProcessVerificationRunner,
@@ -66,6 +73,7 @@ export class ProjectBridgeService {
   readonly #writeService: VerifiedWriteService;
   readonly #registry = new FrameworkAdapterRegistry();
   readonly #bindingRegistry = new SourceBindingAdapterRegistry();
+  readonly #styleRegistry = createDefaultStyleStrategyRegistry();
   readonly #plans = new Map<string, StoredPlan>();
   readonly #planTtlMs: number;
   readonly #now: () => number;
@@ -109,9 +117,7 @@ export class ProjectBridgeService {
     };
   }
 
-  async discoverBindings(
-    request: BindingDiscoveryRequest,
-  ): Promise<BindingDiscoveryResult> {
+  async discoverBindings(request: BindingDiscoveryRequest): Promise<BindingDiscoveryResult> {
     const adapter = this.#bindingRegistry.get(request.adapterId);
     if (!adapter) {
       throw new ProjectBridgeServiceError(
@@ -135,9 +141,7 @@ export class ProjectBridgeService {
     };
   }
 
-  async planBinding(
-    request: BindingMarkerPlanRequest,
-  ): Promise<BindingPatchPlanView> {
+  async planBinding(request: BindingMarkerPlanRequest): Promise<BindingPatchPlanView> {
     this.#pruneExpiredPlans();
     const adapter = this.#bindingRegistry.get(request.adapterId);
     if (!adapter) {
@@ -149,27 +153,11 @@ export class ProjectBridgeService {
 
     const source = await this.#repository.read(request.repositoryPath);
     const result = adapter.planStableMarker(request, source);
-    const preview = createPatchPreview(result.plan, source);
-    const blocking = preview.diagnostics.some((diagnostic) => diagnostic.severity === "error");
-
-    if (result.sourceWriteRequired && !blocking && preview.changed) {
-      this.#plans.set(result.plan.planId, {
-        plan: result.plan,
-        preview,
-        createdAt: this.#now(),
-      });
-    }
-
+    const view = this.#createPlanView(result.plan, source, result.sourceWriteRequired);
     return {
-      planId: result.plan.planId,
-      repositoryPath: result.plan.repositoryPath,
-      sourceVersion: result.plan.sourceVersion,
-      changed: preview.changed,
-      diff: createUnifiedDiff(preview),
-      diagnostics: preview.diagnostics.map((diagnostic) => ({ ...diagnostic })),
-      verification: result.plan.verification.map((step) => ({ ...step })),
+      ...view,
       sourceWriteRequired: result.sourceWriteRequired,
-      proposedBinding: { ...result.proposedBinding },
+      proposedBinding: cloneBinding(result.proposedBinding),
     };
   }
 
@@ -191,26 +179,35 @@ export class ProjectBridgeService {
 
     const source = await this.#repository.read(operation.binding.repositoryPath);
     const plan = adapter.planPatch(operation as FrameworkOperation, source);
-    const preview = createPatchPreview(plan, source);
-    const blocking = preview.diagnostics.some((diagnostic) => diagnostic.severity === "error");
+    return this.#createPlanView(plan, source, true);
+  }
 
-    if (!blocking && preview.changed) {
-      this.#plans.set(plan.planId, {
-        plan,
-        preview,
-        createdAt: this.#now(),
-      });
+  async planStylePatch(operation: BridgeStyleOperation): Promise<BridgePatchPlanView> {
+    this.#pruneExpiredPlans();
+    const normalized = operation as StylePatchOperation;
+    if (operation.binding.styleOwnership) {
+      const serializedBinding = JSON.stringify(operation.binding.styleOwnership);
+      const serializedOperation = JSON.stringify(operation.ownership);
+      if (serializedBinding !== serializedOperation) {
+        throw new ProjectBridgeServiceError(
+          "STYLE_OWNERSHIP_MISMATCH",
+          "The requested ownership does not match the ownership stored in the source binding.",
+        );
+      }
     }
 
-    return {
-      planId: plan.planId,
-      repositoryPath: plan.repositoryPath,
-      sourceVersion: plan.sourceVersion,
-      changed: preview.changed,
-      diff: createUnifiedDiff(preview),
-      diagnostics: preview.diagnostics.map((diagnostic) => ({ ...diagnostic })),
-      verification: plan.verification.map((step) => ({ ...step })),
-    };
+    const strategy = this.#styleRegistry.resolve(normalized);
+    if (!strategy) {
+      throw new ProjectBridgeServiceError(
+        "STYLE_STRATEGY_NOT_FOUND",
+        `No style strategy supports ${operation.ownership.strategy} for ${operation.binding.frameworkId ?? "the selected framework"}.`,
+      );
+    }
+
+    const sourcePath = resolveStyleSourcePath(normalized);
+    const source = await this.#repository.read(sourcePath);
+    const plan = strategy.plan(normalized, source);
+    return this.#createPlanView(plan, source, true);
   }
 
   async applyPatch(
@@ -254,10 +251,35 @@ export class ProjectBridgeService {
     };
   }
 
+  #createPlanView(
+    plan: SourcePatchPlan,
+    source: SourceSnapshot,
+    storeWhenChanged: boolean,
+  ): BridgePatchPlanView {
+    const preview = createPatchPreview(plan, source);
+    const blocking = preview.diagnostics.some((diagnostic) => diagnostic.severity === "error");
+    if (storeWhenChanged && !blocking && preview.changed) {
+      this.#plans.set(plan.planId, { plan, preview, createdAt: this.#now() });
+    }
+    return {
+      planId: plan.planId,
+      repositoryPath: plan.repositoryPath,
+      sourceVersion: plan.sourceVersion,
+      changed: preview.changed,
+      diff: createUnifiedDiff(preview),
+      diagnostics: preview.diagnostics.map((diagnostic) => ({ ...diagnostic })),
+      verification: plan.verification.map((step) => ({ ...step })),
+    };
+  }
+
   #pruneExpiredPlans(): void {
     const threshold = this.#now() - this.#planTtlMs;
     for (const [planId, stored] of this.#plans) {
       if (stored.createdAt < threshold) this.#plans.delete(planId);
     }
   }
+}
+
+function cloneBinding<T extends { readonly styleOwnership?: unknown }>(binding: T): T {
+  return JSON.parse(JSON.stringify(binding)) as T;
 }
