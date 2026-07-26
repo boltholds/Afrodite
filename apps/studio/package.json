@@ -13,6 +13,7 @@
     "@afrodite/adapter-react": "workspace:*",
     "@afrodite/adapter-solid": "workspace:*",
     "@afrodite/canvas-engine": "workspace:*",
+    "@afrodite/project-session": "workspace:*",
     "@afrodite/protocol": "workspace:*",
     "@afrodite/ui-ir": "workspace:*",
     "solid-js": "^1.9.7"
