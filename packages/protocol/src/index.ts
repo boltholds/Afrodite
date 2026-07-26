@@ -45,6 +45,16 @@ export {
   bridgeVerificationExecutionSchema,
   bridgeVerificationStepSchema,
 } from "./bridge";
+export {
+  bindingCandidateSchema,
+  bindingDiscoveryRequestSchema,
+  bindingDiscoveryResponseSchema,
+  bindingDiscoveryResultSchema,
+  bindingMarkerPlanRequestSchema,
+  bindingMarkerPlanResponseSchema,
+  bindingMarkerStateSchema,
+  bindingPatchPlanViewSchema,
+} from "./binding";
 
 export type {
   CatalogDecodeResult,
@@ -86,3 +96,13 @@ export type {
   BridgeVerificationExecution,
   BridgeVerificationStep,
 } from "./bridge";
+export type {
+  BindingCandidate,
+  BindingDiscoveryRequest,
+  BindingDiscoveryResponse,
+  BindingDiscoveryResult,
+  BindingMarkerPlanRequest,
+  BindingMarkerPlanResponse,
+  BindingMarkerState,
+  BindingPatchPlanView,
+} from "./binding";
