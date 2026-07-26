@@ -26,6 +26,25 @@ export {
   previewRenderResultSchema,
   previewRuntimeSchema,
 } from "./preview";
+export {
+  PROJECT_BRIDGE_VERSION,
+  bridgeAdapterSchema,
+  bridgeApplyRequestSchema,
+  bridgeApplyResponseSchema,
+  bridgeApplyResultSchema,
+  bridgeDiagnosticSchema,
+  bridgeErrorSchema,
+  bridgeHealthResponseSchema,
+  bridgeOperationSchema,
+  bridgePatchPlanViewSchema,
+  bridgePlanRequestSchema,
+  bridgePlanResponseSchema,
+  bridgeSourceRequestSchema,
+  bridgeSourceResponseSchema,
+  bridgeSourceSnapshotSchema,
+  bridgeVerificationExecutionSchema,
+  bridgeVerificationStepSchema,
+} from "./bridge";
 
 export type {
   CatalogDecodeResult,
@@ -50,3 +69,20 @@ export type {
   PreviewRenderResult,
   PreviewRuntime,
 } from "./preview";
+export type {
+  BridgeAdapter,
+  BridgeApplyRequest,
+  BridgeApplyResponse,
+  BridgeApplyResult,
+  BridgeDiagnostic,
+  BridgeHealthResponse,
+  BridgeOperation,
+  BridgePatchPlanView,
+  BridgePlanRequest,
+  BridgePlanResponse,
+  BridgeSourceRequest,
+  BridgeSourceResponse,
+  BridgeSourceSnapshot,
+  BridgeVerificationExecution,
+  BridgeVerificationStep,
+} from "./bridge";
