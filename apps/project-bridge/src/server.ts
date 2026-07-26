@@ -1,6 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import {
+  bindingDiscoveryRequestSchema,
+  bindingMarkerPlanRequestSchema,
   bridgeApplyRequestSchema,
   bridgePlanRequestSchema,
   bridgeSourceRequestSchema,
@@ -63,6 +65,20 @@ export function createProjectBridgeServer(options: ProjectBridgeServerOptions): 
         const input = bridgeSourceRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
         const source = await options.service.readSource(input.repositoryPath);
         sendJson(response, 200, { ok: true, source });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/binding/discover") {
+        const input = bindingDiscoveryRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const discovery = await options.service.discoverBindings(input);
+        sendJson(response, 200, { ok: true, discovery });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/binding/plan") {
+        const input = bindingMarkerPlanRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const plan = await options.service.planBinding(input);
+        sendJson(response, 200, { ok: true, plan });
         return;
       }
 
