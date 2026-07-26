@@ -1,28 +1,17 @@
 import {
   createDependencyDetection,
   type FrameworkAdapter,
-  type FrameworkDescriptor,
 } from "@afrodite/framework-core";
+import { reactFrameworkDescriptor } from "./descriptor.js";
+import { planReactLayoutPatch } from "./patch.js";
 
-export const reactFrameworkDescriptor: FrameworkDescriptor = {
-  frameworkId: "react",
-  adapterId: "afrodite.adapter.react",
-  displayName: "React",
-  adapterVersion: "0.2.0",
-  sourceExtensions: [".tsx", ".jsx"],
-  runtimePackages: ["react", "react-dom"],
-  capabilities: {
-    projectDetection: true,
-    staticIndexing: true,
-    runtimePreview: true,
-    sourcePatching: false,
-    propEditing: true,
-  },
-};
+export { reactFrameworkDescriptor } from "./descriptor.js";
+export { planReactLayoutPatch } from "./patch.js";
 
 export function createReactFrameworkAdapter(): FrameworkAdapter {
   return {
     descriptor: reactFrameworkDescriptor,
     detect: (manifest) => createDependencyDetection(reactFrameworkDescriptor, manifest),
+    planPatch: planReactLayoutPatch,
   };
 }
