@@ -127,17 +127,39 @@ Delivered:
 - Source Sync includes a recent transition audit;
 - tests cover workspace switching, transition aggregation, undo/redo provenance, stale-plan invalidation, and synchronization cursors.
 
-## VS-009: Visual source-binding manager
+## VS-009: Visual source-binding manager — complete
 
 **Goal:** let users create and repair source bindings without manually editing UI IR JSON or allowing Afrodite to guess arbitrary code targets.
 
+Delivered:
+
+- `@afrodite/binding-core` defines framework-neutral candidate, discovery, registry, marker-plan, and proposed-binding contracts;
+- one static JSX binding implementation is reused by SolidJS and React adapters;
+- discovery requires an explicit adapter and repository path and never executes target-project code;
+- Studio shows every candidate's JSX element name, line, column, source snippet, marker state, and diagnostics;
+- Studio never selects a candidate silently;
+- `install-stable-marker` is a dedicated source operation with a deterministic patch ID;
+- missing `data-afrodite-id` markers are inserted through exact diff review, approval, compare-and-swap writing, verification, and rollback;
+- an already installed matching marker can be confirmed without creating an empty filesystem write;
+- stale source versions, duplicate markers, dynamic marker ownership, duplicate marker attributes, unsupported source extensions, and React `use server` modules are rejected;
+- the project bridge stores marker patch plans server-side and does not accept client-authored text edits;
+- source-binding changes are reversible Canvas commands and participate in the shared undo/redo history;
+- UI IR receives the proposed binding only after the existing marker is confirmed or the verified marker write succeeds;
+- binding changes invalidate stale source plans;
+- tests cover JSX discovery, marker planning, bridge application, existing-marker confirmation, and reversible binding commands.
+
+## VS-010: Style ownership and strategy adapters
+
+**Goal:** make Afrodite's edit authority explicit across inline styles, CSS Modules, utility classes, and design tokens.
+
 Acceptance criteria:
 
-- inspect repository path, framework, adapter, component identity, export, and stable marker in Studio;
-- discover candidate JSX targets through the selected framework adapter;
-- show confidence and ambiguity diagnostics without silently choosing a target;
-- add or update `data-afrodite-id` through an exact reviewed patch;
-- store binding changes as reversible session commands;
-- invalidate source plans when a binding changes;
-- support assisted binding for previously unbound nodes;
-- keep target discovery and patch planning framework-specific behind adapter contracts.
+- represent per-property ownership and provenance independently from framework identity;
+- distinguish Afrodite-managed, handwritten, token-derived, inherited, and read-only values;
+- add style-strategy adapter contracts that are separate from React, SolidJS, Vue, or Svelte adapters;
+- support safe inline-style ownership as the first strategy;
+- discover CSS Module class bindings without executing project code;
+- detect Tailwind or other utility-class ownership without rewriting unknown classes;
+- show editable, read-only, and ambiguous properties directly in Inspector;
+- generate multi-file plans when a token or stylesheet must change;
+- keep every style mutation behind exact diff review, verification, and rollback.

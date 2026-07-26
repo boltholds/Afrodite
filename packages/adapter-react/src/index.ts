@@ -1,3 +1,4 @@
+import { createJsxSourceBindingAdapter } from "@afrodite/binding-core";
 import {
   createDependencyDetection,
   type FrameworkAdapter,
@@ -14,4 +15,18 @@ export function createReactFrameworkAdapter(): FrameworkAdapter {
     detect: (manifest) => createDependencyDetection(reactFrameworkDescriptor, manifest),
     planPatch: planReactLayoutPatch,
   };
+}
+
+export function createReactSourceBindingAdapter() {
+  return createJsxSourceBindingAdapter({
+    descriptor: reactFrameworkDescriptor,
+    rejectUseServer: true,
+    verification: [
+      {
+        kind: "typecheck",
+        command: "pnpm exec tsc --noEmit --pretty false",
+        required: true,
+      },
+    ],
+  });
 }

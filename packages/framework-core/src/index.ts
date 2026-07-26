@@ -76,6 +76,8 @@ export type FrameworkOperation = {
   readonly after: Layout;
 };
 
+export type SourcePatchOperationKind = FrameworkOperation["kind"] | "install-stable-marker";
+
 export interface VerificationStep {
   readonly kind: "format" | "typecheck" | "test" | "build" | "custom";
   readonly command: string;
@@ -87,7 +89,7 @@ export interface SourcePatchPlan {
   readonly planId: string;
   readonly frameworkId: FrameworkId;
   readonly adapterId: string;
-  readonly operation: FrameworkOperation["kind"];
+  readonly operation: SourcePatchOperationKind;
   readonly repositoryPath: string;
   readonly sourceVersion: string;
   readonly edits: readonly TextEdit[];
@@ -109,7 +111,7 @@ export interface PatchPreview {
 export interface CreateSourcePatchPlanInput {
   readonly frameworkId: FrameworkId;
   readonly adapterId: string;
-  readonly operation: FrameworkOperation["kind"];
+  readonly operation: SourcePatchOperationKind;
   readonly source: SourceSnapshot;
   readonly edits: readonly TextEdit[];
   readonly diagnostics?: readonly AdapterDiagnostic[];

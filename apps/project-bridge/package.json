@@ -13,6 +13,7 @@
   "dependencies": {
     "@afrodite/adapter-react": "workspace:*",
     "@afrodite/adapter-solid": "workspace:*",
+    "@afrodite/binding-core": "workspace:*",
     "@afrodite/framework-core": "workspace:*",
     "@afrodite/protocol": "workspace:*",
     "@afrodite/verified-write": "workspace:*",

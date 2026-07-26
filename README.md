@@ -10,8 +10,8 @@ The semantic canvas can:
 2. select nodes through the hierarchy or canvas;
 3. edit flex/grid display, direction, spacing, padding, and sizing constraints;
 4. insert indexed component nodes through reversible commands;
-5. preserve framework-qualified source bindings;
-6. undo and redo document mutations;
+5. create and repair framework-qualified source bindings through reviewed JSX candidates;
+6. undo and redo document, layout, and binding mutations;
 7. validate, import, save, and download Semantic UI IR JSON;
 8. record exact visual layout transitions for source synchronization.
 
@@ -19,20 +19,39 @@ Static indexers support SolidJS and React through separate packages. Both use th
 
 The preview host renders trusted SolidJS and React components through an opaque-origin iframe. Runtime selection is framework-qualified and missing or unsupported components produce structured diagnostics.
 
-## Framework adapters
+## Framework and binding adapters
 
 Shared editor code is framework-neutral.
 
 - `@afrodite/framework-core` defines descriptors, capabilities, detection, operations, source snapshots, deterministic patch plans, edit validation, and previews.
-- `@afrodite/adapter-solid` supports detection, indexing, preview, prop editing, and source-patch planning.
-- `@afrodite/adapter-react` supports detection, static indexing, isolated runtime preview, serializable prop editing, and source-patch planning.
+- `@afrodite/binding-core` defines source-binding discovery, candidate identity, marker planning, and a binding-adapter registry.
+- `@afrodite/adapter-solid` supports detection, indexing, preview, prop editing, layout patching, and JSX binding discovery.
+- `@afrodite/adapter-react` supports detection, static indexing, isolated runtime preview, serializable prop editing, layout patching, and JSX binding discovery.
 - UI IR, catalogs, preview messages, command history, live sessions, diff review, approval, verified writes, and rollback use stable shared contracts.
 
-Both source planners bind through a unique `data-afrodite-id` and modify only supported static JSX style objects. The SolidJS adapter emits CSS-style keys such as `flex-direction`; the React adapter emits React keys such as `flexDirection`. Hooks, handlers, children, attributes, ARIA props, and unrelated style expressions stay untouched. Dynamic or ambiguous ownership is rejected.
+Both layout planners bind through a unique `data-afrodite-id` and modify only supported static JSX style objects. The SolidJS adapter emits CSS-style keys such as `flex-direction`; the React adapter emits React keys such as `flexDirection`. Hooks, handlers, children, attributes, ARIA props, and unrelated style expressions stay untouched. Dynamic or ambiguous ownership is rejected.
+
+## Visual Source Binding Manager
+
+The Canvas Inspector can bind an unbound UI IR node to an existing JSX element without silently guessing a production-code target.
+
+```text
+explicit framework adapter + repository path
+  -> static JSX candidate discovery
+  -> line, column, snippet, marker state, and diagnostics
+  -> explicit candidate selection
+  -> reviewed install-stable-marker diff
+  -> compare-and-swap write and verification
+  -> reversible SourceBinding command in the live session
+```
+
+The browser never submits text edits. The local bridge creates and stores the marker patch plan. A matching existing marker can be confirmed without an empty write. Stale source versions, duplicate markers, dynamic marker ownership, unsupported files, and React `use server` modules are rejected.
+
+See `docs/source-binding-manager.md`.
 
 ## Live project session
 
-Canvas and Source Sync now run inside one live Studio session.
+Canvas and Source Sync run inside one live Studio session.
 
 ```text
 UiDocument + command history
@@ -75,19 +94,20 @@ See `docs/project-bridge.md`, `docs/framework-adapters.md`, `docs/react-indexing
 
 ## Workspace
 
-- `apps/studio` — unified Canvas and Source Sync live session, component library, layout inspector, transition audit, diff review, and approval UI.
+- `apps/studio` — unified Canvas and Source Sync live session, Visual Binding Manager, component library, layout inspector, transition audit, diff review, and approval UI.
 - `apps/preview-host` — isolated SolidJS and React runtime component renderer.
-- `apps/project-bridge` — authenticated local source snapshot, patch planning, verified-write, verification, and rollback service.
+- `apps/project-bridge` — authenticated local source snapshot, binding discovery, patch planning, verified-write, verification, and rollback service.
 - `packages/ui-ir` — framework-neutral Semantic UI IR and source bindings.
-- `packages/canvas-engine` — immutable document commands, framework-binding preservation, and undo/redo history.
+- `packages/canvas-engine` — immutable document, layout, insertion, and source-binding commands with undo/redo history.
 - `packages/project-session` — live Studio state, exact transition provenance, per-node source state, and synchronization cursors.
 - `packages/framework-core` — adapter, operation, source snapshot, and patch-plan contracts.
+- `packages/binding-core` — framework-neutral binding candidates, static JSX discovery, and stable-marker plans.
 - `packages/verified-write` — approval, filesystem compare-and-swap, verification, and rollback.
-- `packages/adapter-solid` — SolidJS identity, detection, and layout patch planning.
-- `packages/adapter-react` — React identity, detection, and layout patch planning.
+- `packages/adapter-solid` — SolidJS identity, detection, layout patching, and source binding adapter.
+- `packages/adapter-react` — React identity, detection, layout patching, and source binding adapter.
 - `packages/project-indexer` — static SolidJS component and prop discovery.
 - `packages/indexer-react` — static React component and prop discovery.
-- `packages/protocol` — catalog, preview, and project-bridge schemas.
+- `packages/protocol` — catalog, preview, project-bridge, and binding schemas.
 
 ## Development
 
@@ -113,7 +133,7 @@ Trusted React fixture example:
 pnpm dev:bridge --project packages/indexer-react/test/fixtures/react-app
 ```
 
-Place `ActionCard` in Canvas, edit its layout, switch to Source Sync, refresh the source snapshot, review the recorded before/after transition, plan the patch, and approve the exact diff.
+To test binding, select an unbound Canvas node, choose the React adapter, enter `src/ActionCard.tsx`, discover candidates, choose the `<article>` target, review the marker diff, and approve it. The new binding becomes part of the same undo/redo history as visual edits.
 
 Verification:
 
@@ -135,4 +155,4 @@ node packages/indexer-react/dist/cli.js ./path/to/react-project \
   --out ./react-component-catalog.json
 ```
 
-The next slice is a visual source-binding manager for creating and repairing framework-qualified bindings through reviewed patches rather than manual UI IR editing.
+The next slice formalizes style ownership across inline styles, CSS Modules, utility classes, and design tokens.

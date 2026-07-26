@@ -1,5 +1,5 @@
 {
-  "name": "@afrodite/adapter-solid",
+  "name": "@afrodite/binding-core",
   "version": "0.0.0",
   "type": "module",
   "exports": {
@@ -14,8 +14,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@afrodite/binding-core": "workspace:*",
     "@afrodite/framework-core": "workspace:*",
+    "@afrodite/ui-ir": "workspace:*",
     "typescript": "^5.8.3"
   },
   "devDependencies": {
