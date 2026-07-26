@@ -105,31 +105,39 @@ Delivered:
 - no client-authored text edits or verification commands;
 - bearer-token authentication, Studio-origin allowlisting, request-size limits, and traversal protection;
 - a `Source Sync` Studio workspace alongside Canvas;
-- source-bound node selection from saved Semantic UI IR;
-- current source inspection and editable target layout JSON;
-- adapter diagnostics, planned verification, exact unified diff, plan ID, and source version display;
-- explicit review confirmation before apply;
-- application through `VerifiedWriteService`;
-- applied, rejected, rolled-back, and rollback-failed outcome views;
-- verification output and refreshed source snapshots;
-- service and protocol tests covering successful apply and stale-source rejection.
+- adapter diagnostics, verification steps, exact unified diff, approval, write outcomes, and rollback output.
 
-Current handoff limitation:
-
-- Canvas and Source Sync share the saved UI document through browser storage rather than a live editor session.
-
-## VS-008: Live Studio project session and source bindings
+## VS-008: Live Studio project session — complete
 
 **Goal:** remove the browser-storage handoff and make source synchronization part of the active editing session.
 
+Delivered:
+
+- `@afrodite/project-session` owns the live framework-neutral session state;
+- Canvas and Source Sync share one UI document, selection, command history, revision counter, source snapshots, patch plans, write results, and synchronization cursors;
+- switching workspaces preserves undo/redo history and the selected node;
+- every visual layout command records exact before/after layouts;
+- undo and redo are also recorded as explicit layout transitions;
+- multiple unsynchronized visual transitions are aggregated into one source operation;
+- source planning uses the recorded visual operation rather than a separate target-layout editor;
+- new visual edits invalidate reviewed plans for the affected node;
+- refreshing a changed source version invalidates stale patch plans;
+- successful verified writes advance only the applied node's synchronization cursor;
+- session telemetry exposes revision, command count, and transition count;
+- Source Sync includes a recent transition audit;
+- tests cover workspace switching, transition aggregation, undo/redo provenance, stale-plan invalidation, and synchronization cursors.
+
+## VS-009: Visual source-binding manager
+
+**Goal:** let users create and repair source bindings without manually editing UI IR JSON or allowing Afrodite to guess arbitrary code targets.
+
 Acceptance criteria:
 
-- one shared Studio state owns Canvas, selection, pending operations, project connection, source snapshots, plans, and write results;
-- switching workspaces does not unmount or lose command history;
-- a layout command records the exact before and after UI IR state for source planning;
-- source binding paths, framework adapter, component identity, and stable marker are inspectable and editable through validated commands;
-- the current project catalog and bridge grant are associated with one explicit project session;
-- successful writes update the source baseline and clear only the applied pending operation;
-- external source changes invalidate plans and surface a rebase or re-plan action;
-- unbound nodes can enter an assisted binding workflow without arbitrary source guessing;
-- session state remains framework-neutral and does not introduce SolidJS or React branches into Studio.
+- inspect repository path, framework, adapter, component identity, export, and stable marker in Studio;
+- discover candidate JSX targets through the selected framework adapter;
+- show confidence and ambiguity diagnostics without silently choosing a target;
+- add or update `data-afrodite-id` through an exact reviewed patch;
+- store binding changes as reversible session commands;
+- invalidate source plans when a binding changes;
+- support assisted binding for previously unbound nodes;
+- keep target discovery and patch planning framework-specific behind adapter contracts.
