@@ -26,6 +26,7 @@ export function ActionCard({
 
   return (
     <article
+      data-afrodite-id="react:src/ActionCard.tsx#ActionCard"
       style={{
         minWidth: 240,
         border: `1px solid ${accent}`,
