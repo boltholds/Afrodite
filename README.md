@@ -10,10 +10,10 @@ The semantic canvas can:
 2. select nodes through the hierarchy or canvas;
 3. edit flex/grid display, direction, spacing, padding, and sizing constraints;
 4. insert indexed component nodes through reversible commands;
-5. preserve framework-qualified bindings during insertion;
+5. preserve framework-qualified source bindings;
 6. undo and redo document mutations;
-7. validate, import, save, copy, and download Semantic UI IR JSON;
-8. report invalid JSON, schema failures, and duplicate stable IDs explicitly.
+7. validate, import, save, and download Semantic UI IR JSON;
+8. record exact visual layout transitions for source synchronization.
 
 Static indexers support SolidJS and React through separate packages. Both use the TypeScript compiler API, resolve exports without executing project modules, extract typed serializable props and defaults, and emit the same framework-neutral component catalog.
 
@@ -26,23 +26,39 @@ Shared editor code is framework-neutral.
 - `@afrodite/framework-core` defines descriptors, capabilities, detection, operations, source snapshots, deterministic patch plans, edit validation, and previews.
 - `@afrodite/adapter-solid` supports detection, indexing, preview, prop editing, and source-patch planning.
 - `@afrodite/adapter-react` supports detection, static indexing, isolated runtime preview, serializable prop editing, and source-patch planning.
-- UI IR, catalogs, preview messages, command history, diff review, approval, verified writes, and rollback use stable shared contracts.
+- UI IR, catalogs, preview messages, command history, live sessions, diff review, approval, verified writes, and rollback use stable shared contracts.
 
 Both source planners bind through a unique `data-afrodite-id` and modify only supported static JSX style objects. The SolidJS adapter emits CSS-style keys such as `flex-direction`; the React adapter emits React keys such as `flexDirection`. Hooks, handlers, children, attributes, ARIA props, and unrelated style expressions stay untouched. Dynamic or ambiguous ownership is rejected.
 
-## Source Sync and verified writes
+## Live project session
 
-Studio now has two workspaces:
+Canvas and Source Sync now run inside one live Studio session.
 
 ```text
-Canvas
-Source Sync
+UiDocument + command history
+  -> exact layout transitions
+  -> per-node pending source operations
+  -> source snapshots and patch plans
+  -> exact diff approval
+  -> verified write or rollback
 ```
 
-The Source Sync workspace loads source-bound nodes from the saved Semantic UI IR document, connects to a local project bridge, reads the current source snapshot, requests an adapter patch plan, shows the exact unified diff, requires explicit confirmation of the plan ID and source version, and displays verification or rollback results.
+`@afrodite/project-session` owns the current document, selection, workspace, revision, command metadata, transition audit, synchronization cursors, source snapshots, patch plans, and write results.
+
+Switching between Canvas and Source Sync no longer serializes the document through browser storage. Undo/redo history and node selection remain active. Browser storage is still available as an explicit save/load action.
+
+Every visual layout command records exact before and after layouts. Undo and redo append their own transitions. Several visual edits can be aggregated into one reviewed source operation. A successful verified write advances only the applied node's synchronization cursor.
+
+A new edit to the same node invalidates its reviewed plan. Refreshing a source snapshot with a different version also invalidates the stale plan.
+
+See `docs/live-project-session.md`.
+
+## Source Sync and verified writes
+
+Source Sync connects the live session to a local project bridge, reads the current source snapshot, requests an adapter patch plan, shows the exact unified diff, requires explicit confirmation of the plan ID and source version, and displays verification or rollback results.
 
 ```text
-source-bound UI IR node
+recorded visual transition
   -> local project bridge
   -> current source snapshot
   -> adapter.planPatch
@@ -59,11 +75,12 @@ See `docs/project-bridge.md`, `docs/framework-adapters.md`, `docs/react-indexing
 
 ## Workspace
 
-- `apps/studio` — Canvas and Source Sync workspaces, component library, layout inspector, diff review, and approval UI.
+- `apps/studio` — unified Canvas and Source Sync live session, component library, layout inspector, transition audit, diff review, and approval UI.
 - `apps/preview-host` — isolated SolidJS and React runtime component renderer.
 - `apps/project-bridge` — authenticated local source snapshot, patch planning, verified-write, verification, and rollback service.
 - `packages/ui-ir` — framework-neutral Semantic UI IR and source bindings.
 - `packages/canvas-engine` — immutable document commands, framework-binding preservation, and undo/redo history.
+- `packages/project-session` — live Studio state, exact transition provenance, per-node source state, and synchronization cursors.
 - `packages/framework-core` — adapter, operation, source snapshot, and patch-plan contracts.
 - `packages/verified-write` — approval, filesystem compare-and-swap, verification, and rollback.
 - `packages/adapter-solid` — SolidJS identity, detection, and layout patch planning.
@@ -88,13 +105,15 @@ Start a local bridge in a separate terminal with an explicit project root:
 pnpm dev:bridge --project ./path/to/project
 ```
 
-The bridge listens on `127.0.0.1:4175` by default and prints a generated session token. Paste that token into the Source Sync workspace.
+The bridge listens on `127.0.0.1:4175` by default and prints a generated session token. Paste that token into Source Sync.
 
 Trusted React fixture example:
 
 ```bash
 pnpm dev:bridge --project packages/indexer-react/test/fixtures/react-app
 ```
+
+Place `ActionCard` in Canvas, edit its layout, switch to Source Sync, refresh the source snapshot, review the recorded before/after transition, plan the patch, and approve the exact diff.
 
 Verification:
 
@@ -116,4 +135,4 @@ node packages/indexer-react/dist/cli.js ./path/to/react-project \
   --out ./react-component-catalog.json
 ```
 
-The next product slice should remove the browser-storage handoff between Canvas and Source Sync by introducing a shared live Studio session and visual source-binding management.
+The next slice is a visual source-binding manager for creating and repairing framework-qualified bindings through reviewed patches rather than manual UI IR editing.
