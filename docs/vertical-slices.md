@@ -85,29 +85,43 @@ Delivered:
 - serializable props, defaults, descriptions, source locations, framework IDs, and adapter IDs are emitted into the shared `ComponentCatalog`;
 - callbacks and React/platform runtime objects are reported as `UNSUPPORTED_PROP_TYPE`;
 - async client components, server-only modules, and context-dependent components receive explicit diagnostics;
-- React capabilities now advertise static indexing, runtime preview, and serializable prop editing;
+- React capabilities advertise static indexing, runtime preview, and serializable prop editing;
 - the preview host announces both SolidJS and React runtimes through the existing protocol;
 - React components mount through `react-dom/client` behind the same runtime-adapter registry used by SolidJS;
 - React render failures are returned through the existing `PreviewRenderResult` diagnostic channel;
-- framework-qualified catalog markers are preserved by the shared insertion command so Studio-created React nodes retain framework identity;
-- Studio's fixture catalog contains trusted SolidJS and React components;
-- workspace typecheck, tests, and production builds pass.
+- framework-qualified catalog markers are preserved by the shared insertion command;
+- Studio's fixture catalog contains trusted SolidJS and React components.
 
-Trust boundary:
+## VS-006: React source patch parity — complete
 
-- indexing remains static and does not execute React application code;
-- preview executes only React components compiled into the trusted registry;
-- arbitrary repositories still require a separately approved, isolated preview-bundle build.
+**Goal:** implement React syntax planning against the existing verified-write boundary.
 
-## VS-006: React source patch parity
+Delivered:
 
-**Goal:** implement React syntax planning against the same verified-write boundary.
+- `@afrodite/adapter-react` advertises `sourcePatching: true` and exposes `planReactLayoutPatch` through `FrameworkAdapter.planPatch`;
+- the planner consumes the existing `FrameworkOperation` and returns the existing `SourcePatchPlan` shape;
+- React JSX nodes bind through unique static `data-afrodite-id` markers;
+- inline styles use React property casing, including `flexDirection`;
+- missing inline style objects are inserted without touching hooks, callbacks, children, attributes, `className`, or ARIA props;
+- static managed layout properties are replaced while unrelated static and dynamic properties are preserved;
+- dynamic managed properties, style variables, spreads, computed keys, duplicate managed keys, duplicate style attributes, duplicate markers, and `use server` modules are rejected explicitly;
+- formatter and required TypeScript verification steps are declared by the adapter;
+- unified diff, approval, compare-and-swap write, verification, and rollback remain unchanged and framework-neutral;
+- React patch planning and refusal behavior are covered by tests.
+
+## VS-007: Studio source synchronization workflow
+
+**Goal:** expose the safe-write architecture as an end-to-end user workflow inside Afrodite Studio.
 
 Acceptance criteria:
 
-- consume the existing `FrameworkOperation` contract;
-- bind React JSX through stable markers;
-- return the same `SourcePatchPlan` shape;
-- preserve hooks, callbacks, expressions, children, and unrelated styles;
-- refuse dynamic or ambiguous style expressions instead of guessing;
-- use the existing diff, approval, compare-and-swap, verification, and rollback services unchanged.
+- connect Studio to a local project bridge with an explicit project-root grant;
+- read the current source snapshot for a selected bound node;
+- compare the committed UI IR layout with the edited layout and create a `FrameworkOperation`;
+- resolve SolidJS or React adapters through the shared registry;
+- display adapter diagnostics, verification steps, before/after source, and unified diff;
+- require a visible approval action bound to the exact `planId` and source version;
+- apply through the verified-write service rather than browser filesystem access;
+- show applied, rejected, rolled-back, and rollback-failed outcomes;
+- refresh the source snapshot and invalidate stale approvals after external edits;
+- keep source-write controls unavailable for unbound nodes and unsupported adapter capabilities.
