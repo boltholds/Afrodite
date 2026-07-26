@@ -17,9 +17,7 @@ The semantic canvas can:
 
 Static indexers support SolidJS and React through separate packages. Both use the TypeScript compiler API, resolve exports without executing project modules, extract typed serializable props and defaults, and emit the same framework-neutral component catalog.
 
-The React indexer additionally reports async components, server-only modules, context dependencies, callbacks, React nodes, DOM events, and other runtime-only values explicitly instead of pretending they are editable JSON props.
-
-The component composition slice can load mixed-framework catalogs, insert source-bound component nodes, and render trusted SolidJS and React components through a separate opaque-origin preview host.
+The preview host renders trusted SolidJS and React components through an opaque-origin iframe. Runtime selection is framework-qualified and missing or unsupported components produce structured diagnostics.
 
 ## Framework adapters
 
@@ -28,35 +26,42 @@ Shared editor code is framework-neutral.
 - `@afrodite/framework-core` defines descriptors, capabilities, detection, operations, source snapshots, deterministic patch plans, edit validation, and previews.
 - `@afrodite/adapter-solid` supports detection, indexing, preview, prop editing, and source-patch planning.
 - `@afrodite/adapter-react` supports detection, static indexing, isolated runtime preview, serializable prop editing, and source-patch planning.
-- UI IR, catalogs, preview messages, command history, diff review, approval, verified writes, and rollback use stable framework-neutral contracts.
+- UI IR, catalogs, preview messages, command history, diff review, approval, verified writes, and rollback use stable shared contracts.
 
-The preview host owns a runtime-adapter registry. SolidJS components render through Solid's dynamic component runtime; React components mount through `react-dom/client`. Both runtimes use framework-qualified trusted registries and return failures through the same preview diagnostic protocol.
+Both source planners bind through a unique `data-afrodite-id` and modify only supported static JSX style objects. The SolidJS adapter emits CSS-style keys such as `flex-direction`; the React adapter emits React keys such as `flexDirection`. Hooks, handlers, children, attributes, ARIA props, and unrelated style expressions stay untouched. Dynamic or ambiguous ownership is rejected.
 
-Both source planners bind through a unique `data-afrodite-id` and change only a supported static JSX style object. The SolidJS adapter emits CSS-style keys such as `flex-direction`; the React adapter emits React keys such as `flexDirection`. Hooks, handlers, children, attributes, ARIA props, and unrelated style expressions stay untouched. Dynamic or ambiguous ownership is rejected instead of guessed.
+## Source Sync and verified writes
 
-## Verified source writes
-
-`@afrodite/verified-write` keeps framework syntax planning separate from filesystem mutation.
+Studio now has two workspaces:
 
 ```text
-FrameworkOperation
-  -> adapter.planPatch
-  -> SourcePatchPlan
-  -> before/after preview and unified diff
-  -> explicit approval
-  -> compare-and-swap write
-  -> formatter/typecheck/test/build verification
-  -> keep or rollback
+Canvas
+Source Sync
 ```
 
-Approvals are bound to the exact patch ID and source version. Stale files, overlapping edits, invalid paths, and approval mismatches are rejected. A failed required verification restores the original source when the compare-and-swap rollback is still safe.
+The Source Sync workspace loads source-bound nodes from the saved Semantic UI IR document, connects to a local project bridge, reads the current source snapshot, requests an adapter patch plan, shows the exact unified diff, requires explicit confirmation of the plan ID and source version, and displays verification or rollback results.
 
-See `docs/framework-adapters.md`, `docs/react-indexing.md`, `docs/react-source-patching.md`, and `docs/verified-write.md`.
+```text
+source-bound UI IR node
+  -> local project bridge
+  -> current source snapshot
+  -> adapter.planPatch
+  -> unified diff
+  -> explicit exact-plan approval
+  -> compare-and-swap write
+  -> formatter/typecheck/test/build verification
+  -> applied or rollback result
+```
+
+The browser never receives filesystem or process access. The bridge is fixed to one project root, binds to localhost by default, requires a bearer session token, validates Studio origins, stores plans server-side, rejects path traversal and stale sources, and does not accept client-authored edits or verification commands.
+
+See `docs/project-bridge.md`, `docs/framework-adapters.md`, `docs/react-indexing.md`, `docs/react-source-patching.md`, and `docs/verified-write.md`.
 
 ## Workspace
 
-- `apps/studio` — visual editor, mixed-framework component library, layout inspector, and preview client.
+- `apps/studio` — Canvas and Source Sync workspaces, component library, layout inspector, diff review, and approval UI.
 - `apps/preview-host` — isolated SolidJS and React runtime component renderer.
+- `apps/project-bridge` — authenticated local source snapshot, patch planning, verified-write, verification, and rollback service.
 - `packages/ui-ir` — framework-neutral Semantic UI IR and source bindings.
 - `packages/canvas-engine` — immutable document commands, framework-binding preservation, and undo/redo history.
 - `packages/framework-core` — adapter, operation, source snapshot, and patch-plan contracts.
@@ -65,8 +70,7 @@ See `docs/framework-adapters.md`, `docs/react-indexing.md`, `docs/react-source-p
 - `packages/adapter-react` — React identity, detection, and layout patch planning.
 - `packages/project-indexer` — static SolidJS component and prop discovery.
 - `packages/indexer-react` — static React component and prop discovery.
-- `packages/protocol` — framework-aware catalog and preview schemas.
-- `docs` — product vision, architecture, visual language, adapters, indexing, preview security, verified writes, source patching, and vertical slices.
+- `packages/protocol` — catalog, preview, and project-bridge schemas.
 
 ## Development
 
@@ -78,6 +82,20 @@ pnpm dev
 
 `pnpm dev` starts Studio on `4173` and the preview host on `4174`.
 
+Start a local bridge in a separate terminal with an explicit project root:
+
+```bash
+pnpm dev:bridge --project ./path/to/project
+```
+
+The bridge listens on `127.0.0.1:4175` by default and prints a generated session token. Paste that token into the Source Sync workspace.
+
+Trusted React fixture example:
+
+```bash
+pnpm dev:bridge --project packages/indexer-react/test/fixtures/react-app
+```
+
 Verification:
 
 ```bash
@@ -86,20 +104,16 @@ pnpm test
 pnpm build
 ```
 
-Build and run the SolidJS indexer:
+Build and run the indexers:
 
 ```bash
 pnpm --filter @afrodite/project-indexer build
 node packages/project-indexer/dist/cli.js ./path/to/solid-project \
   --out ./solid-component-catalog.json
-```
 
-Build and run the React indexer:
-
-```bash
 pnpm --filter @afrodite/indexer-react build
 node packages/indexer-react/dist/cli.js ./path/to/react-project \
   --out ./react-component-catalog.json
 ```
 
-The next product slice connects Studio to the verified-write boundary so users can inspect, approve, apply, and recover source changes from the visual editor.
+The next product slice should remove the browser-storage handoff between Canvas and Source Sync by introducing a shared live Studio session and visual source-binding management.

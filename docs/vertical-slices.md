@@ -51,27 +51,18 @@ Delivered:
 
 **Goal:** convert a visual layout edit into an approved and verified source patch, with SolidJS as the first syntax adapter.
 
-Delivered in the shared boundary:
+Delivered:
 
 - deterministic content versions and patch IDs;
 - sorted, non-overlapping text edits;
 - path, bounds, overlap, and stale-source validation;
-- deterministic before/after previews and unified diffs;
+- deterministic previews and unified diffs;
 - approvals bound to `planId` and `sourceVersion`;
 - compare-and-swap filesystem writes below a configured project root;
 - formatter, typecheck, test, build, or custom verification steps;
 - automatic compare-and-swap rollback when a required check fails;
-- explicit `applied`, `rejected`, `rolled-back`, and `rollback-failed` results.
-
-Delivered in the SolidJS adapter:
-
-- `sourcePatching: true` and a real `planPatch` implementation;
-- binding through a unique static `data-afrodite-id` marker;
-- AST-informed replacement of an existing static `style` object;
-- insertion of a style object when the marked JSX element has none;
-- preservation of event handlers, expressions, children, attributes, spreads, and unmanaged CSS properties;
-- refusal to guess when markers are absent or duplicated, bindings target another file/framework, or styles are dynamic;
-- formatter and TypeScript verification declarations.
+- explicit `applied`, `rejected`, `rolled-back`, and `rollback-failed` results;
+- SolidJS static inline-style layout planning with refusal on dynamic or ambiguous ownership.
 
 ## VS-005: React indexing and preview parity — complete
 
@@ -79,18 +70,12 @@ Delivered in the SolidJS adapter:
 
 Delivered:
 
-- `@afrodite/indexer-react` performs static TypeScript/TSX analysis without importing project modules;
-- exported React function components and barrel re-exports are discovered and deduplicated;
-- hooks and ordinary lowercase functions are ignored;
-- serializable props, defaults, descriptions, source locations, framework IDs, and adapter IDs are emitted into the shared `ComponentCatalog`;
-- callbacks and React/platform runtime objects are reported as `UNSUPPORTED_PROP_TYPE`;
-- async client components, server-only modules, and context-dependent components receive explicit diagnostics;
-- React capabilities advertise static indexing, runtime preview, and serializable prop editing;
-- the preview host announces both SolidJS and React runtimes through the existing protocol;
-- React components mount through `react-dom/client` behind the same runtime-adapter registry used by SolidJS;
-- React render failures are returned through the existing `PreviewRenderResult` diagnostic channel;
-- framework-qualified catalog markers are preserved by the shared insertion command;
-- Studio's fixture catalog contains trusted SolidJS and React components.
+- static React TypeScript/TSX analysis without project execution;
+- exported component and barrel re-export discovery;
+- serializable prop, default, source, framework, and adapter metadata;
+- explicit async, server-only, context, callback, React-node, and DOM-runtime diagnostics;
+- trusted React preview through `react-dom/client` behind the shared runtime registry;
+- framework-qualified binding preservation during insertion.
 
 ## VS-006: React source patch parity — complete
 
@@ -98,30 +83,53 @@ Delivered:
 
 Delivered:
 
-- `@afrodite/adapter-react` advertises `sourcePatching: true` and exposes `planReactLayoutPatch` through `FrameworkAdapter.planPatch`;
-- the planner consumes the existing `FrameworkOperation` and returns the existing `SourcePatchPlan` shape;
-- React JSX nodes bind through unique static `data-afrodite-id` markers;
-- inline styles use React property casing, including `flexDirection`;
-- missing inline style objects are inserted without touching hooks, callbacks, children, attributes, `className`, or ARIA props;
-- static managed layout properties are replaced while unrelated static and dynamic properties are preserved;
-- dynamic managed properties, style variables, spreads, computed keys, duplicate managed keys, duplicate style attributes, duplicate markers, and `use server` modules are rejected explicitly;
-- formatter and required TypeScript verification steps are declared by the adapter;
-- unified diff, approval, compare-and-swap write, verification, and rollback remain unchanged and framework-neutral;
-- React patch planning and refusal behavior are covered by tests.
+- React `sourcePatching` capability and `planReactLayoutPatch`;
+- the existing `FrameworkOperation` and `SourcePatchPlan` contracts;
+- unique static `data-afrodite-id` binding;
+- React inline-style casing such as `flexDirection`;
+- preservation of hooks, callbacks, children, attributes, `className`, ARIA props, and unrelated styles;
+- explicit rejection of dynamic managed values, style variables, spreads, computed keys, duplicates, and `use server` modules;
+- unchanged shared diff, approval, compare-and-swap, verification, and rollback services.
 
-## VS-007: Studio source synchronization workflow
+## VS-007: Studio source synchronization workflow — complete
 
-**Goal:** expose the safe-write architecture as an end-to-end user workflow inside Afrodite Studio.
+**Goal:** expose the safe-write architecture as an end-to-end workflow inside Afrodite Studio.
+
+Delivered:
+
+- `apps/project-bridge` as an authenticated localhost service bound to one explicit project root;
+- fixed-root source reads and versioned snapshots;
+- SolidJS and React adapter resolution through the shared registry;
+- bridge protocol schemas for health, reads, planning, approval, verification, and write results;
+- server-side patch-plan storage with expiration;
+- no client-authored text edits or verification commands;
+- bearer-token authentication, Studio-origin allowlisting, request-size limits, and traversal protection;
+- a `Source Sync` Studio workspace alongside Canvas;
+- source-bound node selection from saved Semantic UI IR;
+- current source inspection and editable target layout JSON;
+- adapter diagnostics, planned verification, exact unified diff, plan ID, and source version display;
+- explicit review confirmation before apply;
+- application through `VerifiedWriteService`;
+- applied, rejected, rolled-back, and rollback-failed outcome views;
+- verification output and refreshed source snapshots;
+- service and protocol tests covering successful apply and stale-source rejection.
+
+Current handoff limitation:
+
+- Canvas and Source Sync share the saved UI document through browser storage rather than a live editor session.
+
+## VS-008: Live Studio project session and source bindings
+
+**Goal:** remove the browser-storage handoff and make source synchronization part of the active editing session.
 
 Acceptance criteria:
 
-- connect Studio to a local project bridge with an explicit project-root grant;
-- read the current source snapshot for a selected bound node;
-- compare the committed UI IR layout with the edited layout and create a `FrameworkOperation`;
-- resolve SolidJS or React adapters through the shared registry;
-- display adapter diagnostics, verification steps, before/after source, and unified diff;
-- require a visible approval action bound to the exact `planId` and source version;
-- apply through the verified-write service rather than browser filesystem access;
-- show applied, rejected, rolled-back, and rollback-failed outcomes;
-- refresh the source snapshot and invalidate stale approvals after external edits;
-- keep source-write controls unavailable for unbound nodes and unsupported adapter capabilities.
+- one shared Studio state owns Canvas, selection, pending operations, project connection, source snapshots, plans, and write results;
+- switching workspaces does not unmount or lose command history;
+- a layout command records the exact before and after UI IR state for source planning;
+- source binding paths, framework adapter, component identity, and stable marker are inspectable and editable through validated commands;
+- the current project catalog and bridge grant are associated with one explicit project session;
+- successful writes update the source baseline and clear only the applied pending operation;
+- external source changes invalidate plans and surface a rebase or re-plan action;
+- unbound nodes can enter an assisted binding workflow without arbitrary source guessing;
+- session state remains framework-neutral and does not introduce SolidJS or React branches into Studio.

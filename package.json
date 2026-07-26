@@ -10,6 +10,7 @@
     "dev": "pnpm --parallel --filter @afrodite/studio --filter @afrodite/preview-host dev",
     "dev:studio": "pnpm --filter @afrodite/studio dev",
     "dev:preview": "pnpm --filter @afrodite/preview-host dev",
+    "dev:bridge": "pnpm --filter @afrodite/project-bridge dev --",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test"

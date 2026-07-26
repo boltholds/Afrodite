@@ -7,18 +7,21 @@ Git repository
     -> framework detection
     -> framework-specific static indexer
     -> framework-neutral component catalog
-    -> Afrodite Studio
+    -> Afrodite Studio Canvas
     -> Semantic UI IR
     -> isolated preview host with runtime adapters
-    -> FrameworkOperation
+    -> saved source-bound UI document
+    -> Studio Source Sync
+    -> authenticated local project bridge
+    -> current SourceSnapshot
     -> framework adapter planPatch
     -> SourcePatchPlan
-    -> preview and explicit approval
+    -> unified diff and explicit exact-plan approval
     -> verified compare-and-swap write
     -> verification or rollback
 ```
 
-SolidJS and React both cover detection, static indexing, runtime preview, serializable prop editing, and source patch planning. They share UI IR, command history, catalog transport, preview messages, patch plans, diff review, approval, filesystem mutation, verification, and rollback. Framework differences remain inside indexers, runtime adapters, and syntax planners.
+SolidJS and React both cover detection, static indexing, runtime preview, serializable prop editing, and source patch planning. They share UI IR, command history, catalog transport, preview messages, project-bridge transport, patch plans, diff review, approval, filesystem mutation, verification, and rollback. Framework differences remain inside indexers, runtime adapters, and syntax planners.
 
 ## Workspace packages
 
@@ -55,7 +58,7 @@ Owns framework-neutral extension and patch-planning contracts:
 - immutable source snapshots and deterministic source versions;
 - text edits and `SourcePatchPlan`;
 - edit-range, overlap, path, and stale-version validation;
-- deterministic patch previews and unified diffs;
+- deterministic patch previews;
 - adapter diagnostics and verification declarations.
 
 The shared package does not know SolidJS signals, React hooks, Vue SFCs, or Svelte compilation rules.
@@ -70,7 +73,7 @@ Owns privileged source mutation:
 - compare-and-swap writes;
 - formatter, typecheck, test, build, and custom command execution;
 - automatic rollback after failed required verification;
-- explicit applied, rejected, rolled-back, and rollback-failed results.
+- explicit `applied`, `rejected`, `rolled-back`, and `rollback-failed` results.
 
 Framework adapters cannot write files directly.
 
@@ -102,42 +105,64 @@ Performs static SolidJS/TypeScript analysis. Compiler objects remain inside the 
 
 Performs static React TypeScript/TSX analysis using the same catalog protocol. It discovers exported PascalCase components, resolves barrel exports, extracts JSON-safe props and defaults, and does not import or execute project modules.
 
-It emits explicit diagnostics for:
-
-- async client components;
-- server-only files and directives;
-- context dependencies requiring provider harnesses;
-- callbacks, React nodes, DOM events, and other runtime-only props.
+It emits explicit diagnostics for async components, server-only files, context dependencies, callbacks, React nodes, DOM events, and other runtime-only props.
 
 ### `@afrodite/protocol`
 
-Owns validated data exchanged between packages and iframe processes:
+Owns validated data exchanged between packages, browser workspaces, iframe processes, and the local bridge:
 
 - component catalogs and framework descriptors;
 - component-level framework identities;
 - preview render requests and runtime availability;
-- structured indexing and preview diagnostics.
+- source-read requests and versioned snapshots;
+- framework-neutral patch operations;
+- patch-plan views, unified diff metadata, and diagnostics;
+- exact approval requests;
+- verification executions and final write outcomes.
+
+The protocol does not grant authority. The bridge independently resolves adapters, reads the current source, stores plans, and performs all privileged checks.
 
 ## Applications
 
 ### `apps/studio`
 
-Loads mixed-framework catalogs, builds UI IR, owns editor history, edits layout constraints, resolves framework capabilities, and sends validated preview requests. Studio resolves source planning through adapter identity and must never invoke SolidJS syntax logic for a React binding or React syntax logic for a SolidJS binding.
+Studio contains two product workspaces.
 
-The next application slice connects Studio to a local privileged bridge that reads source snapshots and invokes the verified-write service after explicit user approval.
+`Canvas` loads mixed-framework catalogs, builds UI IR, owns editor history, edits layout constraints, and sends validated preview requests.
+
+`Source Sync` loads source-bound nodes from the saved UI document, connects to the local bridge, reads current source snapshots, edits or confirms the target layout operation, shows the exact unified diff, requires an explicit review checkbox, submits only the plan ID and source version, and displays verification or rollback output.
+
+The current Canvas-to-Source-Sync handoff uses browser storage. A later slice should replace that handoff with shared live Studio session state.
 
 ### `apps/preview-host`
 
 Runs separately inside an iframe with `sandbox="allow-scripts"` and no same-origin permission. It renders only components in trusted framework-qualified registries.
-
-The host currently registers two runtime adapters:
 
 ```text
 solid -> Solid Dynamic component renderer
 react -> react-dom/client root renderer
 ```
 
-Shared traversal and diagnostics resolve the runtime by `frameworkId`. The React runtime is mounted behind a React error boundary and reports failures through the same `PreviewRenderResult` channel used by SolidJS. Missing runtimes return `FRAMEWORK_NOT_SUPPORTED`; missing trusted entries return `COMPONENT_NOT_REGISTERED`.
+Shared traversal and diagnostics resolve the runtime by `frameworkId`. Missing runtimes return `FRAMEWORK_NOT_SUPPORTED`; missing trusted entries return `COMPONENT_NOT_REGISTERED`.
+
+### `apps/project-bridge`
+
+The bridge is a local Node service and the only application with filesystem and process authority.
+
+It is configured with one immutable project root and registers the SolidJS and React adapters. Its API exposes health, source reads, patch planning, and patch application. It never accepts client-authored text edits or verification commands.
+
+Security and consistency properties:
+
+- bind to `127.0.0.1` by default;
+- bearer session token on every non-preflight request;
+- Studio origin allowlist;
+- request-body size limit;
+- fixed project root with traversal protection;
+- adapter capability checks;
+- in-memory server-side plan storage with expiration;
+- exact `planId` and `sourceVersion` approval binding;
+- compare-and-swap before write and rollback;
+- adapter-declared verification only.
 
 ## Static indexing boundary
 
@@ -165,25 +190,27 @@ UiDocument subtree
 
 Executing arbitrary project components requires a separately approved and resource-limited bundle process. The current SolidJS and React fixtures are compiled into the preview host at build time and do not authorize arbitrary paths from UI IR.
 
-## Verified source-write boundary
+## Verified source synchronization boundary
 
 ```text
-UI IR before and after
-    -> FrameworkOperation
+source-bound UI IR node
+    -> BridgeOperation
+    -> authenticated bridge request
+    -> read current SourceSnapshot
     -> resolve adapter from SourceBinding
-    -> adapter.planPatch(operation, SourceSnapshot)
-    -> SourcePatchPlan
-    -> validate source version and edits
-    -> show before/after preview and unified diff
-    -> explicit approval
+    -> adapter.planPatch(operation, snapshot)
+    -> validate SourcePatchPlan
+    -> create unified diff
+    -> store approvable plan server-side
+    -> user reviews exact plan ID and source version
+    -> apply request contains no edits
+    -> re-read source and compare version
     -> compare-and-swap write
     -> run adapter verification steps
-    -> keep write or restore original source
+    -> keep source or compare-and-swap rollback
 ```
 
-Every patch plan has `requiresApproval: true`. Approval becomes invalid when the plan or source changes. A required verification failure triggers rollback using the version produced by the write, preventing rollback from overwriting a later concurrent edit.
-
-SolidJS and React planners stop at `SourcePatchPlan`. Neither adapter receives filesystem access, approval state, or command-execution authority.
+Every patch plan has `requiresApproval: true`. Approval becomes invalid when the plan expires, the bridge restarts, or the source changes. SolidJS and React planners stop at `SourcePatchPlan`; neither receives filesystem access, approval state, network authority, or command-execution authority.
 
 ## Semantic UI IR invariants
 
@@ -193,6 +220,7 @@ SolidJS and React planners stop at `SourcePatchPlan`. Neither adapter receives f
 - layout is separate from visual styling;
 - source bindings are untrusted metadata until adapter resolution and source verification;
 - framework IDs are stable lowercase identifiers;
-- framework-specific runtime behavior stays behind adapter registries;
+- framework-specific runtime behavior stays behind runtime adapter registries;
 - framework-specific syntax behavior stays behind patch planners;
+- privileged source mutation stays behind the local project bridge;
 - schema migrations are deterministic.
