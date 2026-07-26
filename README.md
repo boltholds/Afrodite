@@ -15,7 +15,7 @@ The semantic canvas can:
 7. validate, import, save, copy, and download Semantic UI IR JSON;
 8. report invalid JSON, schema failures, and duplicate stable IDs explicitly.
 
-Static indexers currently support SolidJS and React through separate packages. Both use the TypeScript compiler API, resolve exports without executing project modules, extract typed serializable props and defaults, and emit the same framework-neutral component catalog.
+Static indexers support SolidJS and React through separate packages. Both use the TypeScript compiler API, resolve exports without executing project modules, extract typed serializable props and defaults, and emit the same framework-neutral component catalog.
 
 The React indexer additionally reports async components, server-only modules, context dependencies, callbacks, React nodes, DOM events, and other runtime-only values explicitly instead of pretending they are editable JSON props.
 
@@ -26,13 +26,13 @@ The component composition slice can load mixed-framework catalogs, insert source
 Shared editor code is framework-neutral.
 
 - `@afrodite/framework-core` defines descriptors, capabilities, detection, operations, source snapshots, deterministic patch plans, edit validation, and previews.
-- `@afrodite/adapter-solid` supports detection, indexing, preview, prop editing, and the first source-patch planner.
-- `@afrodite/adapter-react` supports detection, static indexing, isolated runtime preview, and serializable prop editing. React source patching is the next adapter slice.
-- UI IR, catalogs, preview messages, command history, and verified writes carry stable framework-neutral contracts.
+- `@afrodite/adapter-solid` supports detection, indexing, preview, prop editing, and source-patch planning.
+- `@afrodite/adapter-react` supports detection, static indexing, isolated runtime preview, serializable prop editing, and source-patch planning.
+- UI IR, catalogs, preview messages, command history, diff review, approval, verified writes, and rollback use stable framework-neutral contracts.
 
 The preview host owns a runtime-adapter registry. SolidJS components render through Solid's dynamic component runtime; React components mount through `react-dom/client`. Both runtimes use framework-qualified trusted registries and return failures through the same preview diagnostic protocol.
 
-The SolidJS planner binds through a unique `data-afrodite-id` and changes only a static JSX `style` object. It preserves handlers, children, attributes, expressions, spreads, and unrelated CSS properties. Dynamic or ambiguous source is rejected instead of guessed.
+Both source planners bind through a unique `data-afrodite-id` and change only a supported static JSX style object. The SolidJS adapter emits CSS-style keys such as `flex-direction`; the React adapter emits React keys such as `flexDirection`. Hooks, handlers, children, attributes, ARIA props, and unrelated style expressions stay untouched. Dynamic or ambiguous ownership is rejected instead of guessed.
 
 ## Verified source writes
 
@@ -51,7 +51,7 @@ FrameworkOperation
 
 Approvals are bound to the exact patch ID and source version. Stale files, overlapping edits, invalid paths, and approval mismatches are rejected. A failed required verification restores the original source when the compare-and-swap rollback is still safe.
 
-See `docs/framework-adapters.md`, `docs/react-indexing.md`, and `docs/verified-write.md`.
+See `docs/framework-adapters.md`, `docs/react-indexing.md`, `docs/react-source-patching.md`, and `docs/verified-write.md`.
 
 ## Workspace
 
@@ -62,11 +62,11 @@ See `docs/framework-adapters.md`, `docs/react-indexing.md`, and `docs/verified-w
 - `packages/framework-core` — adapter, operation, source snapshot, and patch-plan contracts.
 - `packages/verified-write` — approval, filesystem compare-and-swap, verification, and rollback.
 - `packages/adapter-solid` — SolidJS identity, detection, and layout patch planning.
-- `packages/adapter-react` — React identity, detection, indexing/preview capabilities, and future patch planning.
+- `packages/adapter-react` — React identity, detection, and layout patch planning.
 - `packages/project-indexer` — static SolidJS component and prop discovery.
 - `packages/indexer-react` — static React component and prop discovery.
 - `packages/protocol` — framework-aware catalog and preview schemas.
-- `docs` — product vision, architecture, visual language, adapters, indexing, preview security, verified writes, and vertical slices.
+- `docs` — product vision, architecture, visual language, adapters, indexing, preview security, verified writes, source patching, and vertical slices.
 
 ## Development
 
@@ -102,4 +102,4 @@ node packages/indexer-react/dist/cli.js ./path/to/react-project \
   --out ./react-component-catalog.json
 ```
 
-The next framework slice is React source-patch planning against the existing verified-write boundary.
+The next product slice connects Studio to the verified-write boundary so users can inspect, approve, apply, and recover source changes from the visual editor.
