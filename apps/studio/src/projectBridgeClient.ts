@@ -1,8 +1,14 @@
 import {
+  bindingDiscoveryResponseSchema,
+  bindingMarkerPlanResponseSchema,
   bridgeApplyResponseSchema,
   bridgeHealthResponseSchema,
   bridgePlanResponseSchema,
   bridgeSourceResponseSchema,
+  type BindingDiscoveryRequest,
+  type BindingDiscoveryResult,
+  type BindingMarkerPlanRequest,
+  type BindingPatchPlanView,
   type BridgeApplyResult,
   type BridgeHealthResponse,
   type BridgeOperation,
@@ -45,6 +51,30 @@ export class ProjectBridgeClient {
     );
     if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
     return response.source;
+  }
+
+  async discoverBindings(
+    request: BindingDiscoveryRequest,
+  ): Promise<BindingDiscoveryResult> {
+    const response = await this.#request(
+      "/api/binding/discover",
+      { method: "POST", body: JSON.stringify(request) },
+      bindingDiscoveryResponseSchema,
+    );
+    if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
+    return response.discovery;
+  }
+
+  async planBinding(
+    request: BindingMarkerPlanRequest,
+  ): Promise<BindingPatchPlanView> {
+    const response = await this.#request(
+      "/api/binding/plan",
+      { method: "POST", body: JSON.stringify(request) },
+      bindingMarkerPlanResponseSchema,
+    );
+    if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
+    return response.plan;
   }
 
   async planPatch(operation: BridgeOperation): Promise<BridgePatchPlanView> {
