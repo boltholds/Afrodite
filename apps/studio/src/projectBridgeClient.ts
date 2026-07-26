@@ -14,6 +14,7 @@ import {
   type BridgeOperation,
   type BridgePatchPlanView,
   type BridgeSourceSnapshot,
+  type BridgeStyleOperation,
 } from "@afrodite/protocol";
 
 interface Parser<T> {
@@ -53,9 +54,7 @@ export class ProjectBridgeClient {
     return response.source;
   }
 
-  async discoverBindings(
-    request: BindingDiscoveryRequest,
-  ): Promise<BindingDiscoveryResult> {
+  async discoverBindings(request: BindingDiscoveryRequest): Promise<BindingDiscoveryResult> {
     const response = await this.#request(
       "/api/binding/discover",
       { method: "POST", body: JSON.stringify(request) },
@@ -65,9 +64,7 @@ export class ProjectBridgeClient {
     return response.discovery;
   }
 
-  async planBinding(
-    request: BindingMarkerPlanRequest,
-  ): Promise<BindingPatchPlanView> {
+  async planBinding(request: BindingMarkerPlanRequest): Promise<BindingPatchPlanView> {
     const response = await this.#request(
       "/api/binding/plan",
       { method: "POST", body: JSON.stringify(request) },
@@ -80,6 +77,16 @@ export class ProjectBridgeClient {
   async planPatch(operation: BridgeOperation): Promise<BridgePatchPlanView> {
     const response = await this.#request(
       "/api/patch/plan",
+      { method: "POST", body: JSON.stringify({ operation }) },
+      bridgePlanResponseSchema,
+    );
+    if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
+    return response.plan;
+  }
+
+  async planStylePatch(operation: BridgeStyleOperation): Promise<BridgePatchPlanView> {
+    const response = await this.#request(
+      "/api/style/plan",
       { method: "POST", body: JSON.stringify({ operation }) },
       bridgePlanResponseSchema,
     );
