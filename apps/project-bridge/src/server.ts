@@ -6,6 +6,7 @@ import {
   bridgeApplyRequestSchema,
   bridgePlanRequestSchema,
   bridgeSourceRequestSchema,
+  bridgeStylePlanRequestSchema,
 } from "@afrodite/protocol";
 import { ZodError } from "zod";
 import { ProjectBridgeService, ProjectBridgeServiceError } from "./service.js";
@@ -78,6 +79,13 @@ export function createProjectBridgeServer(options: ProjectBridgeServerOptions): 
       if (request.method === "POST" && url.pathname === "/api/binding/plan") {
         const input = bindingMarkerPlanRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
         const plan = await options.service.planBinding(input);
+        sendJson(response, 200, { ok: true, plan });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/style/plan") {
+        const input = bridgeStylePlanRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const plan = await options.service.planStylePatch(input.operation);
         sendJson(response, 200, { ok: true, plan });
         return;
       }
@@ -162,12 +170,8 @@ class HttpRequestError extends Error {
 }
 
 function normalizeError(error: unknown): { code: string; message: string; status: number } {
-  if (error instanceof HttpRequestError) {
-    return { code: error.code, message: error.message, status: error.status };
-  }
-  if (error instanceof ProjectBridgeServiceError) {
-    return { code: error.code, message: error.message, status: 409 };
-  }
+  if (error instanceof HttpRequestError) return { code: error.code, message: error.message, status: error.status };
+  if (error instanceof ProjectBridgeServiceError) return { code: error.code, message: error.message, status: 409 };
   if (error instanceof ZodError) {
     return {
       code: "INVALID_REQUEST",
