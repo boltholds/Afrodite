@@ -55,6 +55,10 @@ export {
   bindingMarkerStateSchema,
   bindingPatchPlanViewSchema,
 } from "./binding";
+export {
+  bridgeStyleOperationSchema,
+  bridgeStylePlanRequestSchema,
+} from "./style";
 
 export type {
   CatalogDecodeResult,
@@ -106,3 +110,7 @@ export type {
   BindingMarkerState,
   BindingPatchPlanView,
 } from "./binding";
+export type {
+  BridgeStyleOperation,
+  BridgeStylePlanRequest,
+} from "./style";
