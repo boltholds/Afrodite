@@ -18,7 +18,7 @@ Git repository
     -> verification or rollback
 ```
 
-SolidJS currently covers indexing, preview, prop editing, and source patching. React covers indexing, preview, and prop editing and reuses the same UI IR, command history, catalog, preview protocol, patch-plan, approval, write, and rollback layers. React source patch planning remains adapter-local work for VS-006.
+SolidJS and React both cover detection, static indexing, runtime preview, serializable prop editing, and source patch planning. They share UI IR, command history, catalog transport, preview messages, patch plans, diff review, approval, filesystem mutation, verification, and rollback. Framework differences remain inside indexers, runtime adapters, and syntax planners.
 
 ## Workspace packages
 
@@ -84,11 +84,15 @@ Its first patch operation updates layout on a uniquely marked JSX element:
 <section data-afrodite-id="card.primary" style={{ color: "red" }} />
 ```
 
-The adapter changes only Afrodite-managed properties inside a static style object. Handwritten handlers, children, expressions, attributes, spreads, and unmanaged style properties are preserved. Dynamic style expressions and ambiguous bindings produce blocking diagnostics.
+The adapter emits Solid-compatible CSS property names and changes only Afrodite-managed properties inside a static style object. Handwritten handlers, children, expressions, attributes, spreads, and unmanaged style properties are preserved. Dynamic style expressions and ambiguous bindings produce blocking diagnostics.
 
 ### `@afrodite/adapter-react`
 
-Declares React as an independent framework target. Detection, static indexing, runtime preview, and serializable prop editing are enabled. Source patching remains disabled until the React planner is implemented.
+Declares the React identity and supports detection, indexing, runtime preview, prop editing, and source patch planning.
+
+The React planner consumes the same `FrameworkOperation` as SolidJS and returns the same `SourcePatchPlan`. It binds through `data-afrodite-id`, emits React style casing such as `flexDirection`, and limits edits to a static inline style object.
+
+The planner preserves hooks, callbacks, children, `className`, ARIA attributes, and unmanaged expressions. It blocks runtime-dependent ownership including style variables, dynamic managed keys, spreads, computed keys, duplicate managed keys, duplicate style attributes, duplicate markers, and modules marked with `"use server"`.
 
 ### `@afrodite/project-indexer`
 
@@ -118,7 +122,9 @@ Owns validated data exchanged between packages and iframe processes:
 
 ### `apps/studio`
 
-Loads mixed-framework catalogs, builds UI IR, owns editor history, edits layout constraints, resolves framework capabilities, and sends validated preview requests. Studio must not invoke a SolidJS operation for a React binding.
+Loads mixed-framework catalogs, builds UI IR, owns editor history, edits layout constraints, resolves framework capabilities, and sends validated preview requests. Studio resolves source planning through adapter identity and must never invoke SolidJS syntax logic for a React binding or React syntax logic for a SolidJS binding.
+
+The next application slice connects Studio to a local privileged bridge that reads source snapshots and invokes the verified-write service after explicit user approval.
 
 ### `apps/preview-host`
 
@@ -177,6 +183,8 @@ UI IR before and after
 
 Every patch plan has `requiresApproval: true`. Approval becomes invalid when the plan or source changes. A required verification failure triggers rollback using the version produced by the write, preventing rollback from overwriting a later concurrent edit.
 
+SolidJS and React planners stop at `SourcePatchPlan`. Neither adapter receives filesystem access, approval state, or command-execution authority.
+
 ## Semantic UI IR invariants
 
 - every node has a unique stable ID;
@@ -186,4 +194,5 @@ Every patch plan has `requiresApproval: true`. Approval becomes invalid when the
 - source bindings are untrusted metadata until adapter resolution and source verification;
 - framework IDs are stable lowercase identifiers;
 - framework-specific runtime behavior stays behind adapter registries;
+- framework-specific syntax behavior stays behind patch planners;
 - schema migrations are deterministic.
