@@ -1,6 +1,13 @@
 import path from "node:path";
-import { createReactFrameworkAdapter } from "@afrodite/adapter-react";
-import { createSolidFrameworkAdapter } from "@afrodite/adapter-solid";
+import {
+  createReactFrameworkAdapter,
+  createReactSourceBindingAdapter,
+} from "@afrodite/adapter-react";
+import {
+  createSolidFrameworkAdapter,
+  createSolidSourceBindingAdapter,
+} from "@afrodite/adapter-solid";
+import { SourceBindingAdapterRegistry } from "@afrodite/binding-core";
 import {
   FrameworkAdapterRegistry,
   createPatchPreview,
@@ -9,6 +16,10 @@ import {
   type SourcePatchPlan,
 } from "@afrodite/framework-core";
 import type {
+  BindingDiscoveryRequest,
+  BindingDiscoveryResult,
+  BindingMarkerPlanRequest,
+  BindingPatchPlanView,
   BridgeApplyResult,
   BridgeHealthResponse,
   BridgeOperation,
@@ -54,6 +65,7 @@ export class ProjectBridgeService {
   readonly #repository: SourceRepository;
   readonly #writeService: VerifiedWriteService;
   readonly #registry = new FrameworkAdapterRegistry();
+  readonly #bindingRegistry = new SourceBindingAdapterRegistry();
   readonly #plans = new Map<string, StoredPlan>();
   readonly #planTtlMs: number;
   readonly #now: () => number;
@@ -70,6 +82,8 @@ export class ProjectBridgeService {
 
     this.#registry.register(createSolidFrameworkAdapter());
     this.#registry.register(createReactFrameworkAdapter());
+    this.#bindingRegistry.register(createSolidSourceBindingAdapter());
+    this.#bindingRegistry.register(createReactSourceBindingAdapter());
   }
 
   health(): BridgeHealthResponse {
@@ -92,6 +106,70 @@ export class ProjectBridgeService {
       repositoryPath: source.repositoryPath,
       content: source.content,
       version: source.version,
+    };
+  }
+
+  async discoverBindings(
+    request: BindingDiscoveryRequest,
+  ): Promise<BindingDiscoveryResult> {
+    const adapter = this.#bindingRegistry.get(request.adapterId);
+    if (!adapter) {
+      throw new ProjectBridgeServiceError(
+        "BINDING_ADAPTER_NOT_FOUND",
+        `No source binding adapter is registered as ${request.adapterId}.`,
+      );
+    }
+
+    const source = await this.#repository.read(request.repositoryPath);
+    const result = adapter.discoverCandidates(request, source);
+    return {
+      frameworkId: result.frameworkId,
+      adapterId: result.adapterId,
+      repositoryPath: result.repositoryPath,
+      sourceVersion: result.sourceVersion,
+      candidates: result.candidates.map((candidate) => ({
+        ...candidate,
+        diagnostics: candidate.diagnostics.map((diagnostic) => ({ ...diagnostic })),
+      })),
+      diagnostics: result.diagnostics.map((diagnostic) => ({ ...diagnostic })),
+    };
+  }
+
+  async planBinding(
+    request: BindingMarkerPlanRequest,
+  ): Promise<BindingPatchPlanView> {
+    this.#pruneExpiredPlans();
+    const adapter = this.#bindingRegistry.get(request.adapterId);
+    if (!adapter) {
+      throw new ProjectBridgeServiceError(
+        "BINDING_ADAPTER_NOT_FOUND",
+        `No source binding adapter is registered as ${request.adapterId}.`,
+      );
+    }
+
+    const source = await this.#repository.read(request.repositoryPath);
+    const result = adapter.planStableMarker(request, source);
+    const preview = createPatchPreview(result.plan, source);
+    const blocking = preview.diagnostics.some((diagnostic) => diagnostic.severity === "error");
+
+    if (result.sourceWriteRequired && !blocking && preview.changed) {
+      this.#plans.set(result.plan.planId, {
+        plan: result.plan,
+        preview,
+        createdAt: this.#now(),
+      });
+    }
+
+    return {
+      planId: result.plan.planId,
+      repositoryPath: result.plan.repositoryPath,
+      sourceVersion: result.plan.sourceVersion,
+      changed: preview.changed,
+      diff: createUnifiedDiff(preview),
+      diagnostics: preview.diagnostics.map((diagnostic) => ({ ...diagnostic })),
+      verification: result.plan.verification.map((step) => ({ ...step })),
+      sourceWriteRequired: result.sourceWriteRequired,
+      proposedBinding: { ...result.proposedBinding },
     };
   }
 
