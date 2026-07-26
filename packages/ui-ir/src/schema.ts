@@ -23,6 +23,69 @@ const frameworkIdentifierSchema = z.string().regex(
   "Framework identifiers must use lowercase letters, digits, dots, and hyphens.",
 );
 
+export const stylePropertySchema = z.enum([
+  "display",
+  "direction",
+  "gap",
+  "padding",
+  "width",
+  "height",
+]);
+
+const managedPropertiesSchema = z.array(stylePropertySchema).min(1).superRefine((properties, context) => {
+  if (new Set(properties).size !== properties.length) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "Managed style properties must be unique." });
+  }
+});
+
+const tokenMapSchema = z.object({
+  display: z.string().min(1).optional(),
+  direction: z.string().min(1).optional(),
+  gap: z.string().min(1).optional(),
+  padding: z.string().min(1).optional(),
+  width: z.string().min(1).optional(),
+  height: z.string().min(1).optional(),
+});
+
+export const styleOwnershipSchema = z.discriminatedUnion("strategy", [
+  z.object({
+    strategy: z.literal("inline"),
+    managedProperties: managedPropertiesSchema,
+  }),
+  z.object({
+    strategy: z.literal("css-module"),
+    managedProperties: managedPropertiesSchema,
+    stylesheetPath: z.string().min(1),
+    className: z.string().regex(/^[A-Za-z_][A-Za-z0-9_-]*$/),
+  }),
+  z.object({
+    strategy: z.literal("utility"),
+    managedProperties: managedPropertiesSchema,
+    dialect: z.literal("tailwind").default("tailwind"),
+    attribute: z.enum(["class", "className"]).optional(),
+  }),
+  z.object({
+    strategy: z.literal("design-token"),
+    managedProperties: managedPropertiesSchema,
+    tokenFilePath: z.string().min(1),
+    tokens: tokenMapSchema.refine(
+      (tokens) => Object.keys(tokens).length > 0,
+      "At least one design-token binding is required.",
+    ),
+  }),
+]).superRefine((ownership, context) => {
+  if (ownership.strategy !== "design-token") return;
+  for (const property of ownership.managedProperties) {
+    if (!ownership.tokens[property]) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["tokens", property],
+        message: `Managed property ${property} requires a token binding.`,
+      });
+    }
+  }
+});
+
 export const sourceBindingSchema = z.object({
   frameworkId: frameworkIdentifierSchema.optional(),
   adapterId: z.string().min(1).optional(),
@@ -30,10 +93,13 @@ export const sourceBindingSchema = z.object({
   repositoryPath: z.string().min(1),
   exportName: z.string().min(1).optional(),
   stableMarker: z.string().min(1).optional(),
+  styleOwnership: styleOwnershipSchema.optional(),
 });
 
 export type LayoutDirection = z.infer<typeof layoutDirectionSchema>;
 export type Layout = z.infer<typeof layoutSchema>;
+export type StyleProperty = z.infer<typeof stylePropertySchema>;
+export type StyleOwnership = z.infer<typeof styleOwnershipSchema>;
 export type SourceBinding = z.infer<typeof sourceBindingSchema>;
 
 interface UiNodeBase {

@@ -76,7 +76,10 @@ export type FrameworkOperation = {
   readonly after: Layout;
 };
 
-export type SourcePatchOperationKind = FrameworkOperation["kind"] | "install-stable-marker";
+export type SourcePatchOperationKind =
+  | FrameworkOperation["kind"]
+  | "install-stable-marker"
+  | "update-style";
 
 export interface VerificationStep {
   readonly kind: "format" | "typecheck" | "test" | "build" | "custom";
@@ -121,10 +124,7 @@ export interface CreateSourcePatchPlanInput {
 export interface FrameworkAdapter {
   readonly descriptor: FrameworkDescriptor;
   detect(manifest: ProjectManifest): FrameworkDetection;
-  planPatch?(
-    operation: FrameworkOperation,
-    source: SourceSnapshot,
-  ): SourcePatchPlan;
+  planPatch?(operation: FrameworkOperation, source: SourceSnapshot): SourcePatchPlan;
 }
 
 export class FrameworkAdapterRegistry {
@@ -132,9 +132,7 @@ export class FrameworkAdapterRegistry {
 
   register(adapter: FrameworkAdapter): void {
     const id = adapter.descriptor.adapterId;
-    if (this.#adapters.has(id)) {
-      throw new Error(`Framework adapter ${id} is already registered`);
-    }
+    if (this.#adapters.has(id)) throw new Error(`Framework adapter ${id} is already registered`);
     this.#adapters.set(id, adapter);
   }
 
@@ -158,9 +156,7 @@ export class FrameworkAdapterRegistry {
   resolveForBinding(binding: SourceBinding): FrameworkAdapter | undefined {
     if (binding.adapterId) return this.get(binding.adapterId);
     if (!binding.frameworkId) return undefined;
-    return this.list().find(
-      (adapter) => adapter.descriptor.frameworkId === binding.frameworkId,
-    );
+    return this.list().find((adapter) => adapter.descriptor.frameworkId === binding.frameworkId);
   }
 }
 
@@ -169,7 +165,6 @@ export function createDependencyDetection(
   manifest: ProjectManifest,
 ): FrameworkDetection {
   const evidence: FrameworkEvidence[] = [];
-
   for (const packageName of descriptor.runtimePackages) {
     if (manifest.dependencies[packageName]) {
       evidence.push({ kind: "dependency", value: packageName, weight: 1 });
@@ -177,10 +172,8 @@ export function createDependencyDetection(
       evidence.push({ kind: "dev-dependency", value: packageName, weight: 0.7 });
     }
   }
-
   const total = Math.max(1, descriptor.runtimePackages.length);
   const confidence = Math.min(1, evidence.reduce((sum, item) => sum + item.weight, 0) / total);
-
   return {
     frameworkId: descriptor.frameworkId,
     adapterId: descriptor.adapterId,
@@ -210,7 +203,6 @@ export function createSourcePatchPlan(input: CreateSourcePatchPlanInput): Source
     sourceVersion,
     ...edits.map((edit) => `${edit.start}:${edit.end}:${createSourceVersion(edit.replacement)}`),
   ].join("|");
-
   return {
     planId: `patch:${createSourceVersion(identity).replace(/[:]/g, "-")}`,
     frameworkId: input.frameworkId,
@@ -231,7 +223,6 @@ export function validatePatchPlan(
 ): readonly AdapterDiagnostic[] {
   const diagnostics: AdapterDiagnostic[] = [];
   const sourceVersion = source.version ?? createSourceVersion(source.content);
-
   if (source.repositoryPath !== plan.repositoryPath) {
     diagnostics.push({
       code: "SOURCE_PATH_MISMATCH",
@@ -240,7 +231,6 @@ export function validatePatchPlan(
       repositoryPath: source.repositoryPath,
     });
   }
-
   if (sourceVersion !== plan.sourceVersion) {
     diagnostics.push({
       code: "SOURCE_VERSION_MISMATCH",
@@ -249,7 +239,6 @@ export function validatePatchPlan(
       repositoryPath: source.repositoryPath,
     });
   }
-
   let previousEnd = -1;
   for (const edit of plan.edits) {
     if (!Number.isInteger(edit.start) || !Number.isInteger(edit.end)) {
@@ -279,7 +268,6 @@ export function validatePatchPlan(
     }
     previousEnd = Math.max(previousEnd, edit.end);
   }
-
   return diagnostics;
 }
 
@@ -292,14 +280,10 @@ export function applyTextEdits(content: string, edits: readonly TextEdit[]): str
   return next;
 }
 
-export function createPatchPreview(
-  plan: SourcePatchPlan,
-  source: SourceSnapshot,
-): PatchPreview {
+export function createPatchPreview(plan: SourcePatchPlan, source: SourceSnapshot): PatchPreview {
   const diagnostics = [...plan.diagnostics, ...validatePatchPlan(plan, source)];
   const blocked = diagnostics.some((diagnostic) => diagnostic.severity === "error");
   const after = blocked ? source.content : applyTextEdits(source.content, plan.edits);
-
   return {
     planId: plan.planId,
     repositoryPath: plan.repositoryPath,

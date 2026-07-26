@@ -148,18 +148,33 @@ Delivered:
 - binding changes invalidate stale source plans;
 - tests cover JSX discovery, marker planning, bridge application, existing-marker confirmation, and reversible binding commands.
 
-## VS-010: Style ownership and strategy adapters
+## VS-010: Style ownership and strategy adapters — complete
 
-**Goal:** make Afrodite's edit authority explicit across inline styles, CSS Modules, utility classes, and design tokens.
+**Goal:** make Afrodite's edit authority explicit across inline styles, CSS Modules, Tailwind utility classes, and design tokens.
 
-Acceptance criteria:
+Delivered:
 
-- represent per-property ownership and provenance independently from framework identity;
-- distinguish Afrodite-managed, handwritten, token-derived, inherited, and read-only values;
-- add style-strategy adapter contracts that are separate from React, SolidJS, Vue, or Svelte adapters;
-- support safe inline-style ownership as the first strategy;
-- discover CSS Module class bindings without executing project code;
-- detect Tailwind or other utility-class ownership without rewriting unknown classes;
-- show editable, read-only, and ambiguous properties directly in Inspector;
-- generate multi-file plans when a token or stylesheet must change;
-- keep every style mutation behind exact diff review, verification, and rollback.
+- `SourceBinding.styleOwnership` records one explicit strategy and the exact layout properties Afrodite is allowed to control;
+- ownership remains independent from React or SolidJS framework identity;
+- `@afrodite/style-core` defines `StylePatchOperation`, strategy adapters, source-target resolution, and a registry with no framework branches in Studio or the bridge;
+- React and SolidJS inline strategies update only owned static object-literal properties and preserve unmanaged declarations;
+- dynamic owned values, spreads, computed keys, duplicate properties, ambiguous markers, and React `use server` modules are rejected;
+- Tailwind strategies replace only owned utility groups in static `className` or `class` strings and preserve unrelated classes;
+- CSS Module strategy updates one explicit flat class rule in one explicit stylesheet and preserves unrelated declarations;
+- design-token strategy updates existing unique CSS custom-property declarations and never guesses a token scope;
+- `update-style` is a dedicated deterministic source patch operation;
+- `/api/style/plan` keeps source reads, offsets, edits, and verification commands inside the authenticated project bridge;
+- all style writes use the existing exact diff approval, compare-and-swap write, verification, and rollback boundary;
+- reversible `createStyleOwnershipCommand` and `createClearStyleOwnershipCommand` operations store ownership in UI IR command history;
+- Studio includes a Style Ownership Workbench for configuring all four strategies, validating the resulting binding, reviewing exact diffs, and applying verified writes;
+- tests cover ownership validation, inline preservation and refusal, Tailwind utility replacement, CSS Module changes, token changes, bridge application, and command undo/redo.
+
+Current boundary:
+
+- VS-010 intentionally produces one verified source-file patch per operation;
+- atomic component plus stylesheet or token edits remain part of the future multi-file transaction slice;
+- CSS nesting, conditional class helpers, generated utility expressions, and token creation remain read-only rather than guessed.
+
+## VS-011: Existing screen import
+
+**Goal:** reconstruct a bounded editable UI tree from an existing route or component entry point while preserving unsupported behavior as read-only source-backed regions.
