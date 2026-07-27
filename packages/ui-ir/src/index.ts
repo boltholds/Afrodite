@@ -1,8 +1,10 @@
 export {
+  appearanceSchema,
   interactionStateSchema,
   layoutDirectionSchema,
   layoutOverrideSchema,
   layoutSchema,
+  positionSchema,
   responsiveVariantSchema,
   sourceBindingSchema,
   sourceRegionKindSchema,
@@ -30,10 +32,12 @@ export type {
 } from "./serialization";
 
 export type {
+  Appearance,
   InteractionState,
   Layout,
   LayoutDirection,
   LayoutOverride,
+  Position,
   ResponsiveVariant,
   SourceBinding,
   SourceRegion,
