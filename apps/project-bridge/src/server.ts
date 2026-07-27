@@ -4,7 +4,9 @@ import {
   bindingDiscoveryRequestSchema,
   bindingMarkerPlanRequestSchema,
   bridgeApplyRequestSchema,
+  bridgeMotionApplyRequestSchema,
   bridgeMotionPlanRequestSchema,
+  bridgeMotionRuntimeEvidenceRecordRequestSchema,
   bridgePlanRequestSchema,
   bridgeSourceRequestSchema,
   bridgeStylePlanRequestSchema,
@@ -240,11 +242,19 @@ export function createProjectBridgeServer(options: ProjectBridgeServerOptions): 
         return;
       }
 
+      if (request.method === "POST" && url.pathname === "/api/motion/runtime-evidence") {
+        const input = bridgeMotionRuntimeEvidenceRecordRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const evidence = options.motion.recordRuntimeEvidence(input.result);
+        sendJson(response, 200, { ok: true, evidence });
+        return;
+      }
+
       if (request.method === "POST" && url.pathname === "/api/motion/apply") {
-        const input = bridgeApplyRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const input = bridgeMotionApplyRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
         const result = await options.motion.applyMotionPatch(
           input.planId,
           input.sourceVersion,
+          input.runtimeEvidenceId,
           input.approvedBy,
         );
         sendJson(response, 200, { ok: true, result });
