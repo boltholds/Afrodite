@@ -16,8 +16,9 @@ Afrodite can:
 8. patch React and SolidJS inline styles safely;
 9. patch static Tailwind classes, flat CSS Module rules, and existing design tokens;
 10. show exact unified diffs, require approval, verify writes, and roll back failures;
-11. import one bounded existing React or SolidJS screen into Semantic UI IR without executing it;
-12. preserve unsupported behavior as source-backed read-only regions.
+11. import existing React or SolidJS screens into Semantic UI IR without executing them;
+12. expand bounded graphs of direct local JSX components with cycle detection and deterministic budgets;
+13. preserve unsupported behavior and unresolved imports as source-backed boundaries.
 
 ## Architecture
 
@@ -28,6 +29,7 @@ Shared editor code remains framework-neutral.
 - `@afrodite/binding-core` discovers source targets and plans stable-marker installation.
 - `@afrodite/style-core` maps semantic layout to inline styles, Tailwind utilities, CSS Modules, or design tokens.
 - `@afrodite/import-core` reconstructs bounded existing screens through syntax-specific import adapters.
+- `@afrodite/import-core/graph` follows direct local component imports through a provider-controlled, budgeted graph.
 - `@afrodite/verified-write` provides approval, compare-and-swap filesystem writes, verification, and rollback.
 - `@afrodite/project-session` keeps Canvas and Source Sync inside one command history and provenance timeline.
 
@@ -89,16 +91,17 @@ Current strategies:
 
 See `docs/style-ownership.md` and `docs/style-ownership-examples.md`.
 
-## Existing screen import
+## Existing screen and component-graph import
 
-The **Screen import** workbench reconstructs one explicitly selected exported TSX/JSX component from one source file.
+The **Screen import** workbench starts from one explicitly selected exported TSX/JSX component.
 
 ```text
 adapter + repository path + export
-  -> current source snapshot
+  -> current root source snapshot
   -> static TypeScript JSX analysis
-  -> Semantic UI IR tree
-  -> editable / requires-binding / read-only classification
+  -> direct relative component-import graph
+  -> file/node/depth budgets and user stop boundaries
+  -> Semantic UI IR tree with per-file provenance
   -> explicit open or JSON download
 ```
 
@@ -107,15 +110,22 @@ The importer never imports the target module, starts Vite, calls hooks, evaluate
 Recovered data includes:
 
 - native JSX elements and component references;
-- nested hierarchy;
-- serializable static props;
+- nested hierarchy and serializable static props;
 - static stable markers;
 - basic inline and static Tailwind layout;
-- source version, file, export, offsets, line, and column.
+- source version, file, export, offsets, line, and column;
+- named and default direct relative component imports;
+- file records and component edges with `expanded`, `boundary`, `cycle`, `missing`, `budget`, or `failed` status.
 
-Unsupported behavior remains visible as `source-region` nodes. Conditional rendering, iteration, calls, fragments, text, dynamic expressions, multiple return paths, and React `"use server"` modules retain exact snapshot provenance and an explicit read-only reason. The Canvas command engine rejects mutations against read-only regions independently of Inspector state.
+The graph supports hard maximum file, materialized-node, component-depth, and per-file syntax-depth limits. Repeated component instances receive unique node-ID namespaces. Active-path cycles are detected and retained as explicit boundaries.
 
-See `docs/existing-screen-import.md`.
+`all-local` mode expands supported direct local imports. `explicit` mode expands only named components. `stopComponents` can terminate traversal at selected component boundaries.
+
+Unsupported behavior remains visible as `source-region` nodes. Conditional rendering, iteration, calls, fragments, text, dynamic expressions, multiple return paths, and React `"use server"` modules retain exact snapshot provenance and an explicit read-only reason. Package imports, aliases, barrels, lazy loaders, dynamic imports, and unresolved modules stay unexpanded.
+
+The Canvas command engine rejects mutations against read-only regions independently of Inspector state. Graph construction is read-only and never writes repository files.
+
+See `docs/existing-screen-import.md` and `docs/multi-file-screen-import.md`.
 
 ## Live project session
 
@@ -135,7 +145,7 @@ See `docs/live-project-session.md`.
 
 ## Workspace
 
-- `apps/studio` — Canvas, Source Sync, Binding Manager, Style Ownership, and Screen Import.
+- `apps/studio` — Canvas, Source Sync, Binding Manager, Style Ownership, and bounded component-graph import.
 - `apps/preview-host` — opaque-origin trusted SolidJS and React component preview.
 - `apps/project-bridge` — authenticated localhost source, import, planning, verified-write, and rollback service.
 - `packages/ui-ir` — Semantic UI IR and provenance contracts.
@@ -144,7 +154,8 @@ See `docs/live-project-session.md`.
 - `packages/framework-core` — framework and patch-plan contracts.
 - `packages/binding-core` — target discovery and stable-marker plans.
 - `packages/style-core` — style ownership strategies.
-- `packages/import-core` — bounded screen-import adapters.
+- `packages/import-core` — bounded single-file screen-import adapters.
+- `packages/import-core/graph` — multi-file component graph traversal, resolution, budgets, cycles, and provenance.
 - `packages/verified-write` — approval, compare-and-swap, verification, and rollback.
 - `packages/adapter-solid` — SolidJS framework, binding, and screen-import adapter factories.
 - `packages/adapter-react` — React framework, binding, and screen-import adapter factories.
@@ -178,4 +189,4 @@ pnpm test
 pnpm build
 ```
 
-The next slice expands bounded import into an explicit multi-file component graph with cycle detection, import budgets, and per-file provenance.
+The next slice introduces atomic multi-file patch plans so one reviewed operation can update component, stylesheet, token, and import files under one compare-and-swap and rollback boundary.

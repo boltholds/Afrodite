@@ -19,6 +19,10 @@ import {
   type SourceSnapshot,
 } from "@afrodite/framework-core";
 import { ScreenImportAdapterRegistry } from "@afrodite/import-core";
+import {
+  importScreenGraph,
+  type ScreenImportGraphRequest,
+} from "@afrodite/import-core/graph";
 import type {
   BindingDiscoveryRequest,
   BindingDiscoveryResult,
@@ -134,8 +138,11 @@ export class ProjectBridgeService {
       );
     }
 
-    const source = await this.#repository.read(request.repositoryPath);
-    const result = adapter.importScreen(request, source);
+    const result = await importScreenGraph(
+      adapter,
+      request as ScreenImportGraphRequest,
+      { read: (repositoryPath) => this.#repository.read(repositoryPath) },
+    );
     return cloneJson(result) as ScreenImportResult;
   }
 

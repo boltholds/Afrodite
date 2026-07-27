@@ -1,6 +1,7 @@
 import { createMemo, createSignal, For, Show } from "solid-js";
 import type {
   BridgeHealthResponse,
+  ScreenImportGraphEdge,
   ScreenImportResult,
 } from "@afrodite/protocol";
 import {
@@ -22,9 +23,15 @@ export function ScreenImportWorkbench(props: { onOpenProjectSession: () => void 
   const [exportName, setExportName] = createSignal("Screen");
   const [documentName, setDocumentName] = createSignal("");
   const [maxDepth, setMaxDepth] = createSignal(32);
+  const [maxFiles, setMaxFiles] = createSignal(24);
+  const [maxNodes, setMaxNodes] = createSignal(1200);
+  const [maxGraphDepth, setMaxGraphDepth] = createSignal(8);
+  const [expansionMode, setExpansionMode] = createSignal<"all-local" | "explicit">("all-local");
+  const [expandComponents, setExpandComponents] = createSignal("");
+  const [stopComponents, setStopComponents] = createSignal("");
   const [result, setResult] = createSignal<ScreenImportResult>();
   const [busy, setBusy] = createSignal(false);
-  const [status, setStatus] = createSignal("Connect a local project bridge to import a bounded screen.");
+  const [status, setStatus] = createSignal("Connect a local project bridge to import a bounded component graph.");
 
   const client = () => new ProjectBridgeClient(bridgeUrl(), bridgeToken());
   const hasBlockingDiagnostics = createMemo(() =>
@@ -53,7 +60,7 @@ export function ScreenImportWorkbench(props: { onOpenProjectSession: () => void 
     if (!response.adapters.some((adapter) => adapter.adapterId === adapterId())) {
       setAdapterId(response.adapters[0]?.adapterId ?? "");
     }
-    setStatus(`Connected to ${response.projectName}. Import reads source snapshots without executing project modules.`);
+    setStatus(`Connected to ${response.projectName}. Graph import reads versioned source snapshots without executing project modules.`);
   });
 
   const importScreen = () => run(async () => {
@@ -63,11 +70,21 @@ export function ScreenImportWorkbench(props: { onOpenProjectSession: () => void 
       ...(exportName().trim() ? { exportName: exportName().trim() } : {}),
       ...(documentName().trim() ? { documentName: documentName().trim() } : {}),
       maxDepth: maxDepth(),
+      maxFiles: maxFiles(),
+      maxNodes: maxNodes(),
+      maxGraphDepth: maxGraphDepth(),
+      expansionMode: expansionMode(),
+      ...(splitBoundaries(expandComponents()).length > 0
+        ? { expandComponents: splitBoundaries(expandComponents()) }
+        : {}),
+      ...(splitBoundaries(stopComponents()).length > 0
+        ? { stopComponents: splitBoundaries(stopComponents()) }
+        : {}),
     });
     setResult(response);
     setStatus(response.document
-      ? `Imported ${response.stats.totalNodes} nodes from ${response.exportName ?? repositoryPath()}.`
-      : "The importer did not create a document. Review the diagnostics and choose a bounded export.");
+      ? `Imported ${response.stats.totalNodes} nodes across ${response.graph?.filesRead ?? 1} source file(s).`
+      : "The importer did not create a document. Review diagnostics and choose a bounded export.");
   });
 
   const openProjectSession = () => {
@@ -92,7 +109,7 @@ export function ScreenImportWorkbench(props: { onOpenProjectSession: () => void 
   return (
     <div class="screen-import-shell">
       <header class="screen-import-header">
-        <div class="brand"><strong>Afrodite</strong><span>Bounded existing screen import</span></div>
+        <div class="brand"><strong>Afrodite</strong><span>Bounded multi-file screen import</span></div>
         <span class="status-line">{status()}</span>
       </header>
 
@@ -106,7 +123,7 @@ export function ScreenImportWorkbench(props: { onOpenProjectSession: () => void 
           </section>
 
           <section class="import-card">
-            <div class="section-heading"><h2>Import boundary</h2><span>one source file</span></div>
+            <div class="section-heading"><h2>Root component</h2><span>explicit entry</span></div>
             <label>Framework adapter
               <select value={adapterId()} onChange={(event) => setAdapterId(event.currentTarget.value)}>
                 <Show when={health()} fallback={
@@ -124,9 +141,28 @@ export function ScreenImportWorkbench(props: { onOpenProjectSession: () => void 
             <label>Repository path<input value={repositoryPath()} onInput={(event) => setRepositoryPath(event.currentTarget.value)} /></label>
             <label>Export name<input placeholder="required when ambiguous" value={exportName()} onInput={(event) => setExportName(event.currentTarget.value)} /></label>
             <label>Document name<input placeholder="derived from export" value={documentName()} onInput={(event) => setDocumentName(event.currentTarget.value)} /></label>
-            <label>Maximum import depth<input type="number" min="1" max="128" value={maxDepth()} onInput={(event) => setMaxDepth(clampDepth(event.currentTarget.value))} /></label>
-            <button class="primary" disabled={busy() || !health() || !adapterId() || !repositoryPath().trim()} onClick={() => void importScreen()}>Import static screen</button>
-            <p class="panel-hint">The importer parses one TSX/JSX module statically. It does not start Vite, import the module, call hooks, fetch data, or render application code.</p>
+            <label>Per-file syntax depth<input type="number" min="1" max="128" value={maxDepth()} onInput={(event) => setMaxDepth(clampNumber(event.currentTarget.value, 32, 1, 128))} /></label>
+          </section>
+
+          <section class="import-card">
+            <div class="section-heading"><h2>Graph budgets</h2><span>hard limits</span></div>
+            <div class="import-budget-grid">
+              <label>Maximum files<input type="number" min="1" max="128" value={maxFiles()} onInput={(event) => setMaxFiles(clampNumber(event.currentTarget.value, 24, 1, 128))} /></label>
+              <label>Maximum nodes<input type="number" min="1" max="20000" value={maxNodes()} onInput={(event) => setMaxNodes(clampNumber(event.currentTarget.value, 1200, 1, 20_000))} /></label>
+              <label>Graph depth<input type="number" min="0" max="32" value={maxGraphDepth()} onInput={(event) => setMaxGraphDepth(clampNumber(event.currentTarget.value, 8, 0, 32))} /></label>
+            </div>
+            <label>Expansion policy
+              <select value={expansionMode()} onChange={(event) => setExpansionMode(event.currentTarget.value as "all-local" | "explicit")}>
+                <option value="all-local">Expand all direct local imports</option>
+                <option value="explicit">Expand only listed components</option>
+              </select>
+            </label>
+            <Show when={expansionMode() === "explicit"}>
+              <label>Expand components<textarea spellcheck={false} placeholder="Card, src/Screen.tsx#Toolbar" value={expandComponents()} onInput={(event) => setExpandComponents(event.currentTarget.value)} /></label>
+            </Show>
+            <label>Stop boundaries<textarea spellcheck={false} placeholder="HeavyChart, src/Screen.tsx#AdminPanel" value={stopComponents()} onInput={(event) => setStopComponents(event.currentTarget.value)} /></label>
+            <button class="primary" disabled={busy() || !health() || !adapterId() || !repositoryPath().trim()} onClick={() => void importScreen()}>Import local component graph</button>
+            <p class="panel-hint">Only direct relative TSX/JSX imports are expanded. Package imports, barrels, aliases, dynamic imports and runtime factories remain explicit boundaries.</p>
           </section>
         </aside>
 
@@ -134,7 +170,7 @@ export function ScreenImportWorkbench(props: { onOpenProjectSession: () => void 
           <Show when={result()} keyed fallback={
             <section class="import-card import-empty">
               <strong>No import result yet</strong>
-              <p>Choose an exported screen component. Supported JSX becomes Semantic UI IR; control flow and unresolved expressions remain source-backed read-only regions.</p>
+              <p>Choose a root export and budgets. Static local component references can be expanded; cycles and unsupported behavior remain visible boundaries.</p>
             </section>
           }>
             {(current) => (
@@ -146,12 +182,18 @@ export function ScreenImportWorkbench(props: { onOpenProjectSession: () => void 
                     <Stat label="Editable" value={current.stats.editableNodes} />
                     <Stat label="Needs binding" value={current.stats.requiresBindingNodes} />
                     <Stat label="Read-only" value={current.stats.readOnlyRegions} />
+                    <Stat label="Files" value={current.graph?.filesRead ?? 1} />
+                    <Stat label="Expanded" value={current.graph?.expandedComponents ?? 0} />
+                    <Stat label="Boundaries" value={current.graph?.boundaries ?? 0} />
+                    <Stat label="Cycles" value={current.graph?.cycles ?? 0} />
                   </div>
                   <div class="import-metadata">
                     <code>{current.repositoryPath}</code>
                     <code>{current.sourceVersion}</code>
                     <code>{current.adapterId}</code>
+                    <Show when={current.graph}><code>{current.graph?.nodesMaterialized}/{current.graph?.maxNodes} nodes · {current.graph?.filesRead}/{current.graph?.maxFiles} files</code></Show>
                   </div>
+                  <Show when={current.graph?.truncated}><p class="import-graph-warning">A graph budget stopped at least one expansion. The corresponding component instance remains an explicit boundary.</p></Show>
                   <Show when={current.diagnostics.length > 0}>
                     <div class="diagnostics import-diagnostics">
                       <For each={current.diagnostics}>
@@ -164,6 +206,33 @@ export function ScreenImportWorkbench(props: { onOpenProjectSession: () => void 
                     <button disabled={!current.document} onClick={downloadDocument}>Download UI IR</button>
                   </div>
                 </section>
+
+                <Show when={(current.files?.length ?? 0) > 0}>
+                  <section class="import-card import-graph-card">
+                    <div class="section-heading"><h2>File provenance</h2><span>{current.files?.length ?? 0} expansion records</span></div>
+                    <div class="import-file-list">
+                      <For each={current.files ?? []}>
+                        {(file) => (
+                          <div class="import-file-row">
+                            <strong>{file.root ? "ROOT" : `D${file.depth}`}</strong>
+                            <code>{file.repositoryPath}#{file.exportName}</code>
+                            <span>{file.nodeCount} nodes</span>
+                            <code>{file.sourceVersion}</code>
+                          </div>
+                        )}
+                      </For>
+                    </div>
+                  </section>
+                </Show>
+
+                <Show when={(current.edges?.length ?? 0) > 0}>
+                  <section class="import-card import-graph-card">
+                    <div class="section-heading"><h2>Component graph</h2><span>{current.edges?.length ?? 0} edges</span></div>
+                    <div class="import-edge-list">
+                      <For each={current.edges ?? []}>{(edge) => <ImportEdge edge={edge} />}</For>
+                    </div>
+                  </section>
+                </Show>
 
                 <Show when={current.document} keyed>
                   {(document) => (
@@ -184,6 +253,18 @@ export function ScreenImportWorkbench(props: { onOpenProjectSession: () => void 
 
 function Stat(props: { label: string; value: number }) {
   return <div class="import-stat"><strong>{props.value}</strong><span>{props.label}</span></div>;
+}
+
+function ImportEdge(props: { edge: ScreenImportGraphEdge }) {
+  return (
+    <div class={`import-edge-row status-${props.edge.status}`}>
+      <span class="import-edge-status">{props.edge.status}</span>
+      <code>{props.edge.fromRepositoryPath}#{props.edge.localName}</code>
+      <span>→</span>
+      <code>{props.edge.targetRepositoryPath ?? props.edge.moduleSpecifier}#{props.edge.importedName}</code>
+      <Show when={props.edge.reason}><p>{props.edge.reason}</p></Show>
+    </div>
+  );
 }
 
 function ImportedTreeNode(props: { node: UiNode; depth: number }) {
@@ -212,10 +293,14 @@ function ImportedTreeNode(props: { node: UiNode; depth: number }) {
   );
 }
 
-function clampDepth(value: string): number {
+function splitBoundaries(value: string): string[] {
+  return [...new Set(value.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean))];
+}
+
+function clampNumber(value: string, fallback: number, minimum: number, maximum: number): number {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return 32;
-  return Math.min(128, Math.max(1, Math.round(parsed)));
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(maximum, Math.max(minimum, Math.round(parsed)));
 }
 
 function slugify(value: string): string {
