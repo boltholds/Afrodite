@@ -56,10 +56,12 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          show-progress: false
+      - name: Quiet checkout for Docker diagnostics
+        run: |
+          git init -q .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch -q --depth=1 origin "${GITHUB_REF}"
+          git checkout -q FETCH_HEAD
 
       - name: Prepare non-secret Compose environment
         run: |
@@ -94,7 +96,7 @@ jobs:
             log=".ci-logs/docker-build-${service}.log"
             if ! docker compose build "$service" > "$log" 2>&1; then
               echo "Docker build failed for service: $service" >&2
-              tail -n 140 "$log"
+              tail -n 80 "$log" | cut -c1-220
               exit 1
             fi
           done
