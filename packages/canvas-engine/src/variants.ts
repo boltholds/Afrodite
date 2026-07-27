@@ -1,4 +1,9 @@
-import type { UiDocument, UiNode, UiVariants } from "@afrodite/ui-ir";
+import type {
+  LayoutOverride,
+  UiDocument,
+  UiNode,
+  UiVariants,
+} from "@afrodite/ui-ir";
 import type { DocumentCommand } from "./index.js";
 
 let variantCommandSequence = 0;
@@ -81,11 +86,9 @@ function cloneVariants(variants: UiVariants | undefined): UiVariants | undefined
   };
 }
 
-function cloneLayoutOverride<T extends { readonly sizing?: { readonly width?: unknown; readonly height?: unknown } }>(
-  override: T,
-): T {
+function cloneLayoutOverride(override: LayoutOverride): LayoutOverride {
   return {
     ...override,
     ...(override.sizing ? { sizing: { ...override.sizing } } : {}),
-  } as T;
+  };
 }
