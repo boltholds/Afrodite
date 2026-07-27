@@ -282,7 +282,16 @@ function detectSourceTargetConflicts(
 }
 
 function sourceTargetPath(intent: SemanticSourceIntent): string {
-  return intent.operation.binding.repositoryPath;
+  const ownership = intent.operation.ownership;
+  switch (ownership.strategy) {
+    case "inline":
+    case "utility":
+      return intent.operation.binding.repositoryPath;
+    case "css-module":
+      return ownership.stylesheetPath;
+    case "design-token":
+      return ownership.tokenFilePath;
+  }
 }
 
 function stepFromPlan(
