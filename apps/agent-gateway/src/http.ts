@@ -5,12 +5,13 @@ import {
   type Server,
   type ServerResponse,
 } from "node:http";
+import { pathToFileURL } from "node:url";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { SemanticOnlyProjectBridgeClient } from "./bridgeClient.js";
 import { createAgentGatewaySession, type AgentGatewaySession } from "./runtime.js";
 
-interface HttpGatewayOptions {
+export interface HttpGatewayOptions {
   readonly host: string;
   readonly port: number;
   readonly bridgeUrl: string;
@@ -20,12 +21,12 @@ interface HttpGatewayOptions {
   readonly maxBodyBytes: number;
 }
 
-interface ActiveSession {
+export interface ActiveSession {
   readonly transport: StreamableHTTPServerTransport;
   readonly runtime: AgentGatewaySession;
 }
 
-async function main(): Promise<void> {
+export async function runHttpGateway(): Promise<void> {
   const options = parseOptions(process.argv.slice(2), process.env);
   const sessions = new Map<string, ActiveSession>();
   const bridgeProbe = new SemanticOnlyProjectBridgeClient(options.bridgeUrl, options.token);
@@ -83,7 +84,7 @@ export function createHttpGateway(
           ok: true,
           bridgeUrl: options.bridgeUrl,
           documentId: document.id,
-          documentVersion: document.schemaVersion,
+          schemaVersion: document.schemaVersion,
         });
       } catch (error) {
         sendJson(response, 503, {
@@ -158,6 +159,7 @@ async function createSession(
   let active: ActiveSession;
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: randomUUID,
+    enableJsonResponse: true,
     onSessionInitialized: (sessionId) => {
       initializedSessionId = sessionId;
       sessions.set(sessionId, active);
@@ -173,7 +175,10 @@ async function createSession(
   return active;
 }
 
-function parseOptions(argv: readonly string[], env: NodeJS.ProcessEnv): HttpGatewayOptions {
+export function parseOptions(
+  argv: readonly string[],
+  env: NodeJS.ProcessEnv,
+): HttpGatewayOptions {
   const host = valueAfter(argv, "--host") ?? env.AFRODITE_MCP_HOST ?? "0.0.0.0";
   const portSource = valueAfter(argv, "--port") ?? env.AFRODITE_MCP_PORT ?? "8770";
   const port = Number(portSource);
@@ -247,7 +252,9 @@ function sendMcpError(response: ServerResponse, status: number, message: string)
   });
 }
 
-main().catch((error) => {
-  console.error(`[afrodite-agent-gateway] ${error instanceof Error ? error.stack ?? error.message : "Startup failed."}`);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  runHttpGateway().catch((error) => {
+    console.error(`[afrodite-agent-gateway] ${error instanceof Error ? error.stack ?? error.message : "Startup failed."}`);
+    process.exitCode = 1;
+  });
+}
