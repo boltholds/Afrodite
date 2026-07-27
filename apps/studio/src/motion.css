@@ -1,0 +1,147 @@
+.motion-shell {
+  min-height: 100vh;
+  background: radial-gradient(circle at 48% -15%, rgba(255, 49, 186, 0.16), transparent 42%), #08050d;
+  color: #f7edf8;
+}
+
+.motion-header {
+  min-height: 58px;
+  padding: 0 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 105, 214, 0.24);
+  background: rgba(11, 7, 17, 0.96);
+}
+
+.motion-header .brand { display: flex; align-items: baseline; gap: 12px; }
+.motion-header .brand strong { color: #ff65d1; }
+.motion-header .brand span,
+.motion-header .status-line { color: #bcaec2; }
+
+.motion-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(480px, 1fr) minmax(320px, 420px);
+  gap: 14px;
+  padding: 14px;
+}
+
+.motion-panel,
+.motion-stage-card {
+  border: 1px solid rgba(255, 105, 214, 0.22);
+  background: rgba(19, 12, 28, 0.94);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 0 24px rgba(255, 46, 183, 0.05);
+}
+
+.motion-stage-column { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.motion-nodes { display: flex; flex-direction: column; gap: 7px; align-self: start; max-height: calc(100vh - 92px); overflow: auto; }
+.motion-nodes button,
+.motion-clip-tabs button,
+.motion-playback-actions button,
+.motion-panel button {
+  border: 1px solid rgba(255, 105, 214, 0.25);
+  border-radius: 8px;
+  background: rgba(255, 74, 191, 0.07);
+  color: #f8edf8;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.motion-nodes button { display: grid; gap: 3px; text-align: left; }
+.motion-nodes small { color: #a99caf; }
+.motion-nodes button.selected,
+.motion-clip-tabs button.selected { border-color: rgba(97, 223, 255, 0.6); box-shadow: 0 0 18px rgba(97, 223, 255, 0.1); }
+.motion-panel button.primary { background: linear-gradient(135deg, rgba(255, 55, 186, 0.34), rgba(103, 218, 255, 0.17)); }
+.motion-panel button.danger { border-color: rgba(255, 91, 125, 0.48); color: #ffb3c4; }
+
+.motion-preview-stage {
+  min-height: 280px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(97, 223, 255, 0.16);
+  border-radius: 10px;
+  background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-color: #09070e;
+}
+
+.motion-preview-object {
+  min-width: 180px;
+  min-height: 64px;
+  display: grid;
+  place-items: center;
+  padding: 18px 24px;
+  border: 1px solid rgba(255, 105, 214, 0.45);
+  background: #17101f;
+  color: #fff4fb;
+  will-change: transform, opacity, border-radius, background-color;
+}
+
+.motion-scrubber { width: 100%; margin-top: 12px; accent-color: #ff48bf; }
+.motion-playback-actions,
+.motion-clip-tabs,
+.motion-track-header,
+.motion-track-heading { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.motion-playback-actions { margin-top: 9px; }
+.motion-clip-tabs { margin: 10px 0 14px; }
+.motion-track-heading { justify-content: space-between; margin-top: 16px; }
+
+.motion-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.motion-fields label,
+.motion-keyframe-row label { display: grid; gap: 5px; color: #cbbdce; }
+.motion-fields input,
+.motion-fields select,
+.motion-track-header select,
+.motion-keyframe-row input,
+.motion-json-panel textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(97, 223, 255, 0.2);
+  border-radius: 8px;
+  background: #0d0913;
+  color: #f6edf8;
+  padding: 8px 9px;
+  font: inherit;
+}
+
+.motion-track-card {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid rgba(255, 105, 214, 0.16);
+  border-radius: 10px;
+  background: rgba(8, 6, 13, 0.55);
+}
+.motion-track-header select { flex: 1; min-width: 180px; }
+.motion-track-header code { color: #9ae7ff; }
+.motion-keyframe-table { display: grid; gap: 7px; margin-top: 10px; }
+.motion-keyframe-row {
+  display: grid;
+  grid-template-columns: minmax(100px, .7fr) minmax(140px, 1fr) 54px;
+  gap: 8px;
+  align-items: end;
+}
+.motion-keyframe-row span { padding-bottom: 9px; color: #a99caf; text-align: right; }
+
+.motion-json-panel { align-self: start; position: sticky; top: 72px; }
+.motion-json-panel textarea { min-height: 520px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
+.motion-json-panel details { margin-top: 12px; }
+.motion-json-panel pre { max-height: 220px; overflow: auto; background: #09060d; padding: 10px; border-radius: 8px; }
+
+@media (max-width: 1180px) {
+  .motion-grid { grid-template-columns: 230px minmax(0, 1fr); }
+  .motion-json-panel { grid-column: 1 / -1; position: static; }
+  .motion-json-panel textarea { min-height: 320px; }
+}
+
+@media (max-width: 760px) {
+  .motion-grid { grid-template-columns: 1fr; }
+  .motion-fields { grid-template-columns: 1fr 1fr; }
+  .motion-nodes { max-height: none; }
+}
