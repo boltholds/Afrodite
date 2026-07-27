@@ -19,7 +19,7 @@ export const motionOwnershipSchema = z.object({
   strategy: z.literal("css-keyframes"),
   stylesheetPath: z.string().min(1),
   className: z.string().regex(/^[A-Za-z_][A-Za-z0-9_-]*$/),
-  managedClipIds: z.array(z.string().regex(/^[A-Za-z][A-Za-z0-9._-]*$/)).min(1).max(32),
+  managedClipIds: z.array(z.string().regex(/^[A-Za-z][A-Za-z0-9._-]*$/)).min(1).max(8),
 }).superRefine((ownership, context) => {
   if (new Set(ownership.managedClipIds).size !== ownership.managedClipIds.length) {
     context.addIssue({
