@@ -3,6 +3,7 @@ import {
   createDependencyDetection,
   type FrameworkAdapter,
 } from "@afrodite/framework-core";
+import { createJsxScreenImportAdapter } from "@afrodite/import-core";
 import { reactFrameworkDescriptor } from "./descriptor.js";
 import { planReactLayoutPatch } from "./patch.js";
 
@@ -28,5 +29,12 @@ export function createReactSourceBindingAdapter() {
         required: true,
       },
     ],
+  });
+}
+
+export function createReactScreenImportAdapter() {
+  return createJsxScreenImportAdapter({
+    descriptor: reactFrameworkDescriptor,
+    rejectUseServer: true,
   });
 }
