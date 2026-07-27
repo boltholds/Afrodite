@@ -176,16 +176,56 @@ Current boundary:
 - animation remains document-owned until a capability adapter proves source ownership;
 - manual browser end-to-end verification remains outstanding.
 
-## VS-022: Typed semantic batches
+## VS-022: Typed semantic batches — complete
 
 **Goal:** combine several explicit typed semantic commands into one deterministic reviewed operation without introducing natural-language ambiguity or direct agent write authority.
 
+Delivered:
+
+- `@afrodite/semantic-ops/batch` with a hard default maximum of sixteen commands;
+- independent command preflight against one immutable input document;
+- rejection of informational and independently blocked commands;
+- deterministic same-field semantic write keys and early conflict diagnostics;
+- ordered composition into one exact `documentAfter` with per-step before/after document versions;
+- deterministic batch IDs over input version, commands, document result, and typed source intents;
+- actual source-target resolution for JSX, CSS Module stylesheet, and design-token files;
+- rejection of duplicate actual source targets until same-file merging is proven;
+- explicit `document-and-source`, `document-only`, and `mixed` application modes;
+- shared protocol schemas for batch planning and durable batch review;
+- authenticated `/api/semantic/batch/plan` planning through project bridge;
+- one server-held patch for one source effect or one bridge-owned transaction for multiple distinct files;
+- Studio **Batches** review of ordered steps, diagnostics, exact diffs, transaction, and combined document;
+- source-first execution and one reversible replace-document command only after complete source success;
+- durable `.afrodite/semantic-batch-reviews.json` with stale/expiry/one-decision checks;
+- separate human approve/reject and exact apply actions;
+- three policy-controlled MCP tools for batch dry run, review submission, and status observation;
+- process-local batch provenance plus command/source/diff budgets;
+- explicit absence of MCP apply, execute, source-write, or approval-decision tools;
+- core, protocol, bridge, durable-store, gateway-policy, MCP-surface, strategy-target, stale, and conflict tests;
+- documentation in `docs/semantic-batches.md`.
+
+Current boundary:
+
+- commands are limited to semantic API v1 and a maximum of sixteen items;
+- informational operations remain separate from mutation batches;
+- same-field writes and same actual source-file intents are rejected rather than merged;
+- only existing style and responsive-variant source intents are supported;
+- mixed source coverage requires explicit review of document-only steps;
+- batch review uses exact version-bound plans and compare-and-swap but does not yet perform fresh approved-vs-current re-planning;
+- batch execution does not yet use the durable execution receipt/history model from VS-018/019;
+- transaction crash journaling and manual browser/MCP Inspector E2E remain outstanding.
+
+## VS-023: Semantic motion source adapters
+
+**Goal:** materialize proven animation intent into existing source formats without inventing runtime state or overwriting handwritten behavior.
+
 Planned acceptance criteria:
 
-- accept an ordered bounded list of existing typed commands;
-- validate every target and capability against the same input document;
-- detect conflicting document mutations and duplicate source ownership before planning;
-- produce one combined `documentAfter` with deterministic command provenance;
-- combine distinct source effects into one reviewed transaction;
-- reject ambiguous ordering, same-field conflicts, same-file unmergeable plans, and partial target resolution;
-- expose one dry run and one human review request while keeping MCP free of execution authority.
+- add explicit motion ownership and source-capability contracts;
+- support generated ownership regions for static CSS `@keyframes` and animation declarations;
+- optionally support bounded Web Animations API descriptors where an existing stable runtime hook is explicitly owned;
+- map only supported numeric/color tracks and timeline settings;
+- require an explicit representation for hover/focus/mount/manual triggers and reject unsupported state/click behavior;
+- create exact reviewed patch/transaction plans through project bridge;
+- preserve handwritten keyframes, event handlers, hooks, and application state outside owned regions;
+- expose source materialization in Motion Studio and semantic batch planning without granting agents write authority.
