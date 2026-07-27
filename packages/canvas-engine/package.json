@@ -15,6 +15,10 @@
       "types": "./src/interaction.ts",
       "import": "./src/interaction.ts"
     },
+    "./motion": {
+      "types": "./src/motion.ts",
+      "import": "./src/motion.ts"
+    },
     "./style": {
       "types": "./src/style.ts",
       "import": "./src/style.ts"
