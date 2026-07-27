@@ -70,15 +70,6 @@ export const motionVerificationManifestSchema = z.object({
     });
   }
   const clips = new Set(manifest.clips.map((clip) => clip.id));
-  for (const clipId of manifest.managedClipIds) {
-    if (!clips.has(clipId)) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["managedClipIds"],
-        message: `Managed verification clip ${clipId} is absent from the manifest clips.`,
-      });
-    }
-  }
   const scenarioIds = manifest.scenarios.map((scenario) => scenario.scenarioId);
   if (new Set(scenarioIds).size !== scenarioIds.length) {
     context.addIssue({
@@ -94,6 +85,13 @@ export const motionVerificationManifestSchema = z.object({
           code: z.ZodIssueCode.custom,
           path: ["scenarios", scenarioIndex, "activeClipIds"],
           message: `Scenario references unmanaged clip ${clipId}.`,
+        });
+      }
+      if (!clips.has(clipId)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["scenarios", scenarioIndex, "activeClipIds"],
+          message: `Scenario references absent clip ${clipId}.`,
         });
       }
     }
