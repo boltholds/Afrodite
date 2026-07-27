@@ -1,8 +1,6 @@
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { createReplaceDocumentCommand } from "@afrodite/canvas-engine";
-import {
-  createSemanticDocumentVersion,
-} from "@afrodite/semantic-ops";
+import { createSemanticDocumentVersion } from "@afrodite/semantic-ops";
 import {
   currentLiveProjectSessionState,
   executeLiveCommand,
@@ -13,9 +11,15 @@ import {
   type SemanticOperationCommand,
 } from "@afrodite/protocol";
 import type { SemanticBatchPlanView } from "@afrodite/protocol/semantic-batch";
+import type { SemanticBatchReviewRequest } from "@afrodite/protocol/semantic-batch-review";
 import { parseUiDocument, type UiDocument } from "@afrodite/ui-ir";
 import { ProjectBridgeClient, ProjectBridgeClientError } from "./projectBridgeClient";
-import { planSemanticBatchThroughBridge } from "./semanticBatchClient";
+import {
+  decideSemanticBatchReview,
+  getSemanticBatchReview,
+  listSemanticBatchReviews,
+  planSemanticBatchThroughBridge,
+} from "./semanticBatchClient";
 
 const BRIDGE_TOKEN_KEY = "afrodite.project-bridge.token";
 const DEFAULT_BRIDGE_URL = import.meta.env.VITE_PROJECT_BRIDGE_URL ?? "http://127.0.0.1:4175";
@@ -59,17 +63,23 @@ export function SemanticBatchWorkbench() {
   const [commandsDraft, setCommandsDraft] = createSignal(JSON.stringify(defaultCommands, null, 2));
   const [plan, setPlan] = createSignal<SemanticBatchPlanView>();
   const [approvedBatchId, setApprovedBatchId] = createSignal("");
+  const [reviews, setReviews] = createSignal<readonly SemanticBatchReviewRequest[]>([]);
+  const [activeReviewId, setActiveReviewId] = createSignal("");
+  const [reviewNote, setReviewNote] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [status, setStatus] = createSignal("Typed semantic batch planner ready.");
   const [errors, setErrors] = createSignal<readonly string[]>([]);
 
   const currentVersion = createMemo(() => createSemanticDocumentVersion(document()));
+  const activeReview = createMemo(() => reviews().find((request) => request.requestId === activeReviewId()));
   const canApply = createMemo(() => {
     const current = plan();
+    const review = activeReview();
     return current?.status === "ready"
       && current.documentAfter !== undefined
       && approvedBatchId() === current.batchId
-      && current.documentVersion === currentVersion();
+      && current.documentVersion === currentVersion()
+      && (!review || review.status === "approved");
   });
 
   onMount(() => {
@@ -79,11 +89,15 @@ export function SemanticBatchWorkbench() {
         setDocument(current.history.present);
         setPlan(undefined);
         setApprovedBatchId("");
-        setStatus("Live project session changed; create a fresh batch plan.");
+        setStatus("Live project session changed; create or load a fresh batch plan.");
       }
     }, 400);
     onCleanup(() => window.clearInterval(synchronize));
   });
+
+  const rememberBridgeToken = () => {
+    sessionStorage.setItem(BRIDGE_TOKEN_KEY, bridgeToken());
+  };
 
   const parseCommands = (): readonly SemanticOperationCommand[] | undefined => {
     try {
@@ -106,13 +120,10 @@ export function SemanticBatchWorkbench() {
   const planBatch = async () => {
     const commands = parseCommands();
     if (!commands) return;
-    if (bridgeToken().length < 16) {
-      setStatus("Enter the local project bridge token first.");
-      return;
-    }
+    if (!hasBridgeToken()) return;
     setBusy(true);
     try {
-      sessionStorage.setItem(BRIDGE_TOKEN_KEY, bridgeToken());
+      rememberBridgeToken();
       const next = await planSemanticBatchThroughBridge(
         bridgeUrl(),
         bridgeToken(),
@@ -120,10 +131,70 @@ export function SemanticBatchWorkbench() {
         commands,
       );
       setPlan(next);
+      setActiveReviewId("");
       setApprovedBatchId("");
       setStatus(next.status === "ready"
         ? `Planned ${next.batchId} with ${next.commands.length} ordered commands.`
         : "The batch was blocked before any document or source effect was approved.");
+    } catch (error) {
+      setStatus(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const loadReviews = async () => {
+    if (!hasBridgeToken()) return;
+    setBusy(true);
+    try {
+      rememberBridgeToken();
+      const next = await listSemanticBatchReviews(bridgeUrl(), bridgeToken());
+      setReviews(next);
+      setStatus(`Loaded ${next.length} durable semantic batch review requests.`);
+    } catch (error) {
+      setStatus(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openReview = async (requestId: string) => {
+    if (!hasBridgeToken()) return;
+    setBusy(true);
+    try {
+      const request = await getSemanticBatchReview(bridgeUrl(), bridgeToken(), requestId);
+      const nextReviews = reviews().some((entry) => entry.requestId === request.requestId)
+        ? reviews().map((entry) => entry.requestId === request.requestId ? request : entry)
+        : [request, ...reviews()];
+      setReviews(nextReviews);
+      setActiveReviewId(request.requestId);
+      setPlan(request.batch);
+      setCommandsDraft(JSON.stringify(request.batch.commands, null, 2));
+      setApprovedBatchId("");
+      setReviewNote(request.decision?.note ?? "");
+      setStatus(`Loaded ${request.status} review ${request.requestId}.`);
+    } catch (error) {
+      setStatus(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const decideReview = async (decision: "approved" | "rejected") => {
+    const review = activeReview();
+    if (!review || !hasBridgeToken()) return;
+    setBusy(true);
+    try {
+      const updated = await decideSemanticBatchReview(
+        bridgeUrl(),
+        bridgeToken(),
+        review.requestId,
+        decision,
+        "afrodite-studio",
+        reviewNote(),
+      );
+      setReviews((current) => current.map((entry) => entry.requestId === updated.requestId ? updated : entry));
+      setStatus(`${decision === "approved" ? "Approved" : "Rejected"} exact batch review ${updated.requestId}. No effects were applied.`);
     } catch (error) {
       setStatus(errorMessage(error));
     } finally {
@@ -136,7 +207,7 @@ export function SemanticBatchWorkbench() {
     const live = currentLiveProjectSessionState();
     if (!currentPlan || !canApply() || !live || !currentPlan.documentAfter) return;
     if (createSemanticDocumentVersion(live.history.present) !== currentPlan.documentVersion) {
-      setStatus("The live document changed after planning. Create a fresh batch plan.");
+      setStatus("The live document changed after planning. Create or load a fresh batch plan.");
       setDocument(live.history.present);
       setApprovedBatchId("");
       return;
@@ -151,7 +222,7 @@ export function SemanticBatchWorkbench() {
         const result = await client.applyTransaction(
           currentPlan.sourceTransaction.transactionId,
           currentPlan.sourceTransaction.files.map((file) => ({
-            planId: file.planId,
+            repositoryPath: file.repositoryPath,
             sourceVersion: file.sourceVersion,
           })),
           "afrodite-studio-semantic-batch",
@@ -185,6 +256,7 @@ export function SemanticBatchWorkbench() {
       setDocument(next.history.present);
       setApprovedBatchId("");
       setPlan(undefined);
+      setActiveReviewId("");
       setStatus(`Applied batch ${currentPlan.batchId} as one reversible Studio command.`);
     } catch (error) {
       setStatus(errorMessage(error));
@@ -192,6 +264,12 @@ export function SemanticBatchWorkbench() {
       setBusy(false);
     }
   };
+
+  function hasBridgeToken(): boolean {
+    if (bridgeToken().length >= 16) return true;
+    setStatus("Enter the local project bridge token first.");
+    return false;
+  }
 
   return (
     <div class="semantic-batch-shell">
@@ -210,11 +288,28 @@ export function SemanticBatchWorkbench() {
             <div class="semantic-batch-errors"><For each={errors()}>{(item) => <p>{item}</p>}</For></div>
           </Show>
           <button class="primary" disabled={busy()} onClick={() => void planBatch()}>Plan bounded batch</button>
+          <button disabled={busy()} onClick={() => void loadReviews()}>Load durable batch inbox</button>
           <div class="semantic-batch-version"><span>Input document</span><code>{currentVersion()}</code></div>
+
+          <Show when={reviews().length > 0}>
+            <section class="semantic-batch-review-list">
+              <div class="section-heading"><h3>Batch reviews</h3><span>{reviews().length}</span></div>
+              <For each={reviews()}>{(request) => (
+                <button
+                  classList={{ selected: request.requestId === activeReviewId() }}
+                  onClick={() => void openReview(request.requestId)}
+                >
+                  <strong>{request.status}</strong>
+                  <span>{request.batch.commands.length} commands</span>
+                  <code>{request.requestId}</code>
+                </button>
+              )}</For>
+            </section>
+          </Show>
         </aside>
 
         <main class="semantic-batch-results">
-          <Show when={plan()} fallback={<section class="semantic-batch-empty">Plan a batch to inspect ordered semantic effects, conflicts, exact source diffs, and the combined document.</section>}>
+          <Show when={plan()} fallback={<section class="semantic-batch-empty">Plan a batch or load the durable inbox to inspect ordered semantic effects, conflicts, exact source diffs, and the combined document.</section>}>
             {(planAccessor) => {
               const current = planAccessor();
               return (
@@ -227,8 +322,26 @@ export function SemanticBatchWorkbench() {
                       <span>{current.commands.length} commands</span>
                       <span>{current.sourcePlans.length} source plans</span>
                       <span>{current.sourceTransaction ? "atomic transaction" : "no transaction"}</span>
+                      <Show when={activeReview()}>{(reviewAccessor) => <span>review {reviewAccessor().status}</span>}</Show>
                     </div>
                   </section>
+
+                  <Show when={activeReview()}>
+                    {(reviewAccessor) => (
+                      <section class="semantic-batch-card semantic-batch-human-decision">
+                        <div class="section-heading"><h2>Human decision</h2><span>{reviewAccessor().status}</span></div>
+                        <p>{reviewAccessor().rationale ?? "No agent rationale was supplied."}</p>
+                        <label>Review note<textarea value={reviewNote()} onInput={(event) => setReviewNote(event.currentTarget.value)} /></label>
+                        <Show when={reviewAccessor().status === "pending"}>
+                          <div class="semantic-batch-decision-actions">
+                            <button class="primary" disabled={busy()} onClick={() => void decideReview("approved")}>Approve exact batch</button>
+                            <button disabled={busy()} onClick={() => void decideReview("rejected")}>Reject</button>
+                          </div>
+                        </Show>
+                        <p class="panel-hint">Decision only changes the durable review status. It does not apply the document or source transaction.</p>
+                      </section>
+                    )}
+                  </Show>
 
                   <section class="semantic-batch-card">
                     <div class="section-heading"><h2>Ordered steps</h2><span>{current.steps.length}</span></div>
@@ -289,6 +402,7 @@ export function SemanticBatchWorkbench() {
                         <input
                           type="checkbox"
                           checked={approvedBatchId() === current.batchId}
+                          disabled={activeReview() !== undefined && activeReview()?.status !== "approved"}
                           onChange={(event) => setApprovedBatchId(event.currentTarget.checked ? current.batchId : "")}
                         />
                         I reviewed this exact batch ID, document version, every source diff, and the optional transaction.
@@ -296,6 +410,9 @@ export function SemanticBatchWorkbench() {
                       <button class="primary" disabled={busy() || !canApply()} onClick={() => void applyBatch()}>
                         Apply exact reviewed batch
                       </button>
+                      <Show when={activeReview() && activeReview()?.status !== "approved"}>
+                        <p class="panel-hint">Agent-submitted batches require an explicit human approval decision before the separate apply action is enabled.</p>
+                      </Show>
                     </section>
                   </Show>
                 </>
