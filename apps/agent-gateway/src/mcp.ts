@@ -3,10 +3,17 @@ import {
   type AgentGatewayCallContext,
   type AgentPlannedOperation,
 } from "@afrodite/agent-gateway-core";
+import {
+  PolicyControlledSemanticBatchGateway,
+  type AgentPlannedSemanticBatch,
+} from "@afrodite/agent-gateway-core/batch";
 import { semanticOperationCommandSchema } from "@afrodite/protocol";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { AgentReviewClient } from "./bridgeClient.js";
+import type {
+  AgentReviewClient,
+  AgentSemanticBatchReviewClient,
+} from "./bridgeClient.js";
 
 export const AFRODITE_AGENT_MCP_TOOLS = [
   "afrodite_list_semantic_operations",
@@ -15,18 +22,25 @@ export const AFRODITE_AGENT_MCP_TOOLS = [
   "afrodite_plan_semantic_operation",
   "afrodite_request_human_approval",
   "afrodite_get_approval_request",
+  "afrodite_plan_semantic_batch",
+  "afrodite_request_semantic_batch_review",
+  "afrodite_get_semantic_batch_review",
 ] as const;
+
+type ReviewClient = AgentReviewClient & AgentSemanticBatchReviewClient;
 
 export function createAfroditeAgentMcpServer(
   gateway: PolicyControlledAgentGateway,
+  batchGateway: PolicyControlledSemanticBatchGateway,
   context: AgentGatewayCallContext,
-  reviewClient?: AgentReviewClient,
+  reviewClient?: ReviewClient,
 ): McpServer {
   const server = new McpServer({
     name: "afrodite-agent-gateway",
-    version: "0.2.0",
+    version: "0.3.0",
   });
   const plannedOperations = new Map<string, AgentPlannedOperation>();
+  const plannedBatches = new Map<string, AgentPlannedSemanticBatch>();
 
   server.registerTool(
     "afrodite_list_semantic_operations",
@@ -40,10 +54,13 @@ export function createAfroditeAgentMcpServer(
   server.registerTool(
     "afrodite_inspect_policy",
     {
-      description: "Inspect the active agent gateway policy, limits, and explicitly denied capabilities.",
+      description: "Inspect the active single-operation and semantic-batch agent policies, limits, and explicitly denied capabilities.",
       inputSchema: {},
     },
-    async () => toolResult(() => gateway.inspectPolicy(context)),
+    async () => toolResult(() => ({
+      singleOperation: gateway.inspectPolicy(context),
+      semanticBatch: batchGateway.inspectPolicy(),
+    })),
   );
 
   server.registerTool(
@@ -121,6 +138,60 @@ export function createAfroditeAgentMcpServer(
     async ({ requestId }) => toolResult(() => reviewClient
       ? reviewClient.getReview(requestId)
       : gateway.getApprovalRequest(requestId, context)),
+  );
+
+  server.registerTool(
+    "afrodite_plan_semantic_batch",
+    {
+      description: "Dry-run a bounded ordered list of existing typed semantic commands. The result contains one combined document effect and, when proven, one atomic source transaction. Nothing is applied.",
+      inputSchema: {
+        commands: semanticOperationCommandSchema.array().min(1).max(16),
+      },
+    },
+    async ({ commands }) => toolResult(async () => {
+      const planned = await batchGateway.planSemanticBatch(commands, context);
+      plannedBatches.set(planned.batch.batchId, planned);
+      return planned;
+    }),
+  );
+
+  server.registerTool(
+    "afrodite_request_semantic_batch_review",
+    {
+      description: "Submit one exact batch dry run to the durable Afrodite Studio batch-review inbox. The tool cannot approve or execute it.",
+      inputSchema: {
+        batchId: z.string().min(1),
+        rationale: z.string().max(2_000).optional(),
+      },
+    },
+    async ({ batchId, rationale }) => toolResult(async () => {
+      const local = batchGateway.requestSemanticBatchReview(batchId, rationale, context);
+      if (!reviewClient) return local;
+      const planned = plannedBatches.get(batchId);
+      if (!planned) throw new Error("The exact semantic batch is no longer available in this MCP session.");
+      return reviewClient.submitSemanticBatchReview({
+        requestId: local.requestId,
+        actor: local.actor,
+        ...(local.sessionId ? { agentSessionId: local.sessionId } : {}),
+        createdAt: local.createdAt,
+        expiresAt: local.expiresAt,
+        ...(local.rationale ? { rationale: local.rationale } : {}),
+        batch: planned.batch,
+      });
+    }),
+  );
+
+  server.registerTool(
+    "afrodite_get_semantic_batch_review",
+    {
+      description: "Read the durable human decision for a semantic batch review request. This tool cannot make the decision or apply the batch.",
+      inputSchema: {
+        requestId: z.string().min(1),
+      },
+    },
+    async ({ requestId }) => toolResult(() => reviewClient
+      ? reviewClient.getSemanticBatchReview(requestId)
+      : batchGateway.getSemanticBatchReview(requestId, context)),
   );
 
   return server;
