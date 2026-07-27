@@ -49,6 +49,7 @@ export interface MotionBridgeServiceOptions {
   readonly planTtlMs?: number;
   readonly now?: () => number;
   readonly challengeFactory?: () => string;
+  readonly evidenceIdFactory?: () => string;
 }
 
 export class MotionBridgeServiceError extends Error {
@@ -69,6 +70,7 @@ export class MotionBridgeService {
   readonly #planTtlMs: number;
   readonly #now: () => number;
   readonly #challengeFactory: () => string;
+  readonly #evidenceIdFactory: () => string;
 
   constructor(options: MotionBridgeServiceOptions) {
     const projectRoot = path.resolve(options.projectRoot);
@@ -78,6 +80,8 @@ export class MotionBridgeService {
     this.#planTtlMs = options.planTtlMs ?? 10 * 60_000;
     this.#now = options.now ?? Date.now;
     this.#challengeFactory = options.challengeFactory ?? (() => randomBytes(18).toString("base64url"));
+    this.#evidenceIdFactory = options.evidenceIdFactory
+      ?? (() => `motion-evidence.${randomBytes(16).toString("base64url")}`);
   }
 
   async planMotionPatch(operation: BridgeMotionOperation): Promise<BridgeMotionPlanView> {
@@ -134,7 +138,7 @@ export class MotionBridgeService {
     validateRuntimeResult(stored.manifest, result);
     const verifiedAt = new Date(this.#now()).toISOString();
     const evidence: StoredRuntimeEvidence = {
-      evidenceId: result.evidenceId,
+      evidenceId: this.#evidenceIdFactory(),
       result: cloneJson(result),
       verifiedAt,
     };
@@ -230,6 +234,7 @@ function validateRuntimeResult(
     );
   }
 
+  const scenarioById = new Map(manifest.scenarios.map((scenario) => [scenario.scenarioId, scenario]));
   const expectedKeys = manifest.scenarios.flatMap((scenario) =>
     scenario.sampleTimesMs.map((sampleTimeMs) => sampleKey(scenario.scenarioId, sampleTimeMs)));
   const actualKeys = result.samples.map((sample) => sampleKey(sample.scenarioId, sample.sampleTimeMs));
@@ -241,11 +246,18 @@ function validateRuntimeResult(
       "Runtime evidence does not contain the exact expected scenario/sample set.",
     );
   }
-  if (result.samples.some((sample) => !sample.matched)) {
-    throw new MotionBridgeServiceError(
-      "MOTION_RUNTIME_STYLE_MISMATCH",
-      "At least one isolated runtime sample differs from the semantic motion compositor.",
-    );
+  for (const sample of result.samples) {
+    const scenario = scenarioById.get(sample.scenarioId)!;
+    const expectedAnimationCount = scenario.activeClipIds.length;
+    if (!sample.matched
+      || sample.differences.length > 0
+      || sample.expectedAnimationCount !== expectedAnimationCount
+      || sample.actualAnimationCount !== expectedAnimationCount) {
+      throw new MotionBridgeServiceError(
+        "MOTION_RUNTIME_STYLE_MISMATCH",
+        "At least one isolated runtime sample differs from the semantic motion compositor or expected animation set.",
+      );
+    }
   }
 }
 
