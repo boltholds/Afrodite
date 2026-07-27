@@ -93,6 +93,18 @@ export {
   semanticPlanResponseSchema,
   semanticPlanViewSchema,
 } from "./semantic";
+export {
+  humanReviewDecisionRequestSchema,
+  humanReviewDecisionSchema,
+  humanReviewListResponseSchema,
+  humanReviewRequestSchema,
+  humanReviewResponseSchema,
+  humanReviewStatusSchema,
+  humanReviewSubmitRequestSchema,
+  liveSessionPublishRequestSchema,
+  liveSessionResponseSchema,
+  liveSessionSnapshotSchema,
+} from "./review";
 
 export type {
   CatalogDecodeResult,
@@ -182,3 +194,15 @@ export type {
   SemanticPlanResponse,
   SemanticPlanView,
 } from "./semantic";
+export type {
+  HumanReviewDecision,
+  HumanReviewDecisionRequest,
+  HumanReviewListResponse,
+  HumanReviewRequest,
+  HumanReviewResponse,
+  HumanReviewStatus,
+  HumanReviewSubmitRequest,
+  LiveSessionPublishRequest,
+  LiveSessionResponse,
+  LiveSessionSnapshot,
+} from "./review";

@@ -256,33 +256,56 @@ Delivered:
 - source-plan count and diff-size limits;
 - dry-run semantic planning through the existing authenticated project bridge;
 - process-local plan provenance so an agent cannot invent approval targets;
-- pending/expired human approval requests with no approve method;
+- pending/expired local approval-request records with no approve method;
 - bounded in-memory audit events for succeeded, denied, and failed calls;
 - local MCP stdio server using the stable v1 TypeScript SDK line;
 - exactly six read/plan/request tools and no apply/write/shell tools;
 - bridge token loading from environment without tool-result exposure;
-- one explicitly selected UI IR snapshot loaded into memory at startup;
 - core redaction, policy, limit, approval-request, and MCP-surface tests;
 - setup and threat-model documentation in `docs/agent-gateway.md`.
 
-Current boundary:
+The startup-snapshot and process-memory request boundaries were replaced by VS-017 without changing the MCP tool authority.
 
-- the document is a startup snapshot rather than a live project-session subscription;
-- approval requests are process-memory records and disappear on restart;
-- Studio does not yet provide a shared approval inbox;
-- agents plan one command at a time;
-- audit persistence and signed actor identities are deferred.
-
-## VS-017: Live agent review session
+## VS-017: Live agent review session — complete
 
 **Goal:** connect MCP dry runs to the active Studio project session and a durable human review inbox without expanding agent authority.
 
+Delivered:
+
+- framework-neutral live-session snapshot subscriptions from `@afrodite/project-session`;
+- background Studio publishing of current `UiDocument + revision` after bridge connection;
+- authenticated `/api/session/publish` and `/api/session/current` routes;
+- agent document inspection and planning against the current Studio snapshot instead of a startup file;
+- persistent `.afrodite/collaboration.json` storage using temporary-file replacement;
+- exact semantic plan, `documentAfter`, source diff, diagnostics, verification, actor, agent-session, rationale, and expiry persistence;
+- authenticated review submit, list, get, and human-decision routes;
+- stale Studio revision, stale document, expired request, and repeated-decision rejection;
+- Studio Human Review Inbox with exact document and source review;
+- independent approve/reject decision with no automatic application;
+- separate explicit approved-document load and verified source-plan application;
+- MCP review-status observation without an approval-decision or apply tool;
+- protocol, persistence, expiry, stale-version, and MCP-surface tests;
+- architecture and operational documentation in `docs/live-agent-review.md`.
+
+Current boundary:
+
+- one active Studio snapshot is stored rather than a multi-user CRDT;
+- custom bridge URL propagation is not yet centralized across all Studio workbenches;
+- approved `documentAfter` reloads Studio and starts a new command history;
+- persisted review records do not extend or reconstruct expired server source plans;
+- human identity is a local label authenticated by the bridge token rather than a signed account;
+- agent audit events remain process-local.
+
+## VS-018: Reviewed execution orchestration
+
+**Goal:** execute an already approved request through fresh deterministic planning while preserving the exact reviewed intent and keeping execution separate from approval.
+
 Planned acceptance criteria:
 
-- expose the active project-session document through a read-only session provider instead of a startup JSON snapshot;
-- persist approval requests outside the MCP process;
-- show semantic document effects and exact source diffs in a Studio review inbox;
-- allow only a human Studio action to approve, reject, expire, or apply a request;
-- invalidate requests when document or source versions become stale;
-- retain actor, session, policy, command, plan, decision, verification, and rollback provenance;
-- keep MCP free of apply, approval-decision, filesystem, and shell tools.
+- apply approved UI IR mutations as reversible commands in the active Studio session without page reload;
+- re-plan expired source plans from the persisted typed command against the current document and source snapshots;
+- compare fresh semantic effects and diffs to the approved review snapshot before enabling execution;
+- group several fresh source effects through the existing atomic transaction boundary;
+- record verification, rollback, and final execution outcome in the durable review record;
+- require a second explicit human execute action after approval and successful equivalence checks;
+- keep MCP free of approval-decision and execution tools.

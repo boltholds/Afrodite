@@ -10,15 +10,23 @@ import {
   bridgeTransactionApplyRequestSchema,
   bridgeTransactionPlanRequestSchema,
   bridgeVariantPlanRequestSchema,
+  humanReviewDecisionRequestSchema,
+  humanReviewSubmitRequestSchema,
+  liveSessionPublishRequestSchema,
   screenImportRequestSchema,
   semanticPlanRequestSchema,
 } from "@afrodite/protocol";
 import { ZodError } from "zod";
+import {
+  ProjectCollaborationError,
+  type ProjectCollaborationStore,
+} from "./collaboration.js";
 import { planProjectSemanticOperation } from "./semantic.js";
 import { ProjectBridgeService, ProjectBridgeServiceError } from "./service.js";
 
 export interface ProjectBridgeServerOptions {
   readonly service: ProjectBridgeService;
+  readonly collaboration: ProjectCollaborationStore;
   readonly token: string;
   readonly allowedOrigins: readonly string[];
   readonly maxBodyBytes?: number;
@@ -65,6 +73,47 @@ export function createProjectBridgeServer(options: ProjectBridgeServerOptions): 
 
       if (request.method === "GET" && url.pathname === "/api/health") {
         sendJson(response, 200, options.service.health());
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/session/publish") {
+        const input = liveSessionPublishRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const session = await options.collaboration.publishSession(input);
+        sendJson(response, 200, { ok: true, session });
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/session/current") {
+        const session = await options.collaboration.readSession();
+        sendJson(response, 200, { ok: true, session });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/review/submit") {
+        const input = humanReviewSubmitRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const review = await options.collaboration.submitReview(input);
+        sendJson(response, 200, { ok: true, request: review });
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/review/list") {
+        const requests = await options.collaboration.listReviews();
+        sendJson(response, 200, { ok: true, requests });
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/review/get") {
+        const requestId = url.searchParams.get("requestId");
+        if (!requestId) throw new HttpRequestError("REQUEST_ID_REQUIRED", "requestId is required.", 400);
+        const review = await options.collaboration.getReview(requestId);
+        sendJson(response, 200, { ok: true, request: review });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/review/decide") {
+        const input = humanReviewDecisionRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const review = await options.collaboration.decideReview(input);
+        sendJson(response, 200, { ok: true, request: review });
         return;
       }
 
@@ -217,6 +266,7 @@ class HttpRequestError extends Error {
 function normalizeError(error: unknown): { code: string; message: string; status: number } {
   if (error instanceof HttpRequestError) return { code: error.code, message: error.message, status: error.status };
   if (error instanceof ProjectBridgeServiceError) return { code: error.code, message: error.message, status: 409 };
+  if (error instanceof ProjectCollaborationError) return { code: error.code, message: error.message, status: 409 };
   if (error instanceof ZodError) {
     return {
       code: "INVALID_REQUEST",
