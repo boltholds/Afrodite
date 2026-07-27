@@ -61,7 +61,10 @@ export type {
   StyleOwnership,
   StyleProperty,
   UiDocument,
+  UiDocumentInput,
   UiNode,
+  UiNodeInput,
+  UiNodeInputBase,
   UiVariants,
 } from "./schema";
 
