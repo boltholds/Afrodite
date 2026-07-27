@@ -68,6 +68,18 @@ export {
   screenImportResultSchema,
   screenImportStatsSchema,
 } from "./screen-import";
+export {
+  bridgeTransactionApplyRequestSchema,
+  bridgeTransactionApplyResponseSchema,
+  bridgeTransactionApplyResultSchema,
+  bridgeTransactionFilePlanViewSchema,
+  bridgeTransactionFileResultSchema,
+  bridgeTransactionOperationSchema,
+  bridgeTransactionPlanRequestSchema,
+  bridgeTransactionPlanResponseSchema,
+  bridgeTransactionPlanViewSchema,
+  bridgeTransactionSourceApprovalSchema,
+} from "./transaction";
 
 export type {
   CatalogDecodeResult,
@@ -132,3 +144,15 @@ export type {
   ScreenImportResult,
   ScreenImportStats,
 } from "./screen-import";
+export type {
+  BridgeTransactionApplyRequest,
+  BridgeTransactionApplyResponse,
+  BridgeTransactionApplyResult,
+  BridgeTransactionFilePlanView,
+  BridgeTransactionFileResult,
+  BridgeTransactionOperation,
+  BridgeTransactionPlanRequest,
+  BridgeTransactionPlanResponse,
+  BridgeTransactionPlanView,
+  BridgeTransactionSourceApproval,
+} from "./transaction";
