@@ -1,0 +1,116 @@
+name: afrodite
+
+services:
+  studio:
+    build:
+      context: .
+      target: studio
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${AFRODITE_STUDIO_PORT:-4173}:8080"
+    depends_on:
+      preview-host:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  preview-host:
+    build:
+      context: .
+      target: preview-host
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${AFRODITE_PREVIEW_PORT:-4174}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  project-bridge:
+    build:
+      context: .
+      target: project-bridge
+    restart: unless-stopped
+    environment:
+      AFRODITE_PROJECT_ROOT: /workspace/project
+      AFRODITE_PROJECT_BRIDGE_HOST: 0.0.0.0
+      AFRODITE_PROJECT_BRIDGE_PORT: 4175
+      AFRODITE_PROJECT_BRIDGE_TOKEN: ${AFRODITE_BRIDGE_TOKEN:?AFRODITE_BRIDGE_TOKEN is required}
+      AFRODITE_STUDIO_ORIGINS: http://localhost:${AFRODITE_STUDIO_PORT:-4173},http://127.0.0.1:${AFRODITE_STUDIO_PORT:-4173}
+      AFRODITE_TARGET_INSTALL: ${AFRODITE_TARGET_INSTALL:-auto}
+    volumes:
+      - type: bind
+        source: "${AFRODITE_TARGET_PROJECT:?AFRODITE_TARGET_PROJECT is required}"
+        target: /workspace/project
+      - afrodite-target-node-modules:/workspace/project/node_modules
+    ports:
+      - "127.0.0.1:${AFRODITE_BRIDGE_PORT:-4175}:4175"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "fetch('http://127.0.0.1:4175/api/health',{headers:{Authorization:'Bearer '+process.env.AFRODITE_PROJECT_BRIDGE_TOKEN}}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  agent-gateway:
+    build:
+      context: .
+      target: agent-gateway
+    restart: unless-stopped
+    environment:
+      AFRODITE_MCP_HOST: 0.0.0.0
+      AFRODITE_MCP_PORT: 8770
+      AFRODITE_MCP_ALLOWED_HOSTS: 127.0.0.1:8770,localhost:8770,agent-gateway:8770
+      AFRODITE_BRIDGE_URL: http://project-bridge:4175
+      AFRODITE_BRIDGE_TOKEN: ${AFRODITE_BRIDGE_TOKEN:?AFRODITE_BRIDGE_TOKEN is required}
+      AFRODITE_AGENT_ACTOR: ${AFRODITE_AGENT_ACTOR:-chatgpt-tunnel}
+    depends_on:
+      project-bridge:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${AFRODITE_MCP_PORT:-8770}:8770"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "fetch('http://127.0.0.1:8770/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  tunnel-client:
+    build:
+      context: .
+      dockerfile: deploy/tunnel/Dockerfile
+      args:
+        TUNNEL_CLIENT_VERSION: ${TUNNEL_CLIENT_VERSION:-0.0.10}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TUNNEL_PROFILE: ${TUNNEL_PROFILE:-afrodite-mcp}
+      MCP_SERVER_URL: http://agent-gateway:8770/mcp
+      TUNNEL_HEALTH_LISTEN_ADDR: 0.0.0.0:8080
+    depends_on:
+      agent-gateway:
+        condition: service_healthy
+    volumes:
+      - afrodite-tunnel-state:/data/tunnel-client
+    ports:
+      - "127.0.0.1:${AFRODITE_TUNNEL_HEALTH_PORT:-8083}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/readyz >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+volumes:
+  afrodite-target-node-modules:
+  afrodite-tunnel-state:
