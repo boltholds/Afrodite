@@ -49,3 +49,47 @@ jobs:
           path: .ci-logs
           if-no-files-found: ignore
           retention-days: 3
+
+  docker:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare non-secret Compose environment
+        run: |
+          cat > .env <<EOF
+          AFRODITE_TARGET_PROJECT=${GITHUB_WORKSPACE}
+          AFRODITE_BRIDGE_TOKEN=ci-bridge-token-0123456789abcdef0123456789abcdef
+          AFRODITE_TARGET_INSTALL=off
+          AFRODITE_STUDIO_PORT=4173
+          AFRODITE_PREVIEW_PORT=4174
+          AFRODITE_BRIDGE_PORT=4175
+          AFRODITE_MCP_PORT=8770
+          AFRODITE_TUNNEL_HEALTH_PORT=8083
+          TUNNEL_ID=tunnel_ci_placeholder
+          CONTROL_PLANE_API_KEY=sk-ci-placeholder-not-a-real-key
+          TUNNEL_PROFILE=afrodite-mcp-ci
+          TUNNEL_CLIENT_VERSION=0.0.10
+          EOF
+
+      - name: Validate Compose model
+        run: |
+          mkdir -p .ci-logs
+          docker compose config --quiet 2>&1 | tee .ci-logs/docker-compose-config.log
+
+      - name: Build Docker image targets
+        env:
+          DOCKER_BUILDKIT: "1"
+        run: |
+          docker compose build studio preview-host project-bridge agent-gateway tunnel-client 2>&1 | tee .ci-logs/docker-build.log
+
+      - name: Upload Docker verification logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-verification-logs
+          path: .ci-logs
+          if-no-files-found: ignore
+          retention-days: 3
