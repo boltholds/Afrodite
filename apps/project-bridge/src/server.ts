@@ -18,6 +18,7 @@ import {
   screenImportRequestSchema,
   semanticPlanRequestSchema,
 } from "@afrodite/protocol";
+import { semanticBatchPlanRequestSchema } from "@afrodite/protocol/semantic-batch";
 import { ZodError } from "zod";
 import {
   ProjectCollaborationError,
@@ -25,6 +26,7 @@ import {
 } from "./collaboration.js";
 import type { ReviewedExecutionService } from "./reviewExecution.js";
 import { planProjectSemanticOperation } from "./semantic.js";
+import { planProjectSemanticBatch } from "./semanticBatch.js";
 import { ProjectBridgeService, ProjectBridgeServiceError } from "./service.js";
 
 export interface ProjectBridgeServerOptions {
@@ -146,6 +148,13 @@ export function createProjectBridgeServer(options: ProjectBridgeServerOptions): 
         const input = semanticPlanRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
         const plan = await planProjectSemanticOperation(options.service, input.document, input.command);
         sendJson(response, 200, { ok: true, plan });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/semantic/batch/plan") {
+        const input = semanticBatchPlanRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const batch = await planProjectSemanticBatch(options.service, input.document, input.commands);
+        sendJson(response, 200, { ok: true, batch });
         return;
       }
 
