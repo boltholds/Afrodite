@@ -7,6 +7,10 @@
       "types": "./src/index.ts",
       "import": "./src/index.ts"
     },
+    "./motion-verification": {
+      "types": "./src/motion-verification.ts",
+      "import": "./src/motion-verification.ts"
+    },
     "./semantic-batch": {
       "types": "./src/semantic-batch.ts",
       "import": "./src/semantic-batch.ts"
