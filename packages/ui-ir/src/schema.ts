@@ -284,6 +284,35 @@ export type UiNode =
       sourceRegion: SourceRegion;
     });
 
+interface UiNodeInputBase {
+  id: string;
+  name: string;
+  layout: z.input<typeof layoutSchema>;
+  position?: z.input<typeof positionSchema> | undefined;
+  appearance?: z.input<typeof appearanceSchema> | undefined;
+  variants?: z.input<typeof uiVariantsSchema> | undefined;
+  animations?: z.input<typeof animationClipsSchema> | undefined;
+  props?: Record<string, unknown> | undefined;
+  sourceBinding?: z.input<typeof sourceBindingSchema> | undefined;
+  sourceRegion?: z.input<typeof sourceRegionSchema> | undefined;
+  children?: UiNodeInput[] | undefined;
+}
+
+type UiNodeInput =
+  | (UiNodeInputBase & {
+      kind: "element";
+      element: string;
+    })
+  | (UiNodeInputBase & {
+      kind: "component";
+      component: string;
+    })
+  | (UiNodeInputBase & {
+      kind: "source-region";
+      regionKind: z.input<typeof sourceRegionKindSchema>;
+      sourceRegion: z.input<typeof sourceRegionSchema>;
+    });
+
 const uiNodeBaseSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -297,7 +326,7 @@ const uiNodeBaseSchema = z.object({
   sourceRegion: sourceRegionSchema.optional(),
 });
 
-export const uiNodeSchema: z.ZodType<UiNode> = z.lazy(() =>
+export const uiNodeSchema: z.ZodType<UiNode, z.ZodTypeDef, UiNodeInput> = z.lazy(() =>
   z.intersection(
     uiNodeBaseSchema,
     z.discriminatedUnion("kind", [
