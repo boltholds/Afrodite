@@ -73,6 +73,29 @@ function createDocument(secondPath = "src/Panel.tsx") {
   });
 }
 
+function createCssModuleDocument() {
+  const document = createDocument();
+  return parseUiDocument({
+    ...document,
+    root: {
+      ...document.root,
+      children: document.root.children.map((node, index) => ({
+        ...node,
+        sourceBinding: {
+          ...node.sourceBinding!,
+          repositoryPath: index === 0 ? "src/Card.tsx" : "src/Panel.tsx",
+          styleOwnership: {
+            strategy: "css-module" as const,
+            managedProperties: ["display", "gap"] as const,
+            stylesheetPath: "src/shared.module.css",
+            className: index === 0 ? "card" : "panel",
+          },
+        },
+      })),
+    },
+  });
+}
+
 describe("typed semantic batches", () => {
   it("combines ordered independent commands into one deterministic document and source intent set", () => {
     const document = createDocument();
@@ -116,6 +139,19 @@ describe("typed semantic batches", () => {
 
     expect(plan.status).toBe("blocked");
     expect(plan.diagnostics.some((item) => item.code === "SEMANTIC_BATCH_SOURCE_FILE_CONFLICT")).toBe(true);
+  });
+
+  it("detects conflicts on the actual CSS Module stylesheet rather than JSX bindings", () => {
+    const plan = planSemanticBatch(createCssModuleDocument(), [
+      { type: "convert_to_grid", nodeId: "node.card", gap: 16 },
+      { type: "convert_to_grid", nodeId: "node.panel", gap: 20 },
+    ]);
+
+    expect(plan.status).toBe("blocked");
+    expect(plan.diagnostics).toContainEqual(expect.objectContaining({
+      code: "SEMANTIC_BATCH_SOURCE_FILE_CONFLICT",
+      conflictKey: "source:src/shared.module.css",
+    }));
   });
 
   it("rejects informational commands inside mutation batches", () => {
