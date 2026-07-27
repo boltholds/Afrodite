@@ -27,8 +27,13 @@ describe("project bridge motion planning", () => {
   it("does not store blocked runtime trigger plans", async () => {
     const root = await fixture();
     const service = new MotionBridgeService({ projectRoot: root });
-    const input = operation();
-    input.after[0]!.trigger = { type: "click" };
+    const base = operation();
+    const input: BridgeMotionOperation = {
+      ...base,
+      after: base.after.map((clip, index) => index === 0
+        ? { ...clip, trigger: { type: "click" as const } }
+        : clip),
+    };
     const plan = await service.planMotionPatch(input);
 
     expect(plan.changed).toBe(false);
