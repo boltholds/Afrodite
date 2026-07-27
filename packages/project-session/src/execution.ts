@@ -1,4 +1,11 @@
+import { createReplaceDocumentCommand } from "@afrodite/canvas-engine";
 import { parseUiDocument, type UiDocument } from "@afrodite/ui-ir";
+import {
+  currentLiveProjectSessionState,
+  executeLiveCommand,
+  replaceCurrentLiveProjectSessionState,
+  selectLiveNode,
+} from "./index";
 
 export interface LiveProjectDocumentExecutionRequest {
   readonly document: UiDocument;
@@ -14,12 +21,6 @@ export interface LiveProjectDocumentExecutionReceipt {
   readonly document: UiDocument;
 }
 
-export type LiveProjectDocumentExecutor = (
-  request: LiveProjectDocumentExecutionRequest,
-) => Promise<LiveProjectDocumentExecutionReceipt> | LiveProjectDocumentExecutionReceipt;
-
-let activeExecutor: LiveProjectDocumentExecutor | undefined;
-
 export class LiveProjectDocumentExecutionError extends Error {
   readonly code: string;
 
@@ -30,31 +31,41 @@ export class LiveProjectDocumentExecutionError extends Error {
   }
 }
 
-export function registerLiveProjectDocumentExecutor(
-  executor: LiveProjectDocumentExecutor,
-): () => void {
-  activeExecutor = executor;
-  return () => {
-    if (activeExecutor === executor) activeExecutor = undefined;
-  };
-}
-
 export async function executeLiveProjectDocumentReplacement(
   input: LiveProjectDocumentExecutionRequest,
 ): Promise<LiveProjectDocumentExecutionReceipt> {
-  const executor = activeExecutor;
-  if (!executor) {
+  const current = currentLiveProjectSessionState();
+  if (!current) {
     throw new LiveProjectDocumentExecutionError(
       "LIVE_PROJECT_EXECUTOR_UNAVAILABLE",
-      "The active Studio project session is not mounted.",
+      "No active Afrodite project session has been registered in this browser session.",
     );
   }
-  const request: LiveProjectDocumentExecutionRequest = {
-    document: parseUiDocument(input.document),
-    label: input.label,
-    ...(input.expectedRevision === undefined ? {} : { expectedRevision: input.expectedRevision }),
-    ...(input.reviewRequestId ? { reviewRequestId: input.reviewRequestId } : {}),
-    ...(input.preparationId ? { preparationId: input.preparationId } : {}),
+  if (
+    input.expectedRevision !== undefined
+    && current.revision !== input.expectedRevision
+  ) {
+    throw new LiveProjectDocumentExecutionError(
+      "LIVE_PROJECT_REVISION_STALE",
+      `Prepared revision ${input.expectedRevision} no longer matches current revision ${current.revision}.`,
+    );
+  }
+
+  const document = parseUiDocument(input.document);
+  const command = createReplaceDocumentCommand(
+    current.history.present,
+    document,
+    input.label,
+  );
+  let next = executeLiveCommand(current, command, {
+    invalidateAllPatchState: true,
+  });
+  next = selectLiveNode(next, document.root.id);
+  replaceCurrentLiveProjectSessionState(next);
+
+  return {
+    commandId: command.id,
+    revision: next.revision,
+    document: next.history.present,
   };
-  return executor(request);
 }
