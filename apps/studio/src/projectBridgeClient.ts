@@ -8,6 +8,7 @@ import {
   bridgeTransactionApplyResponseSchema,
   bridgeTransactionPlanResponseSchema,
   screenImportResponseSchema,
+  semanticPlanResponseSchema,
   type BindingDiscoveryRequest,
   type BindingDiscoveryResult,
   type BindingMarkerPlanRequest,
@@ -25,7 +26,10 @@ import {
   type BridgeVariantOperation,
   type ScreenImportRequest,
   type ScreenImportResult,
+  type SemanticOperationCommand,
+  type SemanticPlanView,
 } from "@afrodite/protocol";
+import type { UiDocument } from "@afrodite/ui-ir";
 
 interface Parser<T> {
   parse(input: unknown): T;
@@ -62,6 +66,19 @@ export class ProjectBridgeClient {
     );
     if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
     return response.source;
+  }
+
+  async planSemanticOperation(
+    document: UiDocument,
+    command: SemanticOperationCommand,
+  ): Promise<SemanticPlanView> {
+    const response = await this.#request(
+      "/api/semantic/plan",
+      { method: "POST", body: JSON.stringify({ document, command }) },
+      semanticPlanResponseSchema,
+    );
+    if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
+    return response.plan;
   }
 
   async importScreen(request: ScreenImportRequest): Promise<ScreenImportResult> {
