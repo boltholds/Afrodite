@@ -7,6 +7,8 @@ import {
   bridgePlanRequestSchema,
   bridgeSourceRequestSchema,
   bridgeStylePlanRequestSchema,
+  bridgeTransactionApplyRequestSchema,
+  bridgeTransactionPlanRequestSchema,
   screenImportRequestSchema,
 } from "@afrodite/protocol";
 import { ZodError } from "zod";
@@ -110,6 +112,24 @@ export function createProjectBridgeServer(options: ProjectBridgeServerOptions): 
         const result = await options.service.applyPatch(
           input.planId,
           input.sourceVersion,
+          input.approvedBy,
+        );
+        sendJson(response, 200, { ok: true, result });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/transaction/plan") {
+        const input = bridgeTransactionPlanRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const transaction = await options.service.planTransaction(input.operations);
+        sendJson(response, 200, { ok: true, transaction });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/transaction/apply") {
+        const input = bridgeTransactionApplyRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const result = await options.service.applyTransaction(
+          input.transactionId,
+          input.sources,
           input.approvedBy,
         );
         sendJson(response, 200, { ok: true, result });
