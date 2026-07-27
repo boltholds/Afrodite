@@ -17,6 +17,7 @@
     "@afrodite/framework-core": "workspace:*",
     "@afrodite/import-core": "workspace:*",
     "@afrodite/protocol": "workspace:*",
+    "@afrodite/semantic-ops": "workspace:*",
     "@afrodite/style-core": "workspace:*",
     "@afrodite/variants-core": "workspace:*",
     "@afrodite/verified-write": "workspace:*",
