@@ -10,7 +10,7 @@ import {
 
 export const SEMANTIC_OPERATION_API_VERSION = 1 as const;
 
-export const semanticOperationCommandSchema = z.discriminatedUnion("type", [
+const semanticOperationCommandBaseSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("convert_to_grid"),
     nodeId: z.string().min(1),
@@ -24,14 +24,6 @@ export const semanticOperationCommandSchema = z.discriminatedUnion("type", [
     minWidth: z.number().int().nonnegative(),
     maxWidth: z.number().int().nonnegative().optional(),
     layout: layoutOverrideSchema,
-  }).superRefine((command, context) => {
-    if (command.maxWidth !== undefined && command.maxWidth <= command.minWidth) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["maxWidth"],
-        message: "maxWidth must be greater than minWidth.",
-      });
-    }
   }),
   z.object({
     type: z.literal("replace_spacing_with_token"),
@@ -45,6 +37,22 @@ export const semanticOperationCommandSchema = z.discriminatedUnion("type", [
     nodeId: z.string().min(1),
   }),
 ]);
+
+export const semanticOperationCommandSchema = semanticOperationCommandBaseSchema.superRefine(
+  (command, context) => {
+    if (
+      command.type === "create_responsive_variant"
+      && command.maxWidth !== undefined
+      && command.maxWidth <= command.minWidth
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["maxWidth"],
+        message: "maxWidth must be greater than minWidth.",
+      });
+    }
+  },
+);
 
 export const semanticDiagnosticSchema = z.object({
   code: z.string().min(1),
