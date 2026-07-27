@@ -59,6 +59,12 @@ export {
   bridgeStyleOperationSchema,
   bridgeStylePlanRequestSchema,
 } from "./style";
+export {
+  screenImportRequestSchema,
+  screenImportResponseSchema,
+  screenImportResultSchema,
+  screenImportStatsSchema,
+} from "./screen-import";
 
 export type {
   CatalogDecodeResult,
@@ -114,3 +120,9 @@ export type {
   BridgeStyleOperation,
   BridgeStylePlanRequest,
 } from "./style";
+export type {
+  ScreenImportRequest,
+  ScreenImportResponse,
+  ScreenImportResult,
+  ScreenImportStats,
+} from "./screen-import";
