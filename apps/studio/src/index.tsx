@@ -2,6 +2,7 @@ import { createSignal, Show } from "solid-js";
 import { render } from "solid-js/web";
 import { ManualProjectStudio } from "./ManualProjectStudio";
 import { MotionCompositionWorkbench } from "./MotionCompositionWorkbench";
+import { MotionRuntimeVerificationPanel } from "./MotionRuntimeVerificationPanel";
 import { ReviewInboxWorkbench } from "./ReviewInboxWorkbench";
 import { ScreenImportWorkbench } from "./ScreenImportWorkbench";
 import { SemanticBatchWorkbench } from "./SemanticBatchWorkbench";
@@ -25,6 +26,7 @@ import "./review-inbox.css";
 import "./manual-interaction.css";
 import "./motion.css";
 import "./motion-v23.css";
+import "./motion-verification.css";
 
 const root = document.getElementById("root");
 
@@ -59,6 +61,7 @@ function StudioRoot() {
         <button classList={{ active: mode() === "screen-import" }} onClick={() => setMode("screen-import")}>Screen import</button>
         <button classList={{ active: mode() === "transaction" }} onClick={() => setMode("transaction")}>Transactions</button>
       </nav>
+      <MotionRuntimeVerificationPanel />
       <Show when={mode() === "reviews"} fallback={
         <Show when={mode() === "semantic-batch"} fallback={
           <Show when={mode() === "semantic"} fallback={
