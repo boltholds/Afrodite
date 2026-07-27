@@ -25,7 +25,8 @@ Afrodite can:
 17. plan constrained project-aware semantic operations without granting automation direct code-edit authority;
 18. expose semantic inspection and dry runs through a policy-controlled local MCP gateway;
 19. publish the active Studio session to a durable human review inbox for agent-proposed changes;
-20. re-plan approved requests against current document and source versions, compare drift, and execute them only after a second explicit human confirmation.
+20. re-plan approved requests against current document and source versions, compare drift, and execute them only after a second explicit human confirmation;
+21. bind several fresh source effects to one reviewed transaction with shared verification, complete rollback, and one durable execution receipt.
 
 ## Architecture
 
@@ -114,17 +115,18 @@ agent dry run
   -> server-side re-plan against current live document and source versions
   -> structured approved-vs-fresh comparison
   -> exact fresh UI IR and source diffs
+  -> optional bridge-owned multi-file transaction
   -> second confirmation bound to preparationId + live revision
-  -> verified source apply
-  -> reversible Studio replace-document command
+  -> verified single-file apply or atomic source transaction
+  -> reversible Studio replace-document command after source success
   -> persisted execution receipt or retry history
 ```
 
 Approval remains separate from execution. The first human decision authorizes only a fresh preparation. The preparation creates new server-held source plans and compares their semantic effects with the reviewed snapshot; regenerated plan IDs alone do not count as drift.
 
-The second confirmation is invalid when the live Studio revision or document version changes. Expired source plans must be prepared again. UI IR replacement is stored as a normal reversible command, so it appears in the same undo/redo history as visual edits. Failed and partial attempts remain in `executionHistory` and can be re-planned against the new state.
+The second confirmation is invalid when the live Studio revision or document version changes. Expired source plans or transactions must be prepared again. UI IR replacement is stored as a normal reversible command, so it appears in the same undo/redo history as visual edits. Failed and partial attempts remain in `executionHistory` and can be re-planned against the actual new state.
 
-Reviewed execution v1 accepts at most one changed source plan. Multi-file effects still belong to the transaction boundary. See `docs/reviewed-execution.md` and `docs/live-agent-review.md`.
+When several source files change, the preparation contains one transaction ID, one exact source version per file, and one deduplicated verification sequence. The browser cannot manufacture per-file transaction receipts; project bridge validates the shared result and derives durable per-plan provenance. See `docs/reviewed-execution.md`, `docs/reviewed-multifile-execution.md`, and `docs/live-agent-review.md`.
 
 ## Atomic multi-file transactions
 
@@ -142,7 +144,9 @@ semantic layout/style/variant operations
   -> keep every file or restore every committed file
 ```
 
-The boundary is logically all-or-rollback while the project bridge process remains alive. Crash recovery across a process or machine failure is still deferred. See `docs/multi-file-transactions.md`.
+Reviewed execution applies the UI IR command only after the complete source transaction returns `applied`. A complete rollback records no durable source effect. A rollback failure is inspected per file and becomes `partial` when any file remains changed.
+
+The boundary is logically all-or-rollback while the project bridge process remains alive. Crash recovery across a process or machine failure is still deferred. See `docs/multi-file-transactions.md` and `docs/reviewed-multifile-execution.md`.
 
 ## Existing screen import
 
@@ -156,7 +160,7 @@ See `docs/existing-screen-import.md` and `docs/multi-file-screen-import.md`.
 
 - `apps/studio` — Canvas, Source Sync, Binding Manager, Style Ownership, Variants, Screen Import, Transactions, Semantic API, and Reviewed Execution Inbox workbenches.
 - `apps/preview-host` — opaque-origin trusted SolidJS and React component preview.
-- `apps/project-bridge` — authenticated localhost source, planning, verified-write, transaction, live-session, review, and execution-preparation service.
+- `apps/project-bridge` — authenticated localhost source, planning, verified-write, transaction, live-session, review, fresh-preparation, receipt-normalization, and reviewed-execution service.
 - `apps/agent-gateway` — policy-controlled MCP stdio adapter over the live semantic planning boundary.
 - `packages/ui-ir` — Semantic UI IR, variants, bindings, ownership, and provenance contracts.
 - `packages/canvas-engine` — reversible document commands and read-only enforcement.
@@ -168,7 +172,7 @@ See `docs/existing-screen-import.md` and `docs/multi-file-screen-import.md`.
 - `packages/import-core` — bounded screen and component-graph import.
 - `packages/semantic-ops` — constrained semantic command planner.
 - `packages/agent-gateway-core` — agent policy, redaction, dry-run, approval-request, and audit layer.
-- `packages/verified-write` — approval, staging, compare-and-swap, verification, and rollback.
+- `packages/verified-write` — approval, staging, compare-and-swap, shared verification, and rollback.
 - `packages/adapter-solid` and `packages/adapter-react` — framework identities and adapter factories.
 - `packages/project-indexer` and `packages/indexer-react` — static component catalogs.
 - `packages/protocol` — catalog, preview, bridge, binding, style, variant, import, transaction, semantic, live-session, review, preparation, and execution schemas.
@@ -199,7 +203,7 @@ pnpm dev:agent \
   --actor codex
 ```
 
-Agent requests appear in **Review inbox**. After approval, use **Prepare fresh execution**, inspect the comparison and fresh diffs, select the preparation-ID confirmation, and execute.
+Agent requests appear in **Review inbox**. After approval, use **Prepare fresh execution**, inspect the comparison, every fresh diff, and the optional atomic transaction, select the preparation-ID confirmation, and execute.
 
 Target applications should ignore local collaboration state:
 
