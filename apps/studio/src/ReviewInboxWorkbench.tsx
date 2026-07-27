@@ -312,7 +312,10 @@ export function ReviewInboxWorkbench() {
                     )}
                   </Show>
 
-                  <Show when={request.status === "approved" && !request.execution}>
+                  <Show when={
+                    request.status === "approved"
+                    && (!request.execution || request.execution.status === "failed" || request.execution.status === "partial")
+                  }>
                     <section class="review-card execution-preparation">
                       <div class="section-heading"><h2>Fresh execution preparation</h2><span>no write</span></div>
                       <p>Re-run the approved semantic command against the current Studio document and current source versions.</p>
