@@ -4,6 +4,7 @@ import {
   bindingDiscoveryRequestSchema,
   bindingMarkerPlanRequestSchema,
   bridgeApplyRequestSchema,
+  bridgeMotionPlanRequestSchema,
   bridgePlanRequestSchema,
   bridgeSourceRequestSchema,
   bridgeStylePlanRequestSchema,
@@ -28,6 +29,7 @@ import {
   ProjectCollaborationError,
   type ProjectCollaborationStore,
 } from "./collaboration.js";
+import { MotionBridgeServiceError, type MotionBridgeService } from "./motion.js";
 import type { ReviewedExecutionService } from "./reviewExecution.js";
 import { planProjectSemanticOperation } from "./semantic.js";
 import { planProjectSemanticBatch } from "./semanticBatch.js";
@@ -39,6 +41,7 @@ import { ProjectBridgeService, ProjectBridgeServiceError } from "./service.js";
 
 export interface ProjectBridgeServerOptions {
   readonly service: ProjectBridgeService;
+  readonly motion: MotionBridgeService;
   readonly collaboration: ProjectCollaborationStore;
   readonly reviewedExecution: ReviewedExecutionService;
   readonly batchReviews: SemanticBatchReviewStore;
@@ -230,6 +233,24 @@ export function createProjectBridgeServer(options: ProjectBridgeServerOptions): 
         return;
       }
 
+      if (request.method === "POST" && url.pathname === "/api/motion/plan") {
+        const input = bridgeMotionPlanRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const plan = await options.motion.planMotionPatch(input.operation);
+        sendJson(response, 200, { ok: true, plan });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/motion/apply") {
+        const input = bridgeApplyRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const result = await options.motion.applyMotionPatch(
+          input.planId,
+          input.sourceVersion,
+          input.approvedBy,
+        );
+        sendJson(response, 200, { ok: true, result });
+        return;
+      }
+
       if (request.method === "POST" && url.pathname === "/api/patch/plan") {
         const input = bridgePlanRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
         const plan = await options.service.planPatch(input.operation);
@@ -330,6 +351,7 @@ class HttpRequestError extends Error {
 function normalizeError(error: unknown): { code: string; message: string; status: number } {
   if (error instanceof HttpRequestError) return { code: error.code, message: error.message, status: error.status };
   if (error instanceof ProjectBridgeServiceError) return { code: error.code, message: error.message, status: 409 };
+  if (error instanceof MotionBridgeServiceError) return { code: error.code, message: error.message, status: 409 };
   if (error instanceof ProjectCollaborationError) return { code: error.code, message: error.message, status: 409 };
   if (error instanceof SemanticBatchReviewError) return { code: error.code, message: error.message, status: 409 };
   if (error instanceof ZodError) {

@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { ProjectCollaborationStore } from "./collaboration.js";
+import { MotionBridgeService } from "./motion.js";
 import { ReviewedExecutionService } from "./reviewExecution.js";
 import { SemanticBatchReviewStore } from "./semanticBatchReview.js";
 import { createProjectBridgeServer } from "./server.js";
@@ -17,6 +18,7 @@ interface CliOptions {
 
 const options = parseCliOptions(process.argv.slice(2), process.env);
 const service = new ProjectBridgeService({ projectRoot: options.projectRoot });
+const motion = new MotionBridgeService({ projectRoot: options.projectRoot });
 const collaboration = new ProjectCollaborationStore(options.projectRoot);
 const batchReviews = new SemanticBatchReviewStore(options.projectRoot, collaboration);
 const reviewedExecution = new ReviewedExecutionService({
@@ -25,6 +27,7 @@ const reviewedExecution = new ReviewedExecutionService({
 });
 const server = createProjectBridgeServer({
   service,
+  motion,
   collaboration,
   reviewedExecution,
   batchReviews,
@@ -38,6 +41,7 @@ server.listen(options.port, options.host, () => {
   console.log(`Project root: ${options.projectRoot}`);
   console.log(`Collaboration state: ${path.join(options.projectRoot, ".afrodite", "collaboration.json")}`);
   console.log(`Semantic batch reviews: ${path.join(options.projectRoot, ".afrodite", "semantic-batch-reviews.json")}`);
+  console.log("Motion CSS plans use the same authenticated verified-write boundary.");
   console.log(`Allowed Studio origins: ${options.allowedOrigins.join(", ")}`);
   console.log(`Session token${options.generatedToken ? " (generated)" : ""}: ${options.token}`);
   console.log("Keep this terminal open and paste the token into Afrodite Studio.");

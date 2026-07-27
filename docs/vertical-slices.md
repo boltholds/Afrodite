@@ -84,7 +84,7 @@ Current boundary: one typed command and one explicit target per request; natural
 
 ## VS-016: Policy-controlled MCP agent gateway — complete
 
-Delivered bounded sanitized inspection, operation catalog, policy and redaction, inspection and dry-run budgets, semantic planning through project bridge, approval-request provenance, audit events, six read/plan/request MCP tools, environment-only bridge token handling, and threat-model tests/documentation.
+Delivered bounded sanitized inspection, operation catalog, policy and redaction, inspection and dry-run budgets, semantic planning through project bridge, approval-request provenance, audit events, read/plan/request MCP tools, environment-only bridge token handling, and threat-model tests/documentation.
 
 The gateway exposes no filesystem, shell, write, apply, approval-decision, commit, or merge tools.
 
@@ -114,118 +114,70 @@ Current boundary: duplicate same-file plans remain blocked; plans retain finite 
 
 **Goal:** make the active project session fully controllable by a human through keyboard, pointer, wheel, object clipboard, Inspector fields, and JSON while preserving one reversible command history.
 
-Delivered:
+Delivered semantic position/radius fields, reversible delete/move/radius/text/duplication/composite commands, deterministic keyboard navigation, semantic clipboard, drag and held-wheel gestures, inline text editing, Inspector and JSON editing, and one browser-local project-session history shared with Source Sync.
 
-- semantic optional `position.x/y` and `appearance.borderRadius` fields in UI IR and JSON;
-- reversible delete, move, corner-radius, text, duplication, and composite gesture commands;
-- deterministic depth-first Tab and Shift+Tab navigation;
-- Delete/Backspace removal with root and read-only protection;
-- arrow-key movement at 1 px and Shift+arrow movement at 10 px;
-- Ctrl/Cmd+C and Ctrl/Cmd+V semantic object clipboard;
-- fresh recursive IDs, 16 px paste offset, and source-authority removal for duplicates;
-- Ctrl/Cmd+Z, Ctrl/Cmd+Y, and Ctrl/Cmd+Shift+Z history control;
-- Enter, F2, and best-effort Ctrl/Cmd+L inline editing for static text props or node name;
-- pointer capture, transient drag preview, Escape cancellation, and one command per completed gesture;
-- held-pointer wheel corner-radius adjustment with 1 px or Shift 5 px steps;
-- one composite history entry when movement and rounding occur in the same gesture;
-- Inspector controls for position, radius, layout, sizing, and text;
-- JSON editing over the same UI IR rather than a parallel state model;
-- a manual Canvas and the existing Source Sync/Binding Manager sharing one browser-local `LiveProjectSessionState`;
-- unit tests for deletion/restore, composite gestures, static text editing, safe duplication, and read-only refusal;
-- documentation in `docs/manual-interaction.md`.
-
-Current boundary:
-
-- single selection only; marquee and multi-selection are deferred;
-- no snapping, alignment guides, resize handles, or parent-bound drag constraints;
-- object clipboard is process-local rather than an OS structured clipboard format;
-- browsers may reserve Ctrl/Cmd+L, so Enter and F2 are guaranteed alternatives;
-- position, radius, text, delete, and paste remain document-owned until dedicated source adapters exist;
-- manual browser end-to-end verification remains outstanding.
+Current boundary: single selection, no snapping/guides/resize handles, process-local clipboard, and document-owned position/radius/text/delete/paste.
 
 ## VS-021: Semantic Motion and JSON Inspector — complete
 
 **Goal:** represent, preview, and edit animation intent through typed UI IR clips and reversible JSON-backed commands.
 
-Delivered:
+Delivered typed triggers, timelines, tracks and keyframes, strict validation, reversible animation commands, deterministic single-clip playback, a visual Motion workspace, and Animation JSON editing over the same UI IR.
 
-- optional `UiNode.animations` under schema version 1 with backward compatibility;
-- typed mount, hover, focus, click, semantic-state, and manual triggers;
-- duration, delay, easing, iterations, direction, and fill timeline settings;
-- opacity, X/Y translation, scale, rotation, radius, and background-color tracks;
-- strict keyframe offset ordering and value-type validation;
-- unique track identities and one track per property inside a clip;
-- reversible create, replace, upsert, and delete animation commands;
-- exact restoration of animation absence through undo;
-- deterministic delay/fill/iteration/direction/easing resolution;
-- numeric interpolation and explicit discrete background-color behavior;
-- a Studio Motion workspace over the active browser-local project session;
-- node and clip navigation, visual timeline fields, property tracks, keyframe values, play/pause/restart, and playhead scrubbing;
-- an Animation JSON panel editing exactly `selectedNode.animations`;
-- one reversible command for valid JSON and exact validation paths for invalid JSON;
-- UI IR round-trip, schema rejection, command, undo, interpolation, fill, and direction tests;
-- documentation in `docs/semantic-motion.md`.
-
-Current boundary:
-
-- triggers are declarative and do not synthesize runtime event handlers or application state;
-- background colors switch discretely rather than interpolating through a color space;
-- preview resolves one selected clip rather than composing simultaneous clips;
-- no spring, cubic-bezier, path-motion, or audio timeline model;
-- no CSS keyframe, Web Animations, Motion One, Framer Motion, GSAP, React, or Solid source adapter;
-- animation remains document-owned until a capability adapter proves source ownership;
-- manual browser end-to-end verification remains outstanding.
+The single-selected-clip preview and document-only source boundary were extended by VS-023.
 
 ## VS-022: Typed semantic batches — complete
 
 **Goal:** combine several explicit typed semantic commands into one deterministic reviewed operation without introducing natural-language ambiguity or direct agent write authority.
 
+Delivered bounded independent preflight, semantic/source conflict detection, ordered document composition, deterministic batch IDs, one patch or one atomic transaction, Studio batch review, durable batch requests, separate human decision/application, policy-controlled MCP batch tools, and core/protocol/bridge/gateway tests.
+
+Current boundary: semantic API v1 only, same-file writes rejected rather than merged, exact version-bound review without fresh batch re-planning, and no durable batch execution history.
+
+## VS-023: Composed semantic motion and CSS source adapters — complete
+
+**Goal:** add reusable animations, preview several clips on one object, and materialize only proven motion behavior into existing CSS without inventing runtime state.
+
 Delivered:
 
-- `@afrodite/semantic-ops/batch` with a hard default maximum of sixteen commands;
-- independent command preflight against one immutable input document;
-- rejection of informational and independently blocked commands;
-- deterministic same-field semantic write keys and early conflict diagnostics;
-- ordered composition into one exact `documentAfter` with per-step before/after document versions;
-- deterministic batch IDs over input version, commands, document result, and typed source intents;
-- actual source-target resolution for JSX, CSS Module stylesheet, and design-token files;
-- rejection of duplicate actual source targets until same-file merging is proven;
-- explicit `document-and-source`, `document-only`, and `mixed` application modes;
-- shared protocol schemas for batch planning and durable batch review;
-- authenticated `/api/semantic/batch/plan` planning through project bridge;
-- one server-held patch for one source effect or one bridge-owned transaction for multiple distinct files;
-- Studio **Batches** review of ordered steps, diagnostics, exact diffs, transaction, and combined document;
-- source-first execution and one reversible replace-document command only after complete source success;
-- durable `.afrodite/semantic-batch-reviews.json` with stale/expiry/one-decision checks;
-- separate human approve/reject and exact apply actions;
-- three policy-controlled MCP tools for batch dry run, review submission, and status observation;
-- process-local batch provenance plus command/source/diff budgets;
-- explicit absence of MCP apply, execute, source-write, or approval-decision tools;
-- core, protocol, bridge, durable-store, gateway-policy, MCP-surface, strategy-target, stale, and conflict tests;
-- documentation in `docs/semantic-batches.md`.
+- backward-compatible `AnimationClip.priority` and `blend` fields;
+- deterministic multi-clip composition ordered by priority and stable clip ID;
+- numeric `replace`, `add`, and `multiply` preview modes;
+- replace-only background-color composition;
+- fade, slide, scale, spin, pulse, and color-shift presets;
+- clip duplication with fresh identities;
+- a Studio compositor with an explicit active-preview clip set and shared playhead;
+- continued detailed timeline/track/keyframe and JSON editing through the VS-021 workspace;
+- `@afrodite/motion-core` and an explicit per-plan CSS keyframe ownership scope;
+- generated `@keyframes` and comma-separated animation declarations inside one deterministic owned region;
+- safe mount, hover, focus, and existing `data-state` selector mappings;
+- rejection of manual/click runtime invention;
+- rejection of additive/multiply CSS source composition until a runtime compositor is proven;
+- rejection of potentially simultaneous clips that write the same CSS channel;
+- authenticated `/api/motion/plan` and `/api/motion/apply` routes;
+- exact diff review, approval bound to `planId + stylesheet sourceVersion`, compare-and-swap, build verification, and rollback;
+- UI IR, composition, preset, protocol, CSS strategy, and project-bridge tests;
+- documentation in `docs/motion-source-composition.md`.
 
 Current boundary:
 
-- commands are limited to semantic API v1 and a maximum of sixteen items;
-- informational operations remain separate from mutation batches;
-- same-field writes and same actual source-file intents are rejected rather than merged;
-- only existing style and responsive-variant source intents are supported;
-- mixed source coverage requires explicit review of document-only steps;
-- batch review uses exact version-bound plans and compare-and-swap but does not yet perform fresh approved-vs-current re-planning;
-- batch execution does not yet use the durable execution receipt/history model from VS-018/019;
-- transaction crash journaling and manual browser/MCP Inspector E2E remain outstanding.
+- CSS generation requires an existing CSS Module binding with the same stylesheet and class;
+- motion ownership is reviewed per plan rather than persisted on `SourceBinding`;
+- source materialization supports `replace` only;
+- all transform sub-properties share one CSS channel;
+- manual/click triggers, JavaScript state wiring, WAAPI, Motion One, Framer Motion, GSAP, hooks, and signals remain unsupported;
+- motion uses a verified single-file boundary and is not yet part of multi-file transactions;
+- manual browser end-to-end verification remains outstanding.
 
-## VS-023: Semantic motion source adapters
+## VS-024: Isolated motion runtime verification
 
-**Goal:** materialize proven animation intent into existing source formats without inventing runtime state or overwriting handwritten behavior.
+**Goal:** prove that generated and semantic motion resolve to the same observable browser result without executing target application business logic.
 
 Planned acceptance criteria:
 
-- add explicit motion ownership and source-capability contracts;
-- support generated ownership regions for static CSS `@keyframes` and animation declarations;
-- optionally support bounded Web Animations API descriptors where an existing stable runtime hook is explicitly owned;
-- map only supported numeric/color tracks and timeline settings;
-- require an explicit representation for hover/focus/mount/manual triggers and reject unsupported state/click behavior;
-- create exact reviewed patch/transaction plans through project bridge;
-- preserve handwritten keyframes, event handlers, hooks, and application state outside owned regions;
-- expose source materialization in Motion Studio and semantic batch planning without granting agents write authority.
+- activate mount, hover, focus, and bounded `data-state` scenarios inside the isolated preview host;
+- compare computed styles and transform matrices with the semantic compositor at sampled playhead times;
+- report per-track drift, unsupported browser behavior, reduced-motion behavior, and timing tolerances;
+- verify several simultaneous clips with distinct CSS channels;
+- keep application hooks, event handlers, data fetching, and arbitrary modules outside the verification runtime;
+- bind verification evidence to the reviewed motion source plan before write approval.
