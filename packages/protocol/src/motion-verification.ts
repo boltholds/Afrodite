@@ -48,12 +48,22 @@ export const motionVerificationManifestSchema = z.object({
   nodeId: z.string().min(1),
   className: z.string().regex(/^[A-Za-z_][A-Za-z0-9_-]*$/),
   managedClipIds: z.array(z.string().min(1)).min(1).max(8),
-  clips: animationClipsSchema.max(8),
+  clips: animationClipsSchema,
   cssRegion: z.string().max(100_000),
   cssFingerprint: z.string().regex(/^motion-css-v1:[0-9a-f]{8}$/),
   challenge: z.string().regex(/^[A-Za-z0-9_-]{16,120}$/),
   scenarios: z.array(motionVerificationScenarioSchema).min(1).max(32),
 }).superRefine((manifest, context) => {
+  if (manifest.clips.length > 8) {
+    context.addIssue({
+      code: z.ZodIssueCode.too_big,
+      maximum: 8,
+      inclusive: true,
+      type: "array",
+      path: ["clips"],
+      message: "Motion verification supports at most eight clips.",
+    });
+  }
   if (createMotionCssFingerprint(manifest.cssRegion) !== manifest.cssFingerprint) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
