@@ -143,6 +143,16 @@ export const animationClipSchema = z.object({
   }
 });
 
+export const animationClipsSchema = z.array(animationClipSchema).max(32).superRefine((clips, context) => {
+  const ids = clips.map((clip) => clip.id);
+  if (new Set(ids).size !== ids.length) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Animation clip identifiers must be unique within a node.",
+    });
+  }
+});
+
 export type MotionTrigger = z.infer<typeof motionTriggerSchema>;
 export type MotionEasing = z.infer<typeof motionEasingSchema>;
 export type MotionDirection = z.infer<typeof motionDirectionSchema>;
