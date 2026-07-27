@@ -8,17 +8,17 @@ Afrodite exposes semantic automation through a local MCP stdio server without gr
 MCP host / agent
   -> constrained MCP tool schema
   -> AgentGatewayPolicy
-  -> sanitized in-memory UiDocument snapshot
+  -> sanitized current Studio UiDocument
   -> semantic dry-run request
   -> authenticated local project bridge
   -> existing semantic planner and adapter plans
   -> exact diff returned for review
-  -> pending human approval request
+  -> persistent pending human review request
 
 No apply or approval-decision tool exists in the gateway.
 ```
 
-The gateway starts with one explicitly selected Semantic UI IR JSON file. It parses and keeps that document in memory. The connected model cannot choose arbitrary filesystem paths or request additional files.
+The gateway reads the current document from `/api/session/current`. Studio publishes revisioned project-session snapshots through project bridge. The connected model cannot select a filesystem path or upload another document through MCP.
 
 The project bridge token is read from an environment variable and remains private to the gateway process. It is never included in tool results, policy inspection, audit details, or startup stdout.
 
@@ -48,13 +48,14 @@ exec
 apply_patch
 apply_transaction
 approve
+reject
 merge
 commit
 ```
 
 ### Document inspection
 
-`afrodite_inspect_document` returns a bounded semantic tree. It includes IDs, node kinds, layout, variants, prop names, source-binding summaries, and source-region coordinates.
+`afrodite_inspect_document` returns a bounded semantic tree from the most recently published Studio session. It includes IDs, node kinds, layout, variants, prop names, source-binding summaries, and source-region coordinates.
 
 It redacts:
 
@@ -77,27 +78,39 @@ replace_spacing_with_token
 explain_unpatchable_region
 ```
 
-The gateway sends the reviewed in-memory document and typed command to `/api/semantic/plan`. Source intents continue through project-bridge style or variant strategies and produce the existing exact `SourcePatchPlan` views.
+The gateway sends the live document and typed command to `/api/semantic/plan`. Source intents continue through project-bridge style or variant strategies and produce exact `SourcePatchPlan` views.
 
 The gateway does not apply `documentAfter`, call `/api/patch/apply`, or call `/api/transaction/apply`.
 
 Default policy rejects a dry run that exceeds eight source plans or 80,000 diff characters.
 
-### Human approval requests
+### Human review requests
 
-An agent may create a request only for a plan produced by the same gateway process. It cannot invent a semantic plan ID or source plan list.
+An agent may create a request only for a plan produced by the same gateway process. The MCP layer records each dry run locally and refuses an invented semantic plan ID.
 
-A request contains:
+The request submitted to project bridge contains:
 
-- actor and session ID;
-- semantic plan ID and document version;
+- actor and agent session ID;
+- semantic plan ID and exact live document version;
 - original typed command;
-- source plan IDs, repository-relative paths, and source versions;
+- complete reviewed `documentAfter`, when present;
+- exact source plan diffs, diagnostics, verification steps, plan IDs, paths, and source versions;
 - optional rationale;
-- expiration time;
-- an explicit instruction to review in Afrodite Studio.
+- expiration time.
 
-The MCP API can observe only `pending` or `expired`. It has no method that changes a request to approved or rejected and no method that applies the referenced plans.
+Requests are persisted at `.afrodite/collaboration.json` under the explicitly configured project root. They survive Studio and gateway restarts.
+
+The MCP API can observe `pending`, `approved`, `rejected`, or `expired`, but it has no method that changes the state and no method that applies the referenced plan. Only the Studio Review Inbox calls `/api/review/decide`.
+
+A human decision remains separate from application:
+
+```text
+approve request
+  != apply documentAfter
+  != apply source patch
+```
+
+Source application still requires the exact server-held `planId + sourceVersion`. If that plan expires or the source changes, Studio receives the normal verified-write rejection and must create a fresh plan.
 
 ## Default policy
 
@@ -112,21 +125,22 @@ The MCP API can observe only `pending` or `expired`. It has no method that chang
 }
 ```
 
-The policy engine also records a bounded in-memory audit trail for allowed, denied, and failed tool calls.
+The policy engine also records a bounded in-memory audit trail for allowed, denied, and failed agent calls. The durable inbox separately preserves actor, command, plan, and human-decision provenance.
 
 ## Start the gateway
 
-Start Studio and project bridge normally. Export the bridge token printed by project bridge:
+Start Studio and project bridge normally. In Studio, connect to project bridge from Project session. The Studio shell then publishes the current document and subsequent revisions.
+
+Export the bridge token printed by project bridge:
 
 ```bash
 export AFRODITE_BRIDGE_TOKEN='<local bridge token>'
 ```
 
-Start the MCP server with an explicit document snapshot:
+Start the MCP server:
 
 ```bash
 pnpm dev:agent \
-  --document ./screen.afrodite.json \
   --bridge-url http://127.0.0.1:4175 \
   --actor codex
 ```
@@ -136,8 +150,11 @@ For a built workspace:
 ```bash
 pnpm --filter @afrodite/agent-gateway build
 node apps/agent-gateway/dist/cli.js \
-  --document ./screen.afrodite.json
+  --bridge-url http://127.0.0.1:4175 \
+  --actor codex
 ```
+
+The gateway refuses to start until a live Studio document is available from project bridge.
 
 ## Example MCP host configuration
 
@@ -150,8 +167,10 @@ node apps/agent-gateway/dist/cli.js \
         "--dir",
         "/absolute/path/to/Afrodite",
         "dev:agent",
-        "--document",
-        "/absolute/path/to/screen.afrodite.json"
+        "--bridge-url",
+        "http://127.0.0.1:4175",
+        "--actor",
+        "codex"
       ],
       "env": {
         "AFRODITE_BRIDGE_TOKEN": "<local bridge token>"
@@ -165,10 +184,11 @@ The token belongs in host process configuration, not in a model prompt or tool a
 
 ## Current boundary
 
-- the document is an immutable startup snapshot; live project-session subscription is deferred;
-- approval requests are process-memory records and disappear when the gateway exits;
-- the gateway does not provide a Studio approval inbox yet;
+- Studio publishes one current document snapshot, not a collaborative CRDT or multi-user event stream;
+- review records persist, but project-bridge source plans retain their existing finite TTL;
+- approving a request does not automatically load UI IR or apply source;
+- loading an approved `documentAfter` currently starts a new Studio command history after a page reload;
 - one semantic command is planned at a time;
 - agent batching, plan composition, and transaction requests are deferred;
 - natural-language interpretation belongs to the MCP host or model and remains outside the trusted core;
-- audit persistence and signed actor identities are deferred.
+- the agent audit remains process-local and signed actor identities are deferred.
