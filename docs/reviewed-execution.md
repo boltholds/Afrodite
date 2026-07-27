@@ -1,23 +1,24 @@
 # Reviewed execution orchestration
 
-VS-018 turns an approved agent review into a fresh, human-controlled execution without granting the agent any new capability.
+VS-018 turns an approved agent review into a fresh, human-controlled execution without granting the agent any new capability. VS-019 extends the same boundary to several source files through one atomic transaction.
 
 ## Lifecycle
 
 ```text
 agent semantic dry run
   -> persistent review request
-  -> human approve
+  -> first human approve/reject decision
   -> fresh server-side semantic plan
   -> approved-vs-fresh comparison
+  -> optional bridge-owned multi-file transaction
   -> human reviews exact current effects
   -> second explicit confirmation
-  -> source verified-write
+  -> verified single-file write or atomic transaction
   -> reversible Studio document command
   -> persistent execution receipt
 ```
 
-The first approval does not authorize an old `SourcePatchPlan` to be applied later. It authorizes Afrodite Studio to ask project bridge for a fresh preparation.
+The first approval does not authorize an old `SourcePatchPlan` or transaction to be applied later. It authorizes Afrodite Studio to request a fresh preparation.
 
 ## Fresh preparation
 
@@ -36,10 +37,11 @@ Project bridge then:
 2. reads the current live Studio snapshot;
 3. re-runs the original typed semantic command;
 4. creates new server-held source plans against current source versions;
-5. compares fresh document and source effects with the approved snapshot;
-6. persists the preparation and returns it to Studio.
+5. creates one transaction when several source intents exist;
+6. compares fresh document and source effects with the approved snapshot;
+7. persists the preparation and returns it to Studio.
 
-The browser cannot provide replacement text, source offsets, verification commands, a forged fresh plan, or a source version.
+The browser cannot provide replacement text, source offsets, verification commands, a forged fresh plan, a transaction file set, or a source version.
 
 ## Comparison model
 
@@ -56,15 +58,7 @@ diagnostics
 verification requirements
 ```
 
-A regenerated `planId` alone is not drift. The comparison status for each effect is:
-
-```text
-none
-identical
-changed
-added
-removed
-```
+A regenerated `planId` alone is not drift. Each effect is classified as `none`, `identical`, `changed`, `added`, or `removed`.
 
 `exactMatch` is true only when fresh planning is `ready`, the application mode matches, the document effect is identical or absent on both sides, and every source effect is identical.
 
@@ -74,7 +68,7 @@ A non-exact preparation may still be executed, but only after the human reviews 
 
 The execution checkbox is bound to one `preparationId`. It becomes invalid when another preparation replaces it.
 
-Before applying any effect, Studio reads the current live session and verifies:
+Before applying anything, Studio verifies the current:
 
 ```text
 session ID
@@ -82,24 +76,42 @@ revision
 document version
 ```
 
-against the preparation. A mismatch blocks execution before source write.
+When several files are involved, the confirmation also covers:
 
-## Source execution order
+```text
+transaction ID
+every repository path
+every source version
+one shared verification sequence
+```
 
-Reviewed execution v1 supports zero or one changed source plan.
+A mismatch blocks execution before source write.
 
-When a source effect exists, Studio applies it first through the existing endpoint:
+## Source execution
+
+Zero changed source plans produce a document-only execution.
+
+One changed source plan uses:
 
 ```text
 POST /api/patch/apply
 planId + sourceVersion + approvedBy
 ```
 
-The same compare-and-swap, formatter, typecheck, test, build, and rollback rules remain active.
+Several changed source plans require the fresh preparation to contain one reviewed transaction and use:
 
-A missing server plan is treated as an expired preparation. Studio requires a new preparation and another review of the fresh diff.
+```text
+POST /api/transaction/apply
+transactionId + every repositoryPath/sourceVersion + approvedBy
+```
 
-Multi-file source effects are blocked rather than applied sequentially. They require a reviewed transaction boundary in a later slice.
+The multi-file service performs preflight reads, stages every final file body, commits through compare-and-swap, runs one deduplicated verification sequence, and either keeps all files or attempts to restore every committed file.
+
+A missing plan or transaction is treated as an expired preparation. Studio requires another preparation and another review of every fresh diff.
+
+UI IR is applied only after the single-file write or complete transaction returns `applied`.
+
+See `docs/reviewed-multifile-execution.md` for transaction receipt and rollback semantics.
 
 ## Reversible UI IR execution
 
@@ -115,16 +127,7 @@ createReplaceDocumentCommand
   -> normal undo/redo history
 ```
 
-The receipt contains:
-
-```text
-command ID
-new Studio revision
-resulting UiDocument
-resulting document version
-```
-
-Project bridge accepts the receipt only when the resulting document version equals the prepared document effect.
+The receipt contains the command ID, new Studio revision, resulting `UiDocument`, and resulting document version. Project bridge accepts it only when the resulting version equals the prepared document effect.
 
 ## Execution records
 
@@ -134,8 +137,10 @@ Project bridge validates:
 
 - the review is approved;
 - the referenced preparation is the latest preparation;
-- every changed source plan has exactly one result;
-- result plan IDs, repository paths, and source versions match;
+- every single-file result matches its plan, path, and source version;
+- a multi-file preparation records one shared transaction result;
+- browser-authored per-file transaction receipts are rejected;
+- the transaction ID and complete file set match the preparation;
 - document command metadata exists only when a document was applied;
 - the resulting document version matches the preparation.
 
@@ -149,17 +154,19 @@ partial
 failed
 ```
 
-Verification output and rollback outcomes are preserved in each source result.
+Verification output, rollback outcomes, transaction provenance, and per-file recovery state are preserved.
 
 ## Retry history
 
 A terminal result (`applied`, `document-only`, or `source-only`) cannot be prepared again.
 
-A `failed` or `partial` result is moved into `executionHistory` when the human creates a new preparation. The command is then re-planned against the state that exists after the failed or partial attempt. Any resulting drift is shown again and requires another second confirmation.
+A `failed` or `partial` result is moved into `executionHistory` when the human creates a new preparation. The command is re-planned against the actual state after the previous attempt. Any resulting drift is shown again and requires another second confirmation.
+
+A complete rollback normally produces `failed`. A `rollback-failed` transaction becomes `partial` when at least one file remains changed.
 
 ## Agent boundary
 
-The MCP tool surface is unchanged:
+The MCP tool surface remains:
 
 ```text
 afrodite_list_semantic_operations
@@ -170,28 +177,15 @@ afrodite_request_human_approval
 afrodite_get_approval_request
 ```
 
-No MCP tool or agent client method exists for:
-
-```text
-approve
-reject
-prepare execution
-execute
-apply patch
-apply transaction
-record execution
-filesystem
-shell
-commit
-merge
-```
+No MCP tool or agent client method exists for approval decisions, preparation, execution, patch apply, transaction apply, execution recording, filesystem access, shell commands, commits, or merges.
 
 ## Current limits
 
 - one active browser Studio session is retained;
-- reviewed execution accepts at most one changed source plan;
-- source plans remain process-memory records with finite TTL;
-- a network failure after an effect but before execution-record persistence may require a fresh preparation and manual reconciliation;
+- semantic API v1 accepts one typed command per dry run;
+- duplicate same-file source intents cannot yet be merged into one transaction file;
+- plans and transactions remain process-memory records with finite TTL;
+- a network or process failure after an effect but before receipt persistence may require manual reconciliation;
 - project bridge authentication identifies a local reviewer label rather than a signed user account;
 - multi-user session merging and CRDT history are deferred;
 - manual browser and MCP Inspector end-to-end testing has not yet been performed.
