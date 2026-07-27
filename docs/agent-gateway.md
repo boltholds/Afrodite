@@ -1,21 +1,21 @@
 # Policy-controlled MCP agent gateway
 
-Afrodite exposes semantic automation through a local MCP stdio server without granting an agent filesystem, shell, source-write, transaction-apply, or approval-decision capabilities.
+Afrodite exposes semantic automation through a local MCP stdio server without granting an agent filesystem, shell, source-write, transaction-apply, execution, or approval-decision capabilities.
 
 ## Trust boundary
 
 ```text
 MCP host / agent
   -> constrained MCP tool schema
-  -> AgentGatewayPolicy
+  -> single-operation or batch policy
   -> sanitized current Studio UiDocument
   -> semantic dry-run request
   -> authenticated local project bridge
-  -> existing semantic planner and adapter plans
-  -> exact diff returned for review
+  -> existing semantic planners and source adapters
+  -> exact document effect / diffs / optional transaction returned for review
   -> persistent pending human review request
 
-No apply or approval-decision tool exists in the gateway.
+No apply, execute, or approval-decision tool exists in the gateway.
 ```
 
 The gateway reads the current document from `/api/session/current`. Studio publishes revisioned project-session snapshots through project bridge. The connected model cannot select a filesystem path or upload another document through MCP.
@@ -26,7 +26,7 @@ All process messages are written to stderr because stdout is reserved for MCP JS
 
 ## MCP tools
 
-The server exposes exactly six tools:
+The server exposes exactly nine tools:
 
 ```text
 afrodite_list_semantic_operations
@@ -35,6 +35,9 @@ afrodite_inspect_document
 afrodite_plan_semantic_operation
 afrodite_request_human_approval
 afrodite_get_approval_request
+afrodite_plan_semantic_batch
+afrodite_request_semantic_batch_review
+afrodite_get_semantic_batch_review
 ```
 
 There are deliberately no tools named or equivalent to:
@@ -47,6 +50,7 @@ shell
 exec
 apply_patch
 apply_transaction
+execute_batch
 approve
 reject
 merge
@@ -55,7 +59,7 @@ commit
 
 ### Document inspection
 
-`afrodite_inspect_document` returns a bounded semantic tree from the most recently published Studio session. It includes IDs, node kinds, layout, variants, prop names, source-binding summaries, and source-region coordinates.
+`afrodite_inspect_document` returns a bounded semantic tree from the most recently published Studio session. It includes IDs, node kinds, layout, variants, animation summaries, prop names, source-binding summaries, and source-region coordinates.
 
 It redacts:
 
@@ -67,7 +71,7 @@ It redacts:
 
 The default policy limits inspection to 250 nodes and depth 8.
 
-### Semantic dry runs
+### Single semantic dry runs
 
 `afrodite_plan_semantic_operation` accepts the same API v1 commands as `@afrodite/semantic-ops`:
 
@@ -82,25 +86,46 @@ The gateway sends the live document and typed command to `/api/semantic/plan`. S
 
 The gateway does not apply `documentAfter`, call `/api/patch/apply`, or call `/api/transaction/apply`.
 
-Default policy rejects a dry run that exceeds eight source plans or 80,000 diff characters.
+### Typed semantic batch dry runs
+
+`afrodite_plan_semantic_batch` accepts one to sixteen existing typed commands. It calls `/api/semantic/batch/plan` and returns:
+
+- one deterministic batch ID;
+- ordered per-command provenance;
+- conflict diagnostics;
+- one combined `documentAfter`;
+- exact source plan views;
+- an optional bridge-owned source transaction.
+
+The batch gateway enforces its own limits before review submission:
+
+```text
+maximum commands       16
+maximum source plans    8
+maximum diff size      80,000 characters
+```
+
+A batch must pass independent command preflight, semantic write-conflict checks, and actual source-target conflict checks. The agent cannot bypass these checks by choosing an order or providing source text.
 
 ### Human review requests
 
-An agent may create a request only for a plan produced by the same gateway process. The MCP layer records each dry run locally and refuses an invented semantic plan ID.
+An agent may create a request only for a single plan or batch produced by the same gateway process. The MCP layer records dry runs locally and refuses invented plan or batch IDs.
 
-The request submitted to project bridge contains:
+Single-operation requests are persisted at:
 
-- actor and agent session ID;
-- semantic plan ID and exact live document version;
-- original typed command;
-- complete reviewed `documentAfter`, when present;
-- exact source plan diffs, diagnostics, verification steps, plan IDs, paths, and source versions;
-- optional rationale;
-- expiration time.
+```text
+.afrodite/collaboration.json
+```
 
-Requests are persisted at `.afrodite/collaboration.json` under the explicitly configured project root. They survive Studio and gateway restarts.
+Batch requests are persisted separately at:
 
-The MCP API can observe `pending`, `approved`, `rejected`, or `expired`, but it has no method that changes the state and no method that applies the referenced plan. Only the Studio Review Inbox calls `/api/review/decide`.
+```text
+.afrodite/semantic-batch-reviews.json
+```
+
+Both survive Studio and gateway restarts. The durable batch request includes the complete ordered commands, document effect, exact diffs, diagnostics, source versions, and optional transaction preview.
+
+The MCP API can observe `pending`, `approved`, `rejected`, or `expired`, but it has no method that changes the state and no method that applies the referenced plan or batch. Only Studio calls the human-decision routes.
 
 A human decision remains separate from application:
 
@@ -108,11 +133,14 @@ A human decision remains separate from application:
 approve request
   != apply documentAfter
   != apply source patch
+  != apply source transaction
 ```
 
-Source application still requires the exact server-held `planId + sourceVersion`. If that plan expires or the source changes, Studio receives the normal verified-write rejection and must create a fresh plan.
+Source application still requires exact server-held source versions. A stale document, expired plan, changed source, failed verification, or rollback prevents the UI document effect from being committed.
 
 ## Default policy
+
+Single-operation policy:
 
 ```json
 {
@@ -125,7 +153,19 @@ Source application still requires the exact server-held `planId + sourceVersion`
 }
 ```
 
-The policy engine also records a bounded in-memory audit trail for allowed, denied, and failed agent calls. The durable inbox separately preserves actor, command, plan, and human-decision provenance.
+Batch policy:
+
+```json
+{
+  "policyId": "afrodite.agent.semantic-batch.read-plan-request.v1",
+  "maxCommands": 16,
+  "maxSourcePlans": 8,
+  "maxDiffCharacters": 80000,
+  "reviewRequestTtlMs": 900000
+}
+```
+
+The single-operation policy engine records a bounded in-memory audit trail for allowed, denied, and failed calls. Single and batch gateways retain exact plan provenance process-locally so the model cannot submit a payload that was not created by the current gateway session.
 
 ## Start the gateway
 
@@ -184,11 +224,12 @@ The token belongs in host process configuration, not in a model prompt or tool a
 
 ## Current boundary
 
-- Studio publishes one current document snapshot, not a collaborative CRDT or multi-user event stream;
-- review records persist, but project-bridge source plans retain their existing finite TTL;
-- approving a request does not automatically load UI IR or apply source;
-- loading an approved `documentAfter` currently starts a new Studio command history after a page reload;
-- one semantic command is planned at a time;
-- agent batching, plan composition, and transaction requests are deferred;
-- natural-language interpretation belongs to the MCP host or model and remains outside the trusted core;
-- the agent audit remains process-local and signed actor identities are deferred.
+- Studio publishes one current document snapshot, not a collaborative CRDT or multi-user event stream.
+- Durable reviews persist, but project-bridge patch and transaction plans retain finite TTL.
+- Approving a request does not automatically apply UI IR or source effects.
+- Single-operation reviewed execution has fresh re-planning, drift comparison, and durable receipts.
+- Batch review currently stores and applies the exact version-bound plan; fresh batch re-planning and durable batch execution receipts are deferred.
+- Same actual source-file batch intents are blocked rather than merged.
+- Natural-language interpretation belongs to the MCP host or model and remains outside the trusted core.
+- The agent audit remains process-local and signed actor identities are deferred.
+- Manual MCP Inspector and browser end-to-end verification remain outstanding.
