@@ -1,10 +1,13 @@
 import {
-  bridgeApplyResponseSchema,
-  bridgePlanResponseSchema,
+  bridgeMotionApplyResponseSchema,
+  bridgeMotionPlanResponseSchema,
+  bridgeMotionRuntimeEvidenceRecordResponseSchema,
   type BridgeApplyResult,
   type BridgeMotionOperation,
-  type BridgePatchPlanView,
+  type BridgeMotionPlanView,
+  type BridgeMotionRuntimeEvidence,
 } from "@afrodite/protocol";
+import type { MotionVerificationResult } from "@afrodite/protocol/motion-verification";
 
 export class MotionBridgeClientError extends Error {
   readonly code: string;
@@ -20,13 +23,26 @@ export async function planMotionPatch(
   baseUrl: string,
   token: string,
   operation: BridgeMotionOperation,
-): Promise<BridgePatchPlanView> {
+): Promise<BridgeMotionPlanView> {
   const payload = await request(baseUrl, token, "/api/motion/plan", {
     operation,
   });
-  const parsed = bridgePlanResponseSchema.parse(payload);
+  const parsed = bridgeMotionPlanResponseSchema.parse(payload);
   if (!parsed.ok) throw new MotionBridgeClientError(parsed.error.code, parsed.error.message);
   return parsed.plan;
+}
+
+export async function recordMotionRuntimeEvidence(
+  baseUrl: string,
+  token: string,
+  result: MotionVerificationResult,
+): Promise<BridgeMotionRuntimeEvidence> {
+  const payload = await request(baseUrl, token, "/api/motion/runtime-evidence", {
+    result,
+  });
+  const parsed = bridgeMotionRuntimeEvidenceRecordResponseSchema.parse(payload);
+  if (!parsed.ok) throw new MotionBridgeClientError(parsed.error.code, parsed.error.message);
+  return parsed.evidence;
 }
 
 export async function applyMotionPatch(
@@ -34,13 +50,15 @@ export async function applyMotionPatch(
   token: string,
   planId: string,
   sourceVersion: string,
+  runtimeEvidenceId: string,
 ): Promise<BridgeApplyResult> {
   const payload = await request(baseUrl, token, "/api/motion/apply", {
     planId,
     sourceVersion,
+    runtimeEvidenceId,
     approvedBy: "afrodite-studio-motion",
   });
-  const parsed = bridgeApplyResponseSchema.parse(payload);
+  const parsed = bridgeMotionApplyResponseSchema.parse(payload);
   if (!parsed.ok) throw new MotionBridgeClientError(parsed.error.code, parsed.error.message);
   return parsed.result;
 }
