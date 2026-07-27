@@ -54,10 +54,13 @@ export function createAfroditeAgentMcpServer(
   server.registerTool(
     "afrodite_inspect_policy",
     {
-      description: "Inspect the active agent gateway policy, limits, and explicitly denied capabilities.",
+      description: "Inspect the active single-operation and semantic-batch agent policies, limits, and explicitly denied capabilities.",
       inputSchema: {},
     },
-    async () => toolResult(() => gateway.inspectPolicy(context)),
+    async () => toolResult(() => ({
+      singleOperation: gateway.inspectPolicy(context),
+      semanticBatch: batchGateway.inspectPolicy(),
+    })),
   );
 
   server.registerTool(
