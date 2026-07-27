@@ -98,22 +98,7 @@ The page-reload and expiring original-plan application limitations were replaced
 
 **Goal:** execute an approved request through fresh deterministic planning while keeping approval separate from execution.
 
-Delivered:
-
-- authenticated fresh-preparation and execution-record routes;
-- re-planning of the original typed command against current Studio and source state;
-- new server-held source plans for every preparation;
-- deterministic approved-vs-fresh document/source comparison;
-- preparation identity bound to live session ID, revision, and document version;
-- a second explicit human confirmation;
-- stale-session and expired-plan rejection;
-- verified single-file source application;
-- browser-local project-session registry;
-- reversible replace-document command receipts;
-- durable applied/document-only/source-only/partial/failed outcomes;
-- strict receipt validation and failed/partial retry history;
-- Studio exact-match/drift review UI;
-- architecture documentation in `docs/reviewed-execution.md`.
+Delivered authenticated fresh preparation, current-state re-planning, deterministic approved-vs-fresh comparison, second human confirmation, stale and expiry checks, reversible UI IR application, durable outcomes, strict receipt validation, retry history, Studio review, and architecture documentation.
 
 The single-source execution boundary was replaced by VS-019.
 
@@ -121,34 +106,58 @@ The single-source execution boundary was replaced by VS-019.
 
 **Goal:** bind fresh multi-file semantic effects to one reviewed transaction, one second confirmation, shared verification, complete rollback, and one durable execution receipt.
 
+Delivered bridge-owned transaction planning, exact file previews and versions, confirmation bound to preparation/transaction/live revision/source versions, staged compare-and-swap execution, document application only after source success, browser receipt forgery rejection, server receipt normalization, truthful rollback and rollback-failed outcomes, retry history, tests, and documentation.
+
+Current boundary: duplicate same-file plans remain blocked; plans retain finite TTL; crash recovery is not journaled; reviewer identity remains local-token based; browser/MCP Inspector E2E remains outstanding.
+
+## VS-020: Manual interaction kernel — complete
+
+**Goal:** make the active project session fully controllable by a human through keyboard, pointer, wheel, object clipboard, Inspector fields, and JSON while preserving one reversible command history.
+
 Delivered:
 
-- semantic orchestration that groups several source intents into one bridge-owned transaction;
-- one transaction preview containing every exact file diff, plan ID, source version, diagnostic, and shared verification step;
-- fresh preparations that persist the transaction beside the semantic plan and approved-vs-fresh comparison;
-- confirmation bound to preparation ID, transaction ID, live revision, and every source version;
-- Studio atomic transaction review and one-button execution;
-- staged compare-and-swap commits through the VS-013 transaction service;
-- UI IR application only after the complete source transaction returns `applied`;
-- browser rejection from manufacturing per-file transaction receipts;
-- project-bridge validation and normalization of one shared transaction result into durable per-plan provenance;
-- complete rollback recorded as failed with no durable source effect;
-- rollback-failed inspection that records remaining changed files and derives a truthful partial outcome;
-- retry history followed by a complete fresh re-plan and second confirmation;
-- protocol, applied, forged-receipt, transaction-ID, rollback, and rollback-failed tests;
-- documentation in `docs/reviewed-multifile-execution.md`.
+- semantic optional `position.x/y` and `appearance.borderRadius` fields in UI IR and JSON;
+- reversible delete, move, corner-radius, text, duplication, and composite gesture commands;
+- deterministic depth-first Tab and Shift+Tab navigation;
+- Delete/Backspace removal with root and read-only protection;
+- arrow-key movement at 1 px and Shift+arrow movement at 10 px;
+- Ctrl/Cmd+C and Ctrl/Cmd+V semantic object clipboard;
+- fresh recursive IDs, 16 px paste offset, and source-authority removal for duplicates;
+- Ctrl/Cmd+Z, Ctrl/Cmd+Y, and Ctrl/Cmd+Shift+Z history control;
+- Enter, F2, and best-effort Ctrl/Cmd+L inline editing for static text props or node name;
+- pointer capture, transient drag preview, Escape cancellation, and one command per completed gesture;
+- held-pointer wheel corner-radius adjustment with 1 px or Shift 5 px steps;
+- one composite history entry when movement and rounding occur in the same gesture;
+- Inspector controls for position, radius, layout, sizing, and text;
+- JSON editing over the same UI IR rather than a parallel state model;
+- a manual Canvas and the existing Source Sync/Binding Manager sharing one browser-local `LiveProjectSessionState`;
+- unit tests for deletion/restore, composite gestures, static text editing, safe duplication, and read-only refusal;
+- documentation in `docs/manual-interaction.md`.
 
 Current boundary:
 
-- semantic API v1 still accepts one typed command; only commands that produce several source intents enter this path;
-- duplicate same-file source plans remain blocked rather than merged;
-- plans and transactions retain finite in-memory TTL;
-- crash recovery across project-bridge process failure is not journaled;
-- a network failure after effects but before receipt persistence may require manual reconciliation;
-- reviewer identity is authenticated by the local bridge token rather than a signed account;
-- manual browser and MCP Inspector end-to-end testing remains outstanding.
+- single selection only; marquee and multi-selection are deferred;
+- no snapping, alignment guides, resize handles, or parent-bound drag constraints;
+- object clipboard is process-local rather than an OS structured clipboard format;
+- browsers may reserve Ctrl/Cmd+L, so Enter and F2 are guaranteed alternatives;
+- position, radius, text, delete, and paste remain document-owned until dedicated source adapters exist;
+- manual browser end-to-end verification remains outstanding.
 
-## VS-020: Typed semantic batches
+## VS-021: Semantic Motion and JSON Inspector
+
+**Goal:** represent, preview, and edit animation intent through typed UI IR clips and reversible JSON-backed commands.
+
+Planned acceptance criteria:
+
+- add typed animation clips, triggers, timeline settings, property tracks, and keyframes;
+- support mount, hover, focus, click, semantic state, and manual preview triggers;
+- support opacity, translation, scale, rotation, radius, and color tracks within explicit capability limits;
+- provide timeline, playhead, keyframe, easing, duration, delay, iteration, and direction controls;
+- make visual controls and JSON edit the same validated animation object;
+- reject invalid offsets, unsupported properties, duplicate IDs, and dynamic source-owned behavior;
+- keep animation preview document-only until a source adapter proves ownership.
+
+## VS-022: Typed semantic batches
 
 **Goal:** combine several explicit typed semantic commands into one deterministic reviewed operation without introducing natural-language ambiguity or direct agent write authority.
 
