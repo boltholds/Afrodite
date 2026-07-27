@@ -93,4 +93,26 @@ describe("semantic motion UI IR", () => {
       ],
     })).toThrow(/one track per property/i);
   });
+
+  it("rejects duplicate clip IDs in full document JSON", () => {
+    expect(() => parseUiDocument({
+      schemaVersion: 1,
+      id: "document.duplicate-motion",
+      name: "Duplicate motion",
+      root: {
+        id: "node.root",
+        kind: "element",
+        element: "main",
+        name: "Root",
+        layout: {
+          display: "block",
+          direction: "column",
+          sizing: { width: "fill", height: "fill" },
+        },
+        animations: [clip, { ...clip, name: "Duplicate" }],
+        props: {},
+        children: [],
+      },
+    })).toThrow(/clip identifiers must be unique/i);
+  });
 });
