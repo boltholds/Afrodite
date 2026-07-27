@@ -2,6 +2,7 @@ import type {
   AgentDocumentProvider,
   AgentSemanticPlanner,
 } from "@afrodite/agent-gateway-core";
+import type { AgentSemanticBatchPlanner } from "@afrodite/agent-gateway-core/batch";
 import {
   humanReviewResponseSchema,
   liveSessionResponseSchema,
@@ -11,6 +12,15 @@ import {
   type SemanticOperationCommand,
   type SemanticPlanView,
 } from "@afrodite/protocol";
+import {
+  semanticBatchPlanResponseSchema,
+  type SemanticBatchPlanView,
+} from "@afrodite/protocol/semantic-batch";
+import {
+  semanticBatchReviewResponseSchema,
+  type SemanticBatchReviewRequest,
+  type SemanticBatchReviewSubmitRequest,
+} from "@afrodite/protocol/semantic-batch-review";
 import type { UiDocument } from "@afrodite/ui-ir";
 
 export interface AgentReviewClient {
@@ -18,8 +28,18 @@ export interface AgentReviewClient {
   getReview(requestId: string): Promise<HumanReviewRequest>;
 }
 
+export interface AgentSemanticBatchReviewClient {
+  submitSemanticBatchReview(request: SemanticBatchReviewSubmitRequest): Promise<SemanticBatchReviewRequest>;
+  getSemanticBatchReview(requestId: string): Promise<SemanticBatchReviewRequest>;
+}
+
 export class SemanticOnlyProjectBridgeClient
-  implements AgentSemanticPlanner, AgentDocumentProvider, AgentReviewClient {
+  implements
+    AgentSemanticPlanner,
+    AgentSemanticBatchPlanner,
+    AgentDocumentProvider,
+    AgentReviewClient,
+    AgentSemanticBatchReviewClient {
   readonly #baseUrl: string;
   readonly #token: string;
 
@@ -48,6 +68,19 @@ export class SemanticOnlyProjectBridgeClient
     return parsed.plan;
   }
 
+  async planSemanticBatch(
+    document: UiDocument,
+    commands: readonly SemanticOperationCommand[],
+  ): Promise<SemanticBatchPlanView> {
+    const payload = await this.#request("/api/semantic/batch/plan", {
+      method: "POST",
+      body: JSON.stringify({ document, commands }),
+    });
+    const parsed = semanticBatchPlanResponseSchema.parse(payload);
+    if (!parsed.ok) throw new Error(`${parsed.error.code}: ${parsed.error.message}`);
+    return parsed.batch;
+  }
+
   async submitReview(request: HumanReviewSubmitRequest): Promise<HumanReviewRequest> {
     const payload = await this.#request("/api/review/submit", {
       method: "POST",
@@ -63,6 +96,28 @@ export class SemanticOnlyProjectBridgeClient
       method: "GET",
     });
     const parsed = humanReviewResponseSchema.parse(payload);
+    if (!parsed.ok) throw new Error(`${parsed.error.code}: ${parsed.error.message}`);
+    return parsed.request;
+  }
+
+  async submitSemanticBatchReview(
+    request: SemanticBatchReviewSubmitRequest,
+  ): Promise<SemanticBatchReviewRequest> {
+    const payload = await this.#request("/api/semantic/batch/review/submit", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+    const parsed = semanticBatchReviewResponseSchema.parse(payload);
+    if (!parsed.ok) throw new Error(`${parsed.error.code}: ${parsed.error.message}`);
+    return parsed.request;
+  }
+
+  async getSemanticBatchReview(requestId: string): Promise<SemanticBatchReviewRequest> {
+    const payload = await this.#request(
+      `/api/semantic/batch/review/get?requestId=${encodeURIComponent(requestId)}`,
+      { method: "GET" },
+    );
+    const parsed = semanticBatchReviewResponseSchema.parse(payload);
     if (!parsed.ok) throw new Error(`${parsed.error.code}: ${parsed.error.message}`);
     return parsed.request;
   }
