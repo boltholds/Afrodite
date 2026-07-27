@@ -284,7 +284,7 @@ export type UiNode =
       sourceRegion: SourceRegion;
     });
 
-interface UiNodeInputBase {
+export interface UiNodeInputBase {
   id: string;
   name: string;
   layout: z.input<typeof layoutSchema>;
@@ -298,7 +298,7 @@ interface UiNodeInputBase {
   children?: UiNodeInput[] | undefined;
 }
 
-type UiNodeInput =
+export type UiNodeInput =
   | (UiNodeInputBase & {
       kind: "element";
       element: string;
