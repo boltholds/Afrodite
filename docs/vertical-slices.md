@@ -138,46 +138,55 @@ Current boundary: semantic API v1 only, same-file writes rejected rather than me
 
 **Goal:** add reusable animations, preview several clips on one object, and materialize only proven motion behavior into existing CSS without inventing runtime state.
 
-Delivered:
+Delivered backward-compatible priority/blend fields, deterministic multi-clip composition, reusable presets, clip duplication, a Studio compositor, generated CSS keyframes and animation lists, bounded mount/hover/focus/data-state mappings, source channel conflict detection, exact diff review, compare-and-swap writes, verification, rollback, and motion-specific tests.
 
-- backward-compatible `AnimationClip.priority` and `blend` fields;
-- deterministic multi-clip composition ordered by priority and stable clip ID;
-- numeric `replace`, `add`, and `multiply` preview modes;
-- replace-only background-color composition;
-- fade, slide, scale, spin, pulse, and color-shift presets;
-- clip duplication with fresh identities;
-- a Studio compositor with an explicit active-preview clip set and shared playhead;
-- continued detailed timeline/track/keyframe and JSON editing through the VS-021 workspace;
-- `@afrodite/motion-core` and an explicit per-plan CSS keyframe ownership scope;
-- generated `@keyframes` and comma-separated animation declarations inside one deterministic owned region;
-- safe mount, hover, focus, and existing `data-state` selector mappings;
-- rejection of manual/click runtime invention;
-- rejection of additive/multiply CSS source composition until a runtime compositor is proven;
-- rejection of potentially simultaneous clips that write the same CSS channel;
-- authenticated `/api/motion/plan` and `/api/motion/apply` routes;
-- exact diff review, approval bound to `planId + stylesheet sourceVersion`, compare-and-swap, build verification, and rollback;
-- UI IR, composition, preset, protocol, CSS strategy, and project-bridge tests;
-- documentation in `docs/motion-source-composition.md`.
+Current boundary: existing CSS Module ownership is required; source composition is replace-only; manual/click wiring and runtime animation libraries remain unsupported; motion writes remain single-file.
 
-Current boundary:
-
-- CSS generation requires an existing CSS Module binding with the same stylesheet and class;
-- motion ownership is reviewed per plan rather than persisted on `SourceBinding`;
-- source materialization supports `replace` only;
-- all transform sub-properties share one CSS channel;
-- manual/click triggers, JavaScript state wiring, WAAPI, Motion One, Framer Motion, GSAP, hooks, and signals remain unsupported;
-- motion uses a verified single-file boundary and is not yet part of multi-file transactions;
-- manual browser end-to-end verification remains outstanding.
-
-## VS-024: Isolated motion runtime verification
+## VS-024: Isolated motion runtime verification — complete
 
 **Goal:** prove that generated and semantic motion resolve to the same observable browser result without executing target application business logic.
 
+Delivered:
+
+- a dedicated typed motion-verification protocol channel separate from ordinary component rendering;
+- version-bound manifests containing exact plan/source versions, managed clips, generated CSS region, deterministic fingerprint, and random challenge;
+- bounded same-trigger mount, hover, focus, and explicit `data-state` scenarios;
+- removal/baseline verification with zero active animations;
+- deterministic sample times derived by project bridge;
+- a static closed Shadow DOM fixture that never renders target React/Solid components;
+- forbidden external-resource and executable CSS checks;
+- deterministic pseudo-class activation inside the sandbox copy of the generated region;
+- paused CSSAnimation sampling through `currentTime`;
+- computed opacity, transform matrix, border radius, background color, and animation-count evidence;
+- comparison against `resolveMotionComposition` with explicit browser-rounding tolerances;
+- structured per-sample expected/actual differences;
+- Studio evidence review through an opaque-origin `sandbox="allow-scripts"` iframe;
+- server-side validation of the complete exact scenario/sample set;
+- evidence bound to `planId + sourceVersion + CSS fingerprint + challenge`;
+- `/api/motion/runtime-evidence` and evidence-required `/api/motion/apply`;
+- protocol, bridge, fingerprint, completeness, apply-gating, matrix, and tolerance tests;
+- documentation in `docs/isolated-motion-runtime-verification.md`.
+
+Current boundary:
+
+- up to eight managed clips per plan;
+- scenarios group clips by one exact trigger rather than cross-trigger cascade combinations;
+- hover/focus use deterministic sandbox attributes rather than native pointer automation;
+- evidence is observational local-browser verification, not cryptographic attestation;
+- evidence remains process-memory state and expires with its plan or bridge restart;
+- no screenshot, geometry, performance, accessibility, reduced-motion, Playwright, or cross-browser verification;
+- manual browser end-to-end verification remains outstanding.
+
+## VS-025: Persistent motion ownership and cross-trigger composition
+
+**Goal:** persist reviewed motion authority and verify the real cascade of compatible mount, hover, focus, and state animations before integrating motion into semantic batches and transactions.
+
 Planned acceptance criteria:
 
-- activate mount, hover, focus, and bounded `data-state` scenarios inside the isolated preview host;
-- compare computed styles and transform matrices with the semantic compositor at sampled playhead times;
-- report per-track drift, unsupported browser behavior, reduced-motion behavior, and timing tolerances;
-- verify several simultaneous clips with distinct CSS channels;
-- keep application hooks, event handlers, data fetching, and arbitrary modules outside the verification runtime;
-- bind verification evidence to the reviewed motion source plan before write approval.
+- add explicit `SourceBinding.motionOwnership` with reversible Studio assignment and source provenance;
+- compose bounded cross-trigger scenario combinations rather than testing one exact trigger group at a time;
+- add reduced-motion policy and source representation;
+- invalidate ownership and runtime evidence on binding/class/stylesheet drift;
+- integrate motion intents into typed semantic batches and multi-file transactions;
+- retain agent read/plan/request authority without approve/apply access;
+- add real Playwright browser E2E for the isolated evidence workflow.
