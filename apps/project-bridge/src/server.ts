@@ -13,6 +13,8 @@ import {
   humanReviewDecisionRequestSchema,
   humanReviewSubmitRequestSchema,
   liveSessionPublishRequestSchema,
+  reviewedExecutionPrepareRequestSchema,
+  reviewedExecutionRecordRequestSchema,
   screenImportRequestSchema,
   semanticPlanRequestSchema,
 } from "@afrodite/protocol";
@@ -21,12 +23,14 @@ import {
   ProjectCollaborationError,
   type ProjectCollaborationStore,
 } from "./collaboration.js";
+import type { ReviewedExecutionService } from "./reviewExecution.js";
 import { planProjectSemanticOperation } from "./semantic.js";
 import { ProjectBridgeService, ProjectBridgeServiceError } from "./service.js";
 
 export interface ProjectBridgeServerOptions {
   readonly service: ProjectBridgeService;
   readonly collaboration: ProjectCollaborationStore;
+  readonly reviewedExecution: ReviewedExecutionService;
   readonly token: string;
   readonly allowedOrigins: readonly string[];
   readonly maxBodyBytes?: number;
@@ -113,6 +117,20 @@ export function createProjectBridgeServer(options: ProjectBridgeServerOptions): 
       if (request.method === "POST" && url.pathname === "/api/review/decide") {
         const input = humanReviewDecisionRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
         const review = await options.collaboration.decideReview(input);
+        sendJson(response, 200, { ok: true, request: review });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/review/prepare-execution") {
+        const input = reviewedExecutionPrepareRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const review = await options.reviewedExecution.prepare(input);
+        sendJson(response, 200, { ok: true, request: review });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/review/record-execution") {
+        const input = reviewedExecutionRecordRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const review = await options.collaboration.recordExecution(input);
         sendJson(response, 200, { ok: true, request: review });
         return;
       }
