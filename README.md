@@ -24,7 +24,8 @@ Afrodite can:
 16. materialize owned variants through static Tailwind utilities or generated CSS Module regions;
 17. plan constrained project-aware semantic operations without granting automation direct code-edit authority;
 18. expose semantic inspection and dry runs through a policy-controlled local MCP gateway;
-19. publish the active Studio session to a durable human review inbox for agent-proposed changes.
+19. publish the active Studio session to a durable human review inbox for agent-proposed changes;
+20. re-plan approved requests against current document and source versions, compare drift, and execute them only after a second explicit human confirmation.
 
 ## Architecture
 
@@ -40,7 +41,7 @@ Shared editor code remains framework-neutral.
 - `@afrodite/semantic-ops` turns API v1 commands into deterministic UI-document effects and typed style or variant intents.
 - `@afrodite/agent-gateway-core` applies agent policy, redaction, inspection budgets, dry-run limits, approval-request rules, and audit records.
 - `@afrodite/verified-write` provides single-file and multi-file approval, staging, compare-and-swap writes, verification, and rollback.
-- `@afrodite/project-session` keeps Canvas and Source Sync inside one command history and emits framework-neutral live-session snapshots.
+- `@afrodite/project-session` keeps Canvas and Source Sync inside one command history, emits live-session snapshots, and retains a browser-local session registry for reversible reviewed execution.
 
 React and SolidJS use separate adapter identities. They currently share static JSX binding and screen-import implementations while keeping framework-specific runtime and source-style behavior behind adapters.
 
@@ -90,7 +91,7 @@ afrodite_request_human_approval
 afrodite_get_approval_request
 ```
 
-The gateway deliberately exposes no filesystem, shell, arbitrary source-read, patch-apply, transaction-apply, commit, merge, or approval-decision tools.
+The gateway deliberately exposes no filesystem, shell, arbitrary source-read, patch-apply, transaction-apply, commit, merge, approval-decision, or execution tools.
 
 Its default policy:
 
@@ -100,30 +101,30 @@ Its default policy:
 - reads the current document published by the live Studio project session;
 - keeps the project bridge token private to the process;
 - records a bounded in-memory agent audit trail;
-- allows an agent to submit a review request but never decide or apply it.
+- allows an agent to submit a review request but never decide, prepare, or execute it.
 
 See `docs/agent-gateway.md`.
 
-## Live Studio review inbox
-
-The collaboration flow is:
+## Reviewed execution workflow
 
 ```text
-active Studio project session
-  -> revisioned UiDocument snapshot
-  -> authenticated project bridge
-  -> agent inspection and semantic dry run
-  -> exact documentAfter and source-plan diffs
-  -> persistent .afrodite/collaboration.json review request
-  -> independent human approve/reject decision in Studio
-  -> separate explicit UI-document load or verified source apply
+agent dry run
+  -> persistent pending review
+  -> first human approve/reject decision
+  -> server-side re-plan against current live document and source versions
+  -> structured approved-vs-fresh comparison
+  -> exact fresh UI IR and source diffs
+  -> second confirmation bound to preparationId + live revision
+  -> verified source apply
+  -> reversible Studio replace-document command
+  -> persisted execution receipt or retry history
 ```
 
-The review decision is not an apply operation. Approval does not write source files, does not update UI IR automatically, and does not extend the lifetime of server-held source plans. Every application remains a separate human action and keeps the existing source-version verification and rollback boundary.
+Approval remains separate from execution. The first human decision authorizes only a fresh preparation. The preparation creates new server-held source plans and compares their semantic effects with the reviewed snapshot; regenerated plan IDs alone do not count as drift.
 
-The bridge rejects older Studio revisions, semantic plans built against another live document version, expired requests, repeated decisions, and decisions after the live document changed.
+The second confirmation is invalid when the live Studio revision or document version changes. Expired source plans must be prepared again. UI IR replacement is stored as a normal reversible command, so it appears in the same undo/redo history as visual edits. Failed and partial attempts remain in `executionHistory` and can be re-planned against the new state.
 
-See `docs/live-agent-review.md`.
+Reviewed execution v1 accepts at most one changed source plan. Multi-file effects still belong to the transaction boundary. See `docs/reviewed-execution.md` and `docs/live-agent-review.md`.
 
 ## Atomic multi-file transactions
 
@@ -153,13 +154,13 @@ See `docs/existing-screen-import.md` and `docs/multi-file-screen-import.md`.
 
 ## Workspace
 
-- `apps/studio` — Canvas, Source Sync, Binding Manager, Style Ownership, Variants, Screen Import, Transactions, Semantic API, and Human Review Inbox workbenches.
+- `apps/studio` — Canvas, Source Sync, Binding Manager, Style Ownership, Variants, Screen Import, Transactions, Semantic API, and Reviewed Execution Inbox workbenches.
 - `apps/preview-host` — opaque-origin trusted SolidJS and React component preview.
-- `apps/project-bridge` — authenticated localhost source, planning, verified-write, transaction, live-session, and persistent review service.
+- `apps/project-bridge` — authenticated localhost source, planning, verified-write, transaction, live-session, review, and execution-preparation service.
 - `apps/agent-gateway` — policy-controlled MCP stdio adapter over the live semantic planning boundary.
 - `packages/ui-ir` — Semantic UI IR, variants, bindings, ownership, and provenance contracts.
 - `packages/canvas-engine` — reversible document commands and read-only enforcement.
-- `packages/project-session` — live session state, transition provenance, and snapshot subscriptions.
+- `packages/project-session` — live session state, transition provenance, snapshot subscriptions, browser session registry, and reviewed document execution port.
 - `packages/framework-core` — framework and patch-plan contracts.
 - `packages/binding-core` — target discovery and stable-marker plans.
 - `packages/style-core` — base style ownership strategies.
@@ -170,7 +171,7 @@ See `docs/existing-screen-import.md` and `docs/multi-file-screen-import.md`.
 - `packages/verified-write` — approval, staging, compare-and-swap, verification, and rollback.
 - `packages/adapter-solid` and `packages/adapter-react` — framework identities and adapter factories.
 - `packages/project-indexer` and `packages/indexer-react` — static component catalogs.
-- `packages/protocol` — catalog, preview, bridge, binding, style, variant, import, transaction, semantic, live-session, and review schemas.
+- `packages/protocol` — catalog, preview, bridge, binding, style, variant, import, transaction, semantic, live-session, review, preparation, and execution schemas.
 
 ## Development
 
@@ -198,7 +199,13 @@ pnpm dev:agent \
   --actor codex
 ```
 
-Agent requests appear under **Review inbox** in Studio. Review records are persisted inside the target project at `.afrodite/collaboration.json`.
+Agent requests appear in **Review inbox**. After approval, use **Prepare fresh execution**, inspect the comparison and fresh diffs, select the preparation-ID confirmation, and execute.
+
+Target applications should ignore local collaboration state:
+
+```gitignore
+.afrodite/
+```
 
 Verification:
 

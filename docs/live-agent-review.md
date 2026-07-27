@@ -1,6 +1,6 @@
 # Live Studio agent review
 
-VS-017 connects the policy-controlled MCP gateway to the current Studio project session without giving the agent any new authority.
+VS-017 connects the policy-controlled MCP gateway to the current Studio project session without giving the agent any new authority. VS-018 adds a separate fresh execution workflow after human approval.
 
 ## Data flow
 
@@ -13,7 +13,7 @@ Canvas / Source Sync live session
   -> agent read-only document provider
   -> semantic dry run
   -> POST /api/review/submit
-  -> Studio Human Review Inbox
+  -> Studio Reviewed Execution Inbox
 ```
 
 The project bridge stores one current live session and up to 500 review records. File updates use a temporary sibling file followed by rename.
@@ -59,13 +59,21 @@ Project bridge rejects decisions for expired requests, already decided requests,
 
 The decision endpoint does not call verified-write. Approval records intent only.
 
-After approval, Studio may separately:
+After approval, Studio does not apply the originally persisted source plan or copy the reviewed document through browser storage. Instead it requests a fresh execution preparation:
 
-- load the exact reviewed `documentAfter` into Studio;
-- apply one exact source plan through `/api/patch/apply`;
-- leave either effect unapplied.
+```text
+approved request
+  -> re-run original typed semantic command
+  -> current live document version
+  -> current source versions
+  -> fresh documentAfter and source plans
+  -> structured comparison with approved snapshot
+  -> second explicit human confirmation
+```
 
-Loading `documentAfter` currently persists it to Studio storage and reloads the page, which starts a new command history. Source application retains compare-and-swap checks, verification, and rollback.
+Fresh UI IR effects are applied as reversible `createReplaceDocumentCommand` entries in the active project-session history. Fresh source effects keep compare-and-swap, verification, and rollback through the existing verified-write service.
+
+The detailed preparation, comparison, execution receipt, and retry rules are documented in `docs/reviewed-execution.md`.
 
 ## Agent boundary
 
@@ -85,6 +93,8 @@ There is no agent-facing endpoint or tool for:
 ```text
 approve
 reject
+prepare execution
+execute
 apply_patch
 apply_transaction
 write_file
@@ -111,7 +121,9 @@ This file contains the full Semantic UI IR and exact review diffs. Project bridg
 
 On Windows, filesystem ACLs remain controlled by the current user and host configuration rather than POSIX mode bits.
 
-Pending review records become `expired` after their request expiry time. Source plans have their own project-bridge TTL and may expire earlier or later independently. Persisting a review does not persist executable text edits outside the existing server plan store and does not extend source-plan lifetime.
+Pending review records become `expired` after their request expiry time. Source plans have their own project-bridge TTL and may expire independently. Fresh preparation creates new server-held source plans; an expired preparation must be created again and its new effects reviewed again.
+
+Execution receipts and failed/partial attempt history remain durable in the review record. Persisted diffs still do not reconstruct executable text edits after the bridge plan store expires.
 
 ## Current limits
 
@@ -119,6 +131,7 @@ Pending review records become `expired` after their request expiry time. Source 
 - no CRDT or concurrent editor merge exists;
 - custom bridge URLs are configured separately by each Studio workbench;
 - decisions are authenticated by the local bridge token, not signed user identities;
+- reviewed execution v1 accepts no more than one changed source plan;
+- multi-file reviewed execution requires the planned VS-019 transaction workflow;
 - source plans are not reconstructed from persisted review diffs;
-- approved UI IR reload starts a new command history;
 - crash-safe journaling beyond atomic JSON-file replacement is deferred.

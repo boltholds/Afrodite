@@ -63,12 +63,28 @@ export type LiveProjectSessionListener = (snapshot: LiveProjectSessionSnapshot) 
 
 const liveSessionListeners = new Set<LiveProjectSessionListener>();
 const publishedSessionStates = new WeakSet<object>();
+let activeBrowserSession: LiveProjectSessionState | undefined;
 
 export function subscribeLiveProjectSession(
   listener: LiveProjectSessionListener,
 ): () => void {
   liveSessionListeners.add(listener);
+  if (activeBrowserSession) {
+    queueMicrotask(() => listener(createSnapshot(activeBrowserSession!)));
+  }
   return () => liveSessionListeners.delete(listener);
+}
+
+export function currentLiveProjectSessionState(): LiveProjectSessionState | undefined {
+  return activeBrowserSession;
+}
+
+export function replaceCurrentLiveProjectSessionState(
+  state: LiveProjectSessionState,
+): LiveProjectSessionState {
+  if (typeof window !== "undefined") activeBrowserSession = state;
+  publishLiveSessionSnapshot(state);
+  return state;
 }
 
 export interface ExecuteLiveCommandOptions {
@@ -81,7 +97,8 @@ export function createLiveProjectSession(
   document: UiDocument,
   selectedNodeId = document.root.id,
 ): LiveProjectSessionState {
-  return {
+  if (typeof window !== "undefined" && activeBrowserSession) return activeBrowserSession;
+  const created: LiveProjectSessionState = {
     workspace: "canvas",
     history: { present: document, past: [], future: [] },
     selectedNodeId: findNode(document.root, selectedNodeId)?.id ?? document.root.id,
@@ -93,9 +110,12 @@ export function createLiveProjectSession(
     patchPlans: {},
     writeResults: {},
   };
+  if (typeof window !== "undefined") activeBrowserSession = created;
+  return created;
 }
 
 export function sessionDocument(state: LiveProjectSessionState): UiDocument {
+  if (typeof window !== "undefined") activeBrowserSession = state;
   publishLiveSessionSnapshot(state);
   return state.history.present;
 }
@@ -346,13 +366,17 @@ function ensureValidSelection(state: LiveProjectSessionState): LiveProjectSessio
 function publishLiveSessionSnapshot(state: LiveProjectSessionState): void {
   if (liveSessionListeners.size === 0 || publishedSessionStates.has(state)) return;
   publishedSessionStates.add(state);
-  const snapshot: LiveProjectSessionSnapshot = {
-    revision: state.revision,
-    document: state.history.present,
-  };
+  const snapshot = createSnapshot(state);
   queueMicrotask(() => {
     for (const listener of liveSessionListeners) listener(snapshot);
   });
+}
+
+function createSnapshot(state: LiveProjectSessionState): LiveProjectSessionSnapshot {
+  return {
+    revision: state.revision,
+    document: state.history.present,
+  };
 }
 
 function createTransition(

@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { ProjectCollaborationStore } from "./collaboration.js";
+import { ReviewedExecutionService } from "./reviewExecution.js";
 import { createProjectBridgeServer } from "./server.js";
 import { ProjectBridgeService } from "./service.js";
 
@@ -16,9 +17,14 @@ interface CliOptions {
 const options = parseCliOptions(process.argv.slice(2), process.env);
 const service = new ProjectBridgeService({ projectRoot: options.projectRoot });
 const collaboration = new ProjectCollaborationStore(options.projectRoot);
+const reviewedExecution = new ReviewedExecutionService({
+  collaboration,
+  projectBridge: service,
+});
 const server = createProjectBridgeServer({
   service,
   collaboration,
+  reviewedExecution,
   token: options.token,
   allowedOrigins: options.allowedOrigins,
 });

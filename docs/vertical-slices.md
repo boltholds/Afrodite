@@ -282,30 +282,55 @@ Delivered:
 - stale Studio revision, stale document, expired request, and repeated-decision rejection;
 - Studio Human Review Inbox with exact document and source review;
 - independent approve/reject decision with no automatic application;
-- separate explicit approved-document load and verified source-plan application;
 - MCP review-status observation without an approval-decision or apply tool;
 - protocol, persistence, expiry, stale-version, and MCP-surface tests;
 - architecture and operational documentation in `docs/live-agent-review.md`.
 
+The page-reload document apply and expiring original-plan limitations were replaced by VS-018.
+
+## VS-018: Reviewed execution orchestration — complete
+
+**Goal:** execute an approved request through fresh deterministic planning while preserving reviewed intent and keeping execution separate from approval.
+
+Delivered:
+
+- authenticated fresh-preparation and execution-record routes;
+- re-planning of the original typed semantic command against the current live Studio document and current source versions;
+- new server-held source plans for every preparation;
+- deterministic document comparison and structured per-source `identical`, `changed`, `added`, and `removed` outcomes;
+- exact-match detection that ignores regenerated plan IDs but includes source versions, diffs, diagnostics, and verification requirements;
+- preparation identity bound to live session ID, revision, and document version;
+- a second explicit human confirmation bound to the exact preparation ID;
+- stale live-session and expired source-plan rejection before execution;
+- verified source application through existing plan ID and source-version checks;
+- browser-local live project-session registry across Studio workbench remounts;
+- reversible `createReplaceDocumentCommand` application with command ID and revision receipt;
+- persisted `applied`, `document-only`, `source-only`, `partial`, and `failed` execution outcomes;
+- strict receipt validation for document versions and every source result;
+- failed/partial retry history followed by fresh re-planning;
+- Studio exact-match/drift review UI and execution-state styling;
+- protocol, comparison, session execution, persistence, mismatch, and retry tests;
+- architecture documentation in `docs/reviewed-execution.md`.
+
 Current boundary:
 
-- one active Studio snapshot is stored rather than a multi-user CRDT;
-- custom bridge URL propagation is not yet centralized across all Studio workbenches;
-- approved `documentAfter` reloads Studio and starts a new command history;
-- persisted review records do not extend or reconstruct expired server source plans;
-- human identity is a local label authenticated by the bridge token rather than a signed account;
-- agent audit events remain process-local.
+- reviewed execution v1 accepts at most one changed source plan;
+- multi-file reviewed execution is blocked rather than applied sequentially;
+- source plans retain their existing finite in-memory TTL;
+- a network failure after an effect but before receipt persistence may require manual reconciliation;
+- local reviewer identity is authenticated by the bridge token rather than a signed account;
+- manual browser and MCP Inspector end-to-end testing remains outstanding.
 
-## VS-018: Reviewed execution orchestration
+## VS-019: Reviewed multi-file execution transaction
 
-**Goal:** execute an already approved request through fresh deterministic planning while preserving the exact reviewed intent and keeping execution separate from approval.
+**Goal:** bind fresh multi-file semantic effects to one reviewed transaction, one second confirmation, shared verification, and a complete durable execution receipt.
 
 Planned acceptance criteria:
 
-- apply approved UI IR mutations as reversible commands in the active Studio session without page reload;
-- re-plan expired source plans from the persisted typed command against the current document and source snapshots;
-- compare fresh semantic effects and diffs to the approved review snapshot before enabling execution;
-- group several fresh source effects through the existing atomic transaction boundary;
-- record verification, rollback, and final execution outcome in the durable review record;
-- require a second explicit human execute action after approval and successful equivalence checks;
-- keep MCP free of approval-decision and execution tools.
+- convert several fresh source plans into one deterministic transaction without accepting browser-authored edits;
+- compare every transaction file effect with the approved review snapshot;
+- bind confirmation to transaction ID, every source version, and live document revision;
+- commit or roll back all source files through the VS-013 transaction boundary;
+- apply the reversible UI IR command only after the transaction succeeds;
+- persist per-file verification, rollback, and recovery information in the review execution record;
+- keep MCP free of transaction preparation and execution tools.
