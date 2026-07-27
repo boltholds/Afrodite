@@ -49,10 +49,18 @@ export const motionVerificationManifestSchema = z.object({
   className: z.string().regex(/^[A-Za-z_][A-Za-z0-9_-]*$/),
   managedClipIds: z.array(z.string().min(1)).min(1).max(8),
   clips: animationClipsSchema.max(8),
+  cssRegion: z.string().min(1).max(100_000),
   cssFingerprint: z.string().regex(/^motion-css-v1:[0-9a-f]{8}$/),
   challenge: z.string().regex(/^[A-Za-z0-9_-]{16,120}$/),
   scenarios: z.array(motionVerificationScenarioSchema).min(1).max(32),
 }).superRefine((manifest, context) => {
+  if (createMotionCssFingerprint(manifest.cssRegion) !== manifest.cssFingerprint) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["cssFingerprint"],
+      message: "Motion verification CSS fingerprint does not match cssRegion.",
+    });
+  }
   const managed = new Set(manifest.managedClipIds);
   if (managed.size !== manifest.managedClipIds.length) {
     context.addIssue({
@@ -196,4 +204,13 @@ export function createMotionVerificationRequest(
     requestId,
     manifest,
   });
+}
+
+export function createMotionCssFingerprint(cssRegion: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < cssRegion.length; index += 1) {
+    hash ^= cssRegion.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return `motion-css-v1:${hash.toString(16).padStart(8, "0")}`;
 }
