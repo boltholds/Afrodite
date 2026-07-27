@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
@@ -6,11 +7,16 @@ import {
   humanReviewSubmitRequestSchema,
   liveSessionPublishRequestSchema,
   liveSessionSnapshotSchema,
+  reviewedExecutionPreparationSchema,
+  reviewedExecutionRecordRequestSchema,
+  reviewedExecutionRecordSchema,
   type HumanReviewDecisionRequest,
   type HumanReviewRequest,
   type HumanReviewSubmitRequest,
   type LiveSessionPublishRequest,
   type LiveSessionSnapshot,
+  type ReviewedExecutionPreparation,
+  type ReviewedExecutionRecordRequest,
 } from "@afrodite/protocol";
 import { createSemanticDocumentVersion } from "@afrodite/semantic-ops";
 
@@ -182,6 +188,123 @@ export class ProjectCollaborationStore {
     });
   }
 
+  async saveExecutionPreparation(
+    requestId: string,
+    input: ReviewedExecutionPreparation,
+  ): Promise<HumanReviewRequest> {
+    const preparation = reviewedExecutionPreparationSchema.parse(input);
+    return this.#mutate(async (state) => {
+      const index = state.reviews.findIndex((entry) => entry.requestId === requestId);
+      if (index < 0) {
+        throw new ProjectCollaborationError(
+          "REVIEW_REQUEST_NOT_FOUND",
+          `Review request ${requestId} was not found.`,
+        );
+      }
+      const current = state.reviews[index]!;
+      if (current.status !== "approved") {
+        throw new ProjectCollaborationError(
+          "REVIEW_EXECUTION_NOT_APPROVED",
+          "Only an approved review request can be prepared for execution.",
+        );
+      }
+      if (current.execution) {
+        throw new ProjectCollaborationError(
+          "REVIEW_ALREADY_EXECUTED",
+          `Review request ${requestId} already has execution ${current.execution.executionId}.`,
+        );
+      }
+      const live = state.liveSession;
+      if (
+        !live
+        || live.sessionId !== preparation.liveSessionId
+        || live.revision !== preparation.liveRevision
+        || live.documentVersion !== preparation.liveDocumentVersion
+        || preparation.plan.documentVersion !== live.documentVersion
+      ) {
+        throw new ProjectCollaborationError(
+          "REVIEW_PREPARATION_STALE",
+          "The live Studio session changed while the execution preparation was being created.",
+        );
+      }
+      const updated = humanReviewRequestSchema.parse({
+        ...current,
+        preparation,
+      });
+      const reviews = [...state.reviews];
+      reviews[index] = updated;
+      return [{ ...state, reviews }, updated];
+    });
+  }
+
+  async recordExecution(input: ReviewedExecutionRecordRequest): Promise<HumanReviewRequest> {
+    const request = reviewedExecutionRecordRequestSchema.parse(input);
+    return this.#mutate(async (state) => {
+      const index = state.reviews.findIndex((entry) => entry.requestId === request.requestId);
+      if (index < 0) {
+        throw new ProjectCollaborationError(
+          "REVIEW_REQUEST_NOT_FOUND",
+          `Review request ${request.requestId} was not found.`,
+        );
+      }
+      const current = state.reviews[index]!;
+      if (current.status !== "approved") {
+        throw new ProjectCollaborationError(
+          "REVIEW_EXECUTION_NOT_APPROVED",
+          "Only an approved review request can record an execution.",
+        );
+      }
+      if (current.execution) {
+        throw new ProjectCollaborationError(
+          "REVIEW_ALREADY_EXECUTED",
+          `Review request ${request.requestId} already has execution ${current.execution.executionId}.`,
+        );
+      }
+      const preparation = current.preparation;
+      if (!preparation || preparation.preparationId !== request.preparationId) {
+        throw new ProjectCollaborationError(
+          "REVIEW_PREPARATION_MISMATCH",
+          "The execution does not reference the latest prepared plan.",
+        );
+      }
+
+      validateDocumentExecution(request, preparation);
+      validateSourceExecution(request, preparation);
+
+      const changedSourcePlans = preparation.plan.sourcePlans.filter((plan) => plan.changed);
+      const appliedSourceResults = request.sourceResults.filter((entry) => entry.result.status === "applied");
+      const allSourcesApplied = changedSourcePlans.length > 0
+        && appliedSourceResults.length === changedSourcePlans.length;
+      const someEffectApplied = request.documentApplied || appliedSourceResults.length > 0;
+      const expectsDocument = preparation.plan.documentAfter !== undefined;
+      const expectsSources = changedSourcePlans.length > 0;
+
+      let status: "applied" | "document-only" | "source-only" | "partial" | "failed";
+      if (expectsDocument && expectsSources && request.documentApplied && allSourcesApplied) status = "applied";
+      else if (expectsDocument && !expectsSources && request.documentApplied) status = "document-only";
+      else if (!expectsDocument && expectsSources && allSourcesApplied) status = "source-only";
+      else if (someEffectApplied) status = "partial";
+      else status = "failed";
+
+      const execution = reviewedExecutionRecordSchema.parse({
+        executionId: `execution_${randomUUID()}`,
+        preparationId: request.preparationId,
+        executedAt: new Date(this.#now()).toISOString(),
+        executedBy: request.executedBy,
+        status,
+        documentApplied: request.documentApplied,
+        ...(request.documentCommandId ? { documentCommandId: request.documentCommandId } : {}),
+        ...(request.documentRevision === undefined ? {} : { documentRevision: request.documentRevision }),
+        ...(request.documentVersionAfter ? { documentVersionAfter: request.documentVersionAfter } : {}),
+        sourceResults: request.sourceResults,
+      });
+      const updated = humanReviewRequestSchema.parse({ ...current, execution });
+      const reviews = [...state.reviews];
+      reviews[index] = updated;
+      return [{ ...state, reviews }, updated];
+    });
+  }
+
   async #read(): Promise<PersistedCollaborationState> {
     try {
       const raw = await readFile(this.#statePath, "utf8");
@@ -226,6 +349,75 @@ export class ProjectCollaborationStore {
     this.#queue = next.catch(() => undefined);
     await next;
     return result;
+  }
+}
+
+function validateDocumentExecution(
+  request: ReviewedExecutionRecordRequest,
+  preparation: ReviewedExecutionPreparation,
+): void {
+  const documentAfter = preparation.plan.documentAfter;
+  if (!request.documentApplied) {
+    if (request.documentCommandId || request.documentRevision !== undefined || request.documentVersionAfter) {
+      throw new ProjectCollaborationError(
+        "REVIEW_DOCUMENT_RECEIPT_UNEXPECTED",
+        "Document command metadata cannot be recorded when the document was not applied.",
+      );
+    }
+    return;
+  }
+  if (!documentAfter) {
+    throw new ProjectCollaborationError(
+      "REVIEW_DOCUMENT_EFFECT_MISSING",
+      "The fresh semantic plan does not contain a document effect.",
+    );
+  }
+  if (!request.documentCommandId || request.documentRevision === undefined || !request.documentVersionAfter) {
+    throw new ProjectCollaborationError(
+      "REVIEW_DOCUMENT_RECEIPT_INCOMPLETE",
+      "A reversible document execution requires command ID, revision, and resulting document version.",
+    );
+  }
+  const expectedVersion = createSemanticDocumentVersion(documentAfter);
+  if (request.documentVersionAfter !== expectedVersion) {
+    throw new ProjectCollaborationError(
+      "REVIEW_DOCUMENT_RESULT_MISMATCH",
+      "The recorded Studio document does not match the prepared document effect.",
+    );
+  }
+}
+
+function validateSourceExecution(
+  request: ReviewedExecutionRecordRequest,
+  preparation: ReviewedExecutionPreparation,
+): void {
+  const changedPlans = preparation.plan.sourcePlans.filter((plan) => plan.changed);
+  const resultByPlan = new Map(request.sourceResults.map((entry) => [entry.planId, entry]));
+  if (resultByPlan.size !== request.sourceResults.length) {
+    throw new ProjectCollaborationError(
+      "REVIEW_SOURCE_RESULT_DUPLICATE",
+      "Each prepared source plan may appear only once in an execution record.",
+    );
+  }
+  if (resultByPlan.size !== changedPlans.length) {
+    throw new ProjectCollaborationError(
+      "REVIEW_SOURCE_RESULT_INCOMPLETE",
+      "Execution must record one result for every changed source plan in the fresh preparation.",
+    );
+  }
+  for (const plan of changedPlans) {
+    const entry = resultByPlan.get(plan.planId);
+    if (
+      !entry
+      || entry.repositoryPath !== plan.repositoryPath
+      || entry.sourceVersion !== plan.sourceVersion
+      || entry.result.planId !== plan.planId
+    ) {
+      throw new ProjectCollaborationError(
+        "REVIEW_SOURCE_RESULT_MISMATCH",
+        `The execution result for ${plan.repositoryPath} does not match the prepared plan and source version.`,
+      );
+    }
   }
 }
 
