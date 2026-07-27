@@ -23,7 +23,8 @@ Afrodite can:
 15. represent responsive breakpoints and `hover`, `focus`, `disabled`, `loading`, and `error` states independently from base layout;
 16. materialize owned variants through static Tailwind utilities or generated CSS Module regions;
 17. plan constrained project-aware semantic operations without granting automation direct code-edit authority;
-18. expose semantic inspection, dry runs, and human approval requests through a policy-controlled local MCP gateway.
+18. expose semantic inspection and dry runs through a policy-controlled local MCP gateway;
+19. publish the active Studio session to a durable human review inbox for agent-proposed changes.
 
 ## Architecture
 
@@ -39,7 +40,7 @@ Shared editor code remains framework-neutral.
 - `@afrodite/semantic-ops` turns API v1 commands into deterministic UI-document effects and typed style or variant intents.
 - `@afrodite/agent-gateway-core` applies agent policy, redaction, inspection budgets, dry-run limits, approval-request rules, and audit records.
 - `@afrodite/verified-write` provides single-file and multi-file approval, staging, compare-and-swap writes, verification, and rollback.
-- `@afrodite/project-session` keeps Canvas and Source Sync inside one command history and provenance timeline.
+- `@afrodite/project-session` keeps Canvas and Source Sync inside one command history and emits framework-neutral live-session snapshots.
 
 React and SolidJS use separate adapter identities. They currently share static JSX binding and screen-import implementations while keeping framework-specific runtime and source-style behavior behind adapters.
 
@@ -70,13 +71,7 @@ replace_spacing_with_token
 explain_unpatchable_region
 ```
 
-A command resolves one existing UI IR node, checks read-only state, binding, stable marker, style ownership, and adapter capability, then returns one of:
-
-```text
-ready
-blocked
-informational
-```
+A command resolves one existing UI IR node, checks read-only state, binding, stable marker, style ownership, and adapter capability, then returns `ready`, `blocked`, or `informational`.
 
 Document effects and source effects remain separate. A plan may be `document-only` when the semantic change is valid but Afrodite cannot prove authority over production source.
 
@@ -102,12 +97,33 @@ Its default policy:
 - redacts prop values and source excerpts;
 - limits inspection to depth 8 and 250 nodes;
 - limits one dry run to 8 source plans and 80,000 diff characters;
-- loads one explicitly selected Semantic UI IR snapshot at startup;
+- reads the current document published by the live Studio project session;
 - keeps the project bridge token private to the process;
-- records a bounded in-memory audit trail;
-- allows approval requests to remain only `pending` or `expired`.
+- records a bounded in-memory agent audit trail;
+- allows an agent to submit a review request but never decide or apply it.
 
-An MCP host or model may request human review, but it cannot approve or apply its own plan. See `docs/agent-gateway.md`.
+See `docs/agent-gateway.md`.
+
+## Live Studio review inbox
+
+The collaboration flow is:
+
+```text
+active Studio project session
+  -> revisioned UiDocument snapshot
+  -> authenticated project bridge
+  -> agent inspection and semantic dry run
+  -> exact documentAfter and source-plan diffs
+  -> persistent .afrodite/collaboration.json review request
+  -> independent human approve/reject decision in Studio
+  -> separate explicit UI-document load or verified source apply
+```
+
+The review decision is not an apply operation. Approval does not write source files, does not update UI IR automatically, and does not extend the lifetime of server-held source plans. Every application remains a separate human action and keeps the existing source-version verification and rollback boundary.
+
+The bridge rejects older Studio revisions, semantic plans built against another live document version, expired requests, repeated decisions, and decisions after the live document changed.
+
+See `docs/live-agent-review.md`.
 
 ## Atomic multi-file transactions
 
@@ -137,13 +153,13 @@ See `docs/existing-screen-import.md` and `docs/multi-file-screen-import.md`.
 
 ## Workspace
 
-- `apps/studio` — Canvas, Source Sync, Binding Manager, Style Ownership, Variants, Screen Import, Transactions, and Semantic API workbenches.
+- `apps/studio` — Canvas, Source Sync, Binding Manager, Style Ownership, Variants, Screen Import, Transactions, Semantic API, and Human Review Inbox workbenches.
 - `apps/preview-host` — opaque-origin trusted SolidJS and React component preview.
-- `apps/project-bridge` — authenticated localhost source, import, planning, verified-write, transaction, and rollback service.
-- `apps/agent-gateway` — policy-controlled MCP stdio adapter over the semantic planning boundary.
+- `apps/project-bridge` — authenticated localhost source, planning, verified-write, transaction, live-session, and persistent review service.
+- `apps/agent-gateway` — policy-controlled MCP stdio adapter over the live semantic planning boundary.
 - `packages/ui-ir` — Semantic UI IR, variants, bindings, ownership, and provenance contracts.
 - `packages/canvas-engine` — reversible document commands and read-only enforcement.
-- `packages/project-session` — live session state and transition provenance.
+- `packages/project-session` — live session state, transition provenance, and snapshot subscriptions.
 - `packages/framework-core` — framework and patch-plan contracts.
 - `packages/binding-core` — target discovery and stable-marker plans.
 - `packages/style-core` — base style ownership strategies.
@@ -154,7 +170,7 @@ See `docs/existing-screen-import.md` and `docs/multi-file-screen-import.md`.
 - `packages/verified-write` — approval, staging, compare-and-swap, verification, and rollback.
 - `packages/adapter-solid` and `packages/adapter-react` — framework identities and adapter factories.
 - `packages/project-indexer` and `packages/indexer-react` — static component catalogs.
-- `packages/protocol` — catalog, preview, bridge, binding, style, variant, import, transaction, and semantic schemas.
+- `packages/protocol` — catalog, preview, bridge, binding, style, variant, import, transaction, semantic, live-session, and review schemas.
 
 ## Development
 
@@ -172,16 +188,17 @@ Start project bridge in another terminal:
 pnpm dev:bridge --project ./path/to/project
 ```
 
-Start the MCP gateway with the bridge token and an explicit document snapshot:
+Open Studio, connect the project bridge from Project session, and keep the page open long enough for the current revision to be published. Then start the MCP gateway with the same bridge token:
 
 ```bash
 export AFRODITE_BRIDGE_TOKEN='<local bridge token>'
 
 pnpm dev:agent \
-  --document ./screen.afrodite.json \
   --bridge-url http://127.0.0.1:4175 \
   --actor codex
 ```
+
+Agent requests appear under **Review inbox** in Studio. Review records are persisted inside the target project at `.afrodite/collaboration.json`.
 
 Verification:
 
