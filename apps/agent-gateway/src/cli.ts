@@ -1,17 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import {
   PolicyControlledAgentGateway,
-  type AgentDocumentProvider,
 } from "@afrodite/agent-gateway-core";
-import { parseUiDocument, type UiDocument } from "@afrodite/ui-ir";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SemanticOnlyProjectBridgeClient } from "./bridgeClient.js";
 import { createAfroditeAgentMcpServer } from "./mcp.js";
 
 interface CliOptions {
-  readonly documentPath: string;
   readonly bridgeUrl: string;
   readonly tokenEnv: string;
   readonly actor: string;
@@ -24,31 +19,28 @@ async function main(): Promise<void> {
     throw new Error(`Environment variable ${options.tokenEnv} must contain the local project bridge session token.`);
   }
 
-  const document = await loadDocumentSnapshot(options.documentPath);
-  const provider: AgentDocumentProvider = {
-    readDocument: async () => cloneDocument(document),
-  };
+  const bridge = new SemanticOnlyProjectBridgeClient(options.bridgeUrl, token);
+  await bridge.readDocument();
   const gateway = new PolicyControlledAgentGateway({
-    documentProvider: provider,
-    semanticPlanner: new SemanticOnlyProjectBridgeClient(options.bridgeUrl, token),
+    documentProvider: bridge,
+    semanticPlanner: bridge,
   });
   const context = {
     actor: options.actor,
     sessionId: randomUUID(),
   };
-  const server = createAfroditeAgentMcpServer(gateway, context);
+  const server = createAfroditeAgentMcpServer(gateway, context, bridge);
   const transport = new StdioServerTransport();
 
   console.error(`[afrodite-agent-gateway] policy-controlled stdio session ${context.sessionId}`);
-  console.error(`[afrodite-agent-gateway] document ${path.resolve(options.documentPath)}`);
-  console.error(`[afrodite-agent-gateway] bridge ${options.bridgeUrl}; token remains process-private`);
+  console.error(`[afrodite-agent-gateway] live Studio document from ${options.bridgeUrl}`);
+  console.error("[afrodite-agent-gateway] bridge token remains process-private");
   console.error("[afrodite-agent-gateway] no filesystem, shell, apply, transaction, or approval-decision tools are exposed");
 
   await server.connect(transport);
 }
 
 function parseArguments(args: readonly string[]): CliOptions {
-  let documentPath = "";
   let bridgeUrl = "http://127.0.0.1:4175";
   let tokenEnv = "AFRODITE_BRIDGE_TOKEN";
   let actor = "mcp-agent";
@@ -57,10 +49,6 @@ function parseArguments(args: readonly string[]): CliOptions {
     const argument = args[index];
     const value = args[index + 1];
     switch (argument) {
-      case "--document":
-        documentPath = requireValue(argument, value);
-        index += 1;
-        break;
       case "--bridge-url":
         bridgeUrl = requireValue(argument, value);
         index += 1;
@@ -82,12 +70,11 @@ function parseArguments(args: readonly string[]): CliOptions {
     }
   }
 
-  if (!documentPath) throw new Error("--document is required and must point to a reviewed Semantic UI IR JSON file.");
   if (!/^https?:\/\//.test(bridgeUrl)) throw new Error("--bridge-url must be an explicit http:// or https:// URL.");
   if (!/^[A-Z_][A-Z0-9_]*$/.test(tokenEnv)) throw new Error("--bridge-token-env must be an environment-variable name.");
   if (!actor.trim()) throw new Error("--actor must not be empty.");
 
-  return { documentPath, bridgeUrl, tokenEnv, actor: actor.trim() };
+  return { bridgeUrl, tokenEnv, actor: actor.trim() };
 }
 
 function requireValue(argument: string, value: string | undefined): string {
@@ -95,23 +82,8 @@ function requireValue(argument: string, value: string | undefined): string {
   return value;
 }
 
-async function loadDocumentSnapshot(documentPath: string): Promise<UiDocument> {
-  const raw = await readFile(path.resolve(documentPath), "utf8");
-  let candidate: unknown;
-  try {
-    candidate = JSON.parse(raw);
-  } catch {
-    throw new Error(`Document ${documentPath} is not valid JSON.`);
-  }
-  return parseUiDocument(candidate);
-}
-
-function cloneDocument(document: UiDocument): UiDocument {
-  return parseUiDocument(JSON.parse(JSON.stringify(document)));
-}
-
 function printHelp(): void {
-  console.error(`Afrodite policy-controlled MCP agent gateway\n\nUsage:\n  pnpm dev:agent --document ./screen.afrodite.json [options]\n\nOptions:\n  --document <path>           Required reviewed Semantic UI IR snapshot\n  --bridge-url <url>          Project bridge URL (default http://127.0.0.1:4175)\n  --bridge-token-env <name>   Environment variable holding the bridge token\n  --actor <name>              Audit actor label (default mcp-agent)\n\nThe gateway exposes inspection, dry-run planning, and approval-request tools only.`);
+  console.error(`Afrodite policy-controlled MCP agent gateway\n\nUsage:\n  pnpm dev:agent [options]\n\nOptions:\n  --bridge-url <url>          Project bridge URL (default http://127.0.0.1:4175)\n  --bridge-token-env <name>   Environment variable holding the bridge token\n  --actor <name>              Audit actor label (default mcp-agent)\n\nStudio must be connected and must have published its live project session. The gateway exposes inspection, dry-run planning, and review-request tools only.`);
 }
 
 main().catch((error) => {
