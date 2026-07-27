@@ -1,0 +1,188 @@
+.semantic-shell {
+  min-height: 100vh;
+  background: radial-gradient(circle at 50% -20%, rgba(255, 44, 182, 0.16), transparent 42%), #08050d;
+  color: #f7edf8;
+}
+
+.semantic-header {
+  min-height: 58px;
+  padding: 0 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 105, 214, 0.24);
+  background: rgba(11, 7, 17, 0.92);
+}
+
+.semantic-header .brand {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.semantic-header .brand strong { color: #ff65d1; }
+.semantic-header .brand span,
+.semantic-header .status-line { color: #bcaec2; }
+
+.semantic-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
+  gap: 16px;
+  padding: 16px;
+}
+
+.semantic-sidebar,
+.semantic-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.semantic-card {
+  border: 1px solid rgba(255, 105, 214, 0.22);
+  background: rgba(19, 12, 28, 0.92);
+  box-shadow: 0 0 24px rgba(255, 46, 183, 0.05);
+  border-radius: 12px;
+  padding: 15px;
+}
+
+.semantic-card label {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  color: #cbbdce;
+}
+
+.semantic-card input,
+.semantic-card textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(97, 223, 255, 0.2);
+  border-radius: 8px;
+  background: #0d0913;
+  color: #f6edf8;
+  padding: 9px 10px;
+  font: inherit;
+}
+
+.semantic-card textarea {
+  min-height: 260px;
+  resize: vertical;
+  font-family: "JetBrains Mono", "Cascadia Code", monospace;
+  font-size: 12px;
+}
+
+.semantic-card button {
+  border: 1px solid rgba(255, 105, 214, 0.28);
+  border-radius: 8px;
+  background: rgba(255, 74, 191, 0.08);
+  color: #f8edf8;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+
+.semantic-card button.primary {
+  margin-top: 12px;
+  background: linear-gradient(135deg, rgba(255, 55, 186, 0.34), rgba(103, 218, 255, 0.17));
+}
+
+.semantic-card button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.preset-list button {
+  width: 100%;
+  margin-top: 8px;
+  text-align: left;
+}
+
+.semantic-editors {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.62fr);
+  gap: 14px;
+}
+
+.semantic-editors > button,
+.semantic-editors > p {
+  grid-column: 1 / -1;
+}
+
+.semantic-summary > code,
+.source-identities code,
+.semantic-source-result code {
+  display: block;
+  margin-top: 8px;
+  color: #79dfff;
+  overflow-wrap: anywhere;
+}
+
+.capability-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.capability-grid span {
+  padding: 9px;
+  border: 1px solid rgba(97, 223, 255, 0.14);
+  border-radius: 8px;
+  color: #bcaec2;
+}
+
+.semantic-document-plan pre,
+.semantic-source-plan pre {
+  max-height: 460px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: #09060d;
+  border: 1px solid rgba(97, 223, 255, 0.13);
+  white-space: pre-wrap;
+  color: #ddd1e1;
+}
+
+.approval-row {
+  grid-template-columns: auto 1fr !important;
+  align-items: center;
+}
+
+.approval-row input { width: auto; }
+
+.semantic-explanation h3 { margin-bottom: 4px; color: #74ddff; }
+.semantic-explanation p { color: #c8bacb; }
+
+.semantic-source-result {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(97, 223, 255, 0.16);
+}
+
+.semantic-summary.status-blocked,
+.semantic-source-result.status-rejected,
+.semantic-source-result.status-rollback-failed {
+  border-color: rgba(255, 91, 125, 0.46);
+}
+
+.semantic-summary.status-ready,
+.semantic-source-result.status-applied {
+  border-color: rgba(99, 238, 196, 0.42);
+}
+
+.diagnostics p {
+  display: grid;
+  grid-template-columns: minmax(150px, auto) 1fr;
+  gap: 9px;
+  margin: 7px 0 0;
+  color: #d3c5d5;
+}
+
+.diagnostics code { color: #ff77d8; }
+.panel-hint { color: #a99cad; }
+
+@media (max-width: 980px) {
+  .semantic-grid { grid-template-columns: 1fr; }
+  .semantic-editors { grid-template-columns: 1fr; }
+}

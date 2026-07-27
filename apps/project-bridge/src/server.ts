@@ -11,8 +11,10 @@ import {
   bridgeTransactionPlanRequestSchema,
   bridgeVariantPlanRequestSchema,
   screenImportRequestSchema,
+  semanticPlanRequestSchema,
 } from "@afrodite/protocol";
 import { ZodError } from "zod";
+import { planProjectSemanticOperation } from "./semantic.js";
 import { ProjectBridgeService, ProjectBridgeServiceError } from "./service.js";
 
 export interface ProjectBridgeServerOptions {
@@ -70,6 +72,13 @@ export function createProjectBridgeServer(options: ProjectBridgeServerOptions): 
         const input = bridgeSourceRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
         const source = await options.service.readSource(input.repositoryPath);
         sendJson(response, 200, { ok: true, source });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/semantic/plan") {
+        const input = semanticPlanRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const plan = await planProjectSemanticOperation(options.service, input.document, input.command);
+        sendJson(response, 200, { ok: true, plan });
         return;
       }
 
