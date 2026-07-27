@@ -6,10 +6,10 @@
 
 Delivered:
 
-- Studio loads and renders a `UiDocument`;
-- hierarchy, canvas, and inspector selection are synchronized;
-- layout constraints are editable through reversible commands;
-- undo, redo, serialization, persistence, and structured diagnostics are covered by tests.
+- framework-neutral `UiDocument` rendering;
+- synchronized hierarchy, canvas, and inspector selection;
+- reversible layout commands;
+- undo, redo, serialization, persistence, and structured diagnostics.
 
 ## VS-002: SolidJS component indexing — complete
 
@@ -18,22 +18,20 @@ Delivered:
 Delivered:
 
 - TypeScript compiler-based static discovery;
-- barrel export resolution and component deduplication;
-- public prop, default, source-location, and serializability metadata;
-- deterministic catalog JSON and explicit unsupported-type diagnostics;
-- no target-project module, Vite configuration, or package-script execution.
+- barrel export resolution and deduplication;
+- typed props, defaults, source locations, and serializability metadata;
+- deterministic catalog JSON and explicit diagnostics.
 
 ## VS-003: Visual composition with real components — complete
 
-**Goal:** place an indexed component into UI IR and render it through an isolated preview host.
+**Goal:** place indexed components in UI IR and render them through an isolated preview host.
 
 Delivered:
 
-- validated catalog and preview protocols;
-- a component library in Studio;
-- reversible insertion of source-bound component nodes;
-- separate Studio and opaque-origin preview-host applications;
-- a trusted component registry and structured runtime diagnostics.
+- catalog and preview protocols;
+- Studio component library;
+- reversible source-bound component insertion;
+- opaque-origin preview host and trusted runtime registry.
 
 ## VS-003.5: Framework adapter foundation — complete
 
@@ -41,140 +39,142 @@ Delivered:
 
 Delivered:
 
-- `@afrodite/framework-core` with adapter descriptors, capabilities, detection, registry, operations, source snapshots, patch plans, diagnostics, and verification steps;
-- independent SolidJS and React adapter identities;
-- framework metadata in UI IR, catalogs, and preview messages;
-- explicit unsupported-runtime diagnostics;
-- backward compatibility for older Solid-only documents and catalogs.
+- `@afrodite/framework-core` adapter contracts;
+- independent React and SolidJS identities;
+- framework metadata in UI IR, catalogs, previews, and bindings;
+- explicit unsupported-runtime diagnostics.
 
 ## VS-004: Framework-neutral safe source patch — complete
 
-**Goal:** convert a visual layout edit into an approved and verified source patch, with SolidJS as the first syntax adapter.
+**Goal:** turn a visual edit into an approved and verified source patch.
 
 Delivered:
 
-- deterministic content versions and patch IDs;
-- sorted, non-overlapping text edits;
+- deterministic source versions and patch IDs;
 - path, bounds, overlap, and stale-source validation;
-- deterministic previews and unified diffs;
-- approvals bound to `planId` and `sourceVersion`;
-- compare-and-swap filesystem writes below a configured project root;
-- formatter, typecheck, test, build, or custom verification steps;
-- automatic compare-and-swap rollback when a required check fails;
-- explicit `applied`, `rejected`, `rolled-back`, and `rollback-failed` results;
-- SolidJS static inline-style layout planning with refusal on dynamic or ambiguous ownership.
+- exact previews and unified diffs;
+- approval bound to plan and source version;
+- compare-and-swap writes, verification, and rollback;
+- first SolidJS inline-layout patcher.
 
 ## VS-005: React indexing and preview parity — complete
 
-**Goal:** prove the adapter model by adding React without modifying the shared editor architecture.
+**Goal:** prove the adapter model by adding React without modifying shared editor architecture.
 
 Delivered:
 
-- static React TypeScript/TSX analysis without project execution;
-- exported component and barrel re-export discovery;
-- serializable prop, default, source, framework, and adapter metadata;
-- explicit async, server-only, context, callback, React-node, and DOM-runtime diagnostics;
-- trusted React preview through `react-dom/client` behind the shared runtime registry;
-- framework-qualified binding preservation during insertion.
+- static React component indexing;
+- exported component and re-export discovery;
+- serializable prop and framework metadata;
+- trusted React preview through `react-dom/client`;
+- framework-qualified binding preservation.
 
 ## VS-006: React source patch parity — complete
 
-**Goal:** implement React syntax planning against the existing verified-write boundary.
+**Goal:** implement React syntax planning against the shared verified-write boundary.
 
 Delivered:
 
-- React `sourcePatching` capability and `planReactLayoutPatch`;
-- the existing `FrameworkOperation` and `SourcePatchPlan` contracts;
-- unique static `data-afrodite-id` binding;
-- React inline-style casing such as `flexDirection`;
-- preservation of hooks, callbacks, children, attributes, `className`, ARIA props, and unrelated styles;
-- explicit rejection of dynamic managed values, style variables, spreads, computed keys, duplicates, and `use server` modules;
-- unchanged shared diff, approval, compare-and-swap, verification, and rollback services.
+- React layout patch planning;
+- unique static stable-marker targeting;
+- React inline-style casing;
+- hook, callback, child, attribute, and unrelated-style preservation;
+- refusal on dynamic or ambiguous owned syntax.
 
 ## VS-007: Studio source synchronization workflow — complete
 
-**Goal:** expose the safe-write architecture as an end-to-end workflow inside Afrodite Studio.
+**Goal:** expose safe writes as an end-to-end Studio workflow.
 
 Delivered:
 
-- `apps/project-bridge` as an authenticated localhost service bound to one explicit project root;
+- authenticated localhost project bridge;
 - fixed-root source reads and versioned snapshots;
-- SolidJS and React adapter resolution through the shared registry;
-- bridge protocol schemas for health, reads, planning, approval, verification, and write results;
-- server-side patch-plan storage with expiration;
-- no client-authored text edits or verification commands;
-- bearer-token authentication, Studio-origin allowlisting, request-size limits, and traversal protection;
-- a `Source Sync` Studio workspace alongside Canvas;
-- adapter diagnostics, verification steps, exact unified diff, approval, write outcomes, and rollback output.
+- server-side patch-plan storage;
+- Source Sync workspace;
+- exact diff review, approval, verification, write results, and rollback output.
 
 ## VS-008: Live Studio project session — complete
 
-**Goal:** remove the browser-storage handoff and make source synchronization part of the active editing session.
+**Goal:** make source synchronization part of the active editing session.
 
 Delivered:
 
-- `@afrodite/project-session` owns the live framework-neutral session state;
-- Canvas and Source Sync share one UI document, selection, command history, revision counter, source snapshots, patch plans, write results, and synchronization cursors;
-- switching workspaces preserves undo/redo history and the selected node;
-- every visual layout command records exact before/after layouts;
-- undo and redo are also recorded as explicit layout transitions;
-- multiple unsynchronized visual transitions are aggregated into one source operation;
-- source planning uses the recorded visual operation rather than a separate target-layout editor;
-- new visual edits invalidate reviewed plans for the affected node;
-- refreshing a changed source version invalidates stale patch plans;
-- successful verified writes advance only the applied node's synchronization cursor;
-- session telemetry exposes revision, command count, and transition count;
-- Source Sync includes a recent transition audit;
-- tests cover workspace switching, transition aggregation, undo/redo provenance, stale-plan invalidation, and synchronization cursors.
+- shared Canvas and Source Sync document, selection, command history, revision, and source state;
+- exact before/after layout transitions;
+- undo/redo provenance;
+- transition aggregation and stale-plan invalidation;
+- per-node synchronization cursors.
 
 ## VS-009: Visual source-binding manager — complete
 
-**Goal:** let users create and repair source bindings without manually editing UI IR JSON or allowing Afrodite to guess arbitrary code targets.
+**Goal:** create and repair source bindings without manual UI IR editing or silent target guessing.
 
 Delivered:
 
-- `@afrodite/binding-core` defines framework-neutral candidate, discovery, registry, marker-plan, and proposed-binding contracts;
-- one static JSX binding implementation is reused by SolidJS and React adapters;
-- discovery requires an explicit adapter and repository path and never executes target-project code;
-- Studio shows every candidate's JSX element name, line, column, source snippet, marker state, and diagnostics;
-- Studio never selects a candidate silently;
-- `install-stable-marker` is a dedicated source operation with a deterministic patch ID;
-- missing `data-afrodite-id` markers are inserted through exact diff review, approval, compare-and-swap writing, verification, and rollback;
-- an already installed matching marker can be confirmed without creating an empty filesystem write;
-- stale source versions, duplicate markers, dynamic marker ownership, duplicate marker attributes, unsupported source extensions, and React `use server` modules are rejected;
-- the project bridge stores marker patch plans server-side and does not accept client-authored text edits;
-- source-binding changes are reversible Canvas commands and participate in the shared undo/redo history;
-- UI IR receives the proposed binding only after the existing marker is confirmed or the verified marker write succeeds;
-- binding changes invalidate stale source plans;
-- tests cover JSX discovery, marker planning, bridge application, existing-marker confirmation, and reversible binding commands.
+- framework-neutral binding contracts and registry;
+- static JSX candidate discovery for React and SolidJS;
+- explicit target selection with line, column, snippet, marker state, and diagnostics;
+- verified stable-marker installation;
+- reversible source-binding commands;
+- rejection of stale, duplicate, dynamic, server-only, or ambiguous targets.
 
 ## VS-010: Style ownership and strategy adapters — complete
 
-**Goal:** make Afrodite's edit authority explicit across inline styles, CSS Modules, Tailwind utility classes, and design tokens.
+**Goal:** make Afrodite's style authority explicit across different source representations.
 
 Delivered:
 
-- `SourceBinding.styleOwnership` records one explicit strategy and the exact layout properties Afrodite is allowed to control;
-- ownership remains independent from React or SolidJS framework identity;
-- `@afrodite/style-core` defines `StylePatchOperation`, strategy adapters, source-target resolution, and a registry with no framework branches in Studio or the bridge;
-- React and SolidJS inline strategies update only owned static object-literal properties and preserve unmanaged declarations;
-- dynamic owned values, spreads, computed keys, duplicate properties, ambiguous markers, and React `use server` modules are rejected;
-- Tailwind strategies replace only owned utility groups in static `className` or `class` strings and preserve unrelated classes;
-- CSS Module strategy updates one explicit flat class rule in one explicit stylesheet and preserves unrelated declarations;
-- design-token strategy updates existing unique CSS custom-property declarations and never guesses a token scope;
-- `update-style` is a dedicated deterministic source patch operation;
-- `/api/style/plan` keeps source reads, offsets, edits, and verification commands inside the authenticated project bridge;
-- all style writes use the existing exact diff approval, compare-and-swap write, verification, and rollback boundary;
-- reversible `createStyleOwnershipCommand` and `createClearStyleOwnershipCommand` operations store ownership in UI IR command history;
-- Studio includes a Style Ownership Workbench for configuring all four strategies, validating the resulting binding, reviewing exact diffs, and applying verified writes;
-- tests cover ownership validation, inline preservation and refusal, Tailwind utility replacement, CSS Module changes, token changes, bridge application, and command undo/redo.
+- `SourceBinding.styleOwnership` with exact managed properties;
+- framework-neutral style strategy registry;
+- React and SolidJS inline strategies;
+- static Tailwind utility strategy;
+- explicit flat CSS Module strategy;
+- existing CSS custom-property token strategy;
+- `update-style` plans through the verified-write boundary;
+- reversible ownership commands and Studio workbench.
 
 Current boundary:
 
-- VS-010 intentionally produces one verified source-file patch per operation;
-- atomic component plus stylesheet or token edits remain part of the future multi-file transaction slice;
-- CSS nesting, conditional class helpers, generated utility expressions, and token creation remain read-only rather than guessed.
+- one verified source file is changed per style operation;
+- nested CSS, dynamic class helpers, token creation, and multi-file atomic changes remain read-only or deferred.
 
-## VS-011: Existing screen import
+## VS-011: Existing screen import — complete
 
-**Goal:** reconstruct a bounded editable UI tree from an existing route or component entry point while preserving unsupported behavior as read-only source-backed regions.
+**Goal:** reconstruct a bounded Semantic UI IR tree from an existing component while preserving unsupported behavior as source-backed read-only regions.
+
+Delivered:
+
+- `SourceRegion` provenance with framework, adapter, file, source version, export, offsets, line, column, mode, kind, excerpt, and reason;
+- explicit `editable`, `requires-binding`, and `read-only` modes;
+- a `source-region` UI IR node for unsupported control flow and expressions;
+- `@afrodite/import-core` with adapter contracts, registry, diagnostics, and import statistics;
+- shared static JSX import implementation behind separate React and SolidJS adapter identities;
+- one-file, one-export bounded import without module execution, bundler startup, hook calls, data fetching, or package scripts;
+- recovery of native elements, component references, static props, stable markers, hierarchy, and basic inline/Tailwind layout;
+- conditional rendering, multiple return paths, iteration, calls, fragments, text, dynamic expressions, and depth limits preserved as read-only source regions;
+- React `use server` modules imported as read-only;
+- authenticated `/api/import/screen` project-bridge route;
+- Studio Screen Import workbench with adapter/file/export controls, diagnostics, statistics, tree review, download, and explicit project-session opening;
+- command-engine enforcement that rejects layout mutations against read-only regions;
+- tests for UI IR validation, import behavior, adapter registration, bridge routing, server-module handling, and command safety.
+
+Current boundary:
+
+- imports one explicit exported component from one TSX/JSX file;
+- does not follow child-component imports across files;
+- does not reconstruct routers, provider trees, runtime state, CSS cascade, or executable preview bundles;
+- opening an imported document does not modify repository source.
+
+## VS-012: Bounded multi-file import graph
+
+**Goal:** expand an explicitly selected screen through imported child components while retaining deterministic limits and provenance.
+
+Planned acceptance criteria:
+
+- resolve only explicit local component imports;
+- require user-configurable file, node, and depth budgets;
+- detect cycles and repeated component references;
+- retain source version and region provenance per file;
+- allow users to stop expansion at any component boundary;
+- preserve external packages, dynamic imports, lazy components, and unresolved aliases as read-only component regions;
+- never execute the imported application during graph construction.

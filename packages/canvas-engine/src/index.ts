@@ -74,6 +74,9 @@ export function createLayoutCommand(
   if (!node) {
     throw new Error(`Cannot create layout command: node ${nodeId} was not found`);
   }
+  if (node.kind === "source-region" || node.sourceRegion?.mode === "read-only") {
+    throw new Error(`Cannot create layout command: node ${nodeId} is a source-backed read-only region`);
+  }
 
   const before = cloneLayout(node.layout);
   const after = mergeLayout(before, patch);
@@ -251,6 +254,7 @@ function cloneNode(node: UiNode): UiNode {
     props: { ...node.props },
     children: node.children.map(cloneNode),
     ...(node.sourceBinding ? { sourceBinding: { ...node.sourceBinding } } : {}),
+    ...(node.sourceRegion ? { sourceRegion: { ...node.sourceRegion } } : {}),
   };
 }
 

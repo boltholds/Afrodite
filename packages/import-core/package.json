@@ -1,5 +1,5 @@
 {
-  "name": "@afrodite/adapter-react",
+  "name": "@afrodite/import-core",
   "version": "0.0.0",
   "type": "module",
   "exports": {
@@ -14,12 +14,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@afrodite/binding-core": "workspace:*",
     "@afrodite/framework-core": "workspace:*",
-    "@afrodite/import-core": "workspace:*"
+    "@afrodite/ui-ir": "workspace:*",
+    "typescript": "^5.8.3"
   },
   "devDependencies": {
-    "typescript": "^5.8.3",
     "vitest": "^3.2.4"
   }
 }

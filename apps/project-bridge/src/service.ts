@@ -1,10 +1,12 @@
 import path from "node:path";
 import {
   createReactFrameworkAdapter,
+  createReactScreenImportAdapter,
   createReactSourceBindingAdapter,
 } from "@afrodite/adapter-react";
 import {
   createSolidFrameworkAdapter,
+  createSolidScreenImportAdapter,
   createSolidSourceBindingAdapter,
 } from "@afrodite/adapter-solid";
 import { SourceBindingAdapterRegistry } from "@afrodite/binding-core";
@@ -16,6 +18,7 @@ import {
   type SourcePatchPlan,
   type SourceSnapshot,
 } from "@afrodite/framework-core";
+import { ScreenImportAdapterRegistry } from "@afrodite/import-core";
 import type {
   BindingDiscoveryRequest,
   BindingDiscoveryResult,
@@ -27,6 +30,8 @@ import type {
   BridgePatchPlanView,
   BridgeSourceSnapshot,
   BridgeStyleOperation,
+  ScreenImportRequest,
+  ScreenImportResult,
 } from "@afrodite/protocol";
 import {
   createDefaultStyleStrategyRegistry,
@@ -73,6 +78,7 @@ export class ProjectBridgeService {
   readonly #writeService: VerifiedWriteService;
   readonly #registry = new FrameworkAdapterRegistry();
   readonly #bindingRegistry = new SourceBindingAdapterRegistry();
+  readonly #importRegistry = new ScreenImportAdapterRegistry();
   readonly #styleRegistry = createDefaultStyleStrategyRegistry();
   readonly #plans = new Map<string, StoredPlan>();
   readonly #planTtlMs: number;
@@ -92,6 +98,8 @@ export class ProjectBridgeService {
     this.#registry.register(createReactFrameworkAdapter());
     this.#bindingRegistry.register(createSolidSourceBindingAdapter());
     this.#bindingRegistry.register(createReactSourceBindingAdapter());
+    this.#importRegistry.register(createSolidScreenImportAdapter());
+    this.#importRegistry.register(createReactScreenImportAdapter());
   }
 
   health(): BridgeHealthResponse {
@@ -115,6 +123,20 @@ export class ProjectBridgeService {
       content: source.content,
       version: source.version,
     };
+  }
+
+  async importScreen(request: ScreenImportRequest): Promise<ScreenImportResult> {
+    const adapter = this.#importRegistry.get(request.adapterId);
+    if (!adapter) {
+      throw new ProjectBridgeServiceError(
+        "SCREEN_IMPORT_ADAPTER_NOT_FOUND",
+        `No screen import adapter is registered as ${request.adapterId}.`,
+      );
+    }
+
+    const source = await this.#repository.read(request.repositoryPath);
+    const result = adapter.importScreen(request, source);
+    return cloneJson(result) as ScreenImportResult;
   }
 
   async discoverBindings(request: BindingDiscoveryRequest): Promise<BindingDiscoveryResult> {
@@ -281,5 +303,9 @@ export class ProjectBridgeService {
 }
 
 function cloneBinding<T extends { readonly styleOwnership?: unknown }>(binding: T): T {
-  return JSON.parse(JSON.stringify(binding)) as T;
+  return cloneJson(binding);
+}
+
+function cloneJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }

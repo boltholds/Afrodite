@@ -7,6 +7,7 @@ import {
   bridgePlanRequestSchema,
   bridgeSourceRequestSchema,
   bridgeStylePlanRequestSchema,
+  screenImportRequestSchema,
 } from "@afrodite/protocol";
 import { ZodError } from "zod";
 import { ProjectBridgeService, ProjectBridgeServiceError } from "./service.js";
@@ -66,6 +67,13 @@ export function createProjectBridgeServer(options: ProjectBridgeServerOptions): 
         const input = bridgeSourceRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
         const source = await options.service.readSource(input.repositoryPath);
         sendJson(response, 200, { ok: true, source });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/import/screen") {
+        const input = screenImportRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const result = await options.service.importScreen(input);
+        sendJson(response, 200, { ok: true, result });
         return;
       }
 
