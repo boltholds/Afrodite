@@ -9,6 +9,10 @@ import {
   semanticOperationCommandSchema,
   semanticPlanViewSchema,
 } from "./semantic";
+import {
+  bridgeTransactionApplyResultSchema,
+  bridgeTransactionPlanViewSchema,
+} from "./transaction";
 
 export const liveSessionSnapshotSchema = z.object({
   sessionId: z.string().min(1),
@@ -75,6 +79,7 @@ export const reviewedExecutionPreparationSchema = z.object({
   liveDocumentVersion: z.string().min(1),
   plan: semanticPlanViewSchema,
   comparison: reviewedExecutionComparisonSchema,
+  transaction: bridgeTransactionPlanViewSchema.optional(),
 });
 
 export const reviewedExecutionSourceResultSchema = z.object({
@@ -95,6 +100,7 @@ export const reviewedExecutionRecordSchema = z.object({
   documentRevision: z.number().int().nonnegative().optional(),
   documentVersionAfter: z.string().min(1).optional(),
   sourceResults: z.array(reviewedExecutionSourceResultSchema),
+  transactionResult: bridgeTransactionApplyResultSchema.optional(),
 });
 
 export const humanReviewRequestSchema = z.object({
@@ -149,6 +155,7 @@ export const reviewedExecutionRecordRequestSchema = z.object({
   documentRevision: z.number().int().nonnegative().optional(),
   documentVersionAfter: z.string().min(1).optional(),
   sourceResults: z.array(reviewedExecutionSourceResultSchema),
+  transactionResult: bridgeTransactionApplyResultSchema.optional(),
 });
 
 export const humanReviewResponseSchema = z.discriminatedUnion("ok", [
