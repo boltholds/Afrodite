@@ -20,6 +20,19 @@ export {
 } from "./schema";
 
 export {
+  animationClipSchema,
+  animationClipsSchema,
+  motionDirectionSchema,
+  motionEasingSchema,
+  motionFillSchema,
+  motionKeyframeSchema,
+  motionTimelineSchema,
+  motionTrackPropertySchema,
+  motionTrackSchema,
+  motionTriggerSchema,
+} from "./motion";
+
+export {
   decodeUiDocument,
   serializeUiDocument,
   validateUiDocument,
@@ -50,3 +63,15 @@ export type {
   UiNode,
   UiVariants,
 } from "./schema";
+
+export type {
+  AnimationClip,
+  MotionDirection,
+  MotionEasing,
+  MotionFill,
+  MotionKeyframe,
+  MotionTimeline,
+  MotionTrack,
+  MotionTrackProperty,
+  MotionTrigger,
+} from "./motion";

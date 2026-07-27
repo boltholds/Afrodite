@@ -143,19 +143,38 @@ Current boundary:
 - position, radius, text, delete, and paste remain document-owned until dedicated source adapters exist;
 - manual browser end-to-end verification remains outstanding.
 
-## VS-021: Semantic Motion and JSON Inspector
+## VS-021: Semantic Motion and JSON Inspector — complete
 
 **Goal:** represent, preview, and edit animation intent through typed UI IR clips and reversible JSON-backed commands.
 
-Planned acceptance criteria:
+Delivered:
 
-- add typed animation clips, triggers, timeline settings, property tracks, and keyframes;
-- support mount, hover, focus, click, semantic state, and manual preview triggers;
-- support opacity, translation, scale, rotation, radius, and color tracks within explicit capability limits;
-- provide timeline, playhead, keyframe, easing, duration, delay, iteration, and direction controls;
-- make visual controls and JSON edit the same validated animation object;
-- reject invalid offsets, unsupported properties, duplicate IDs, and dynamic source-owned behavior;
-- keep animation preview document-only until a source adapter proves ownership.
+- optional `UiNode.animations` under schema version 1 with backward compatibility;
+- typed mount, hover, focus, click, semantic-state, and manual triggers;
+- duration, delay, easing, iterations, direction, and fill timeline settings;
+- opacity, X/Y translation, scale, rotation, radius, and background-color tracks;
+- strict keyframe offset ordering and value-type validation;
+- unique track identities and one track per property inside a clip;
+- reversible create, replace, upsert, and delete animation commands;
+- exact restoration of animation absence through undo;
+- deterministic delay/fill/iteration/direction/easing resolution;
+- numeric interpolation and explicit discrete background-color behavior;
+- a Studio Motion workspace over the active browser-local project session;
+- node and clip navigation, visual timeline fields, property tracks, keyframe values, play/pause/restart, and playhead scrubbing;
+- an Animation JSON panel editing exactly `selectedNode.animations`;
+- one reversible command for valid JSON and exact validation paths for invalid JSON;
+- UI IR round-trip, schema rejection, command, undo, interpolation, fill, and direction tests;
+- documentation in `docs/semantic-motion.md`.
+
+Current boundary:
+
+- triggers are declarative and do not synthesize runtime event handlers or application state;
+- background colors switch discretely rather than interpolating through a color space;
+- preview resolves one selected clip rather than composing simultaneous clips;
+- no spring, cubic-bezier, path-motion, or audio timeline model;
+- no CSS keyframe, Web Animations, Motion One, Framer Motion, GSAP, React, or Solid source adapter;
+- animation remains document-owned until a capability adapter proves source ownership;
+- manual browser end-to-end verification remains outstanding.
 
 ## VS-022: Typed semantic batches
 

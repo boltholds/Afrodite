@@ -27,13 +27,14 @@ Afrodite can:
 19. publish the active Studio session to a durable human review inbox for agent-proposed changes;
 20. re-plan approved requests against current document and source versions, compare drift, and execute them only after a second explicit human confirmation;
 21. bind several fresh source effects to one reviewed transaction with shared verification, complete rollback, and one durable execution receipt;
-22. edit the active project session manually through keyboard navigation, object clipboard, drag gestures, wheel-controlled corner radius, inline text editing, Inspector fields, and JSON.
+22. edit the active project session manually through keyboard navigation, object clipboard, drag gestures, wheel-controlled corner radius, inline text editing, Inspector fields, and JSON;
+23. define typed animation clips, edit timelines/tracks/keyframes visually or through the same UI IR JSON, and preview them through a deterministic playhead resolver.
 
 ## Architecture
 
 Shared editor code remains framework-neutral.
 
-- `@afrodite/ui-ir` defines semantic layout, manual position and appearance, responsive/state variants, source bindings, style ownership, and source-backed regions.
+- `@afrodite/ui-ir` defines semantic layout, manual position and appearance, animation clips, responsive/state variants, source bindings, style ownership, and source-backed regions.
 - `@afrodite/framework-core` defines framework adapters, source operations, deterministic patch plans, diagnostics, and verification steps.
 - `@afrodite/binding-core` discovers source targets and plans stable-marker installation.
 - `@afrodite/style-core` maps semantic base layout to inline styles, Tailwind utilities, CSS Modules, or design tokens.
@@ -44,7 +45,8 @@ Shared editor code remains framework-neutral.
 - `@afrodite/agent-gateway-core` applies agent policy, redaction, inspection budgets, dry-run limits, approval-request rules, and audit records.
 - `@afrodite/verified-write` provides single-file and multi-file approval, staging, compare-and-swap writes, verification, and rollback.
 - `@afrodite/canvas-engine/interaction` provides reversible delete, move, radius, text, duplication, traversal, and composite-gesture commands.
-- `@afrodite/project-session` keeps manual Canvas and Source Sync inside one command history, emits live-session snapshots, and retains a browser-local session registry for reversible reviewed execution.
+- `@afrodite/canvas-engine/motion` provides reversible animation commands and deterministic timeline/keyframe resolution.
+- `@afrodite/project-session` keeps manual Canvas, Motion, and Source Sync inside one command history, emits live-session snapshots, and retains a browser-local session registry for reversible reviewed execution.
 
 React and SolidJS use separate adapter identities. They currently share static JSX binding and screen-import implementations while keeping framework-specific runtime and source-style behavior behind adapters.
 
@@ -89,6 +91,53 @@ Manual position and appearance are visible in JSON:
 
 Browsers may reserve `Ctrl/Cmd+L` for the address bar; `Enter` and `F2` are the guaranteed shortcuts. See `docs/manual-interaction.md`.
 
+## Semantic motion workflow
+
+Animation intent is stored on the same `UiNode` that owns layout, variants, and manual appearance:
+
+```json
+{
+  "animations": [
+    {
+      "id": "button-hover",
+      "name": "Button hover",
+      "enabled": true,
+      "trigger": { "type": "hover" },
+      "timeline": {
+        "durationMs": 180,
+        "delayMs": 0,
+        "easing": "ease-out",
+        "iterations": 1,
+        "direction": "normal",
+        "fill": "both"
+      },
+      "tracks": [
+        {
+          "id": "scale",
+          "property": "transform.scale",
+          "keyframes": [
+            { "offset": 0, "value": 1 },
+            { "offset": 1, "value": 1.04 }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+The Motion workspace supports clip creation/deletion, trigger and timeline fields, property tracks, keyframe values, play/pause/restart, and playhead scrubbing. Its JSON panel edits exactly `selectedNode.animations`; applying valid JSON creates one reversible command in the shared project-session history.
+
+```text
+clip + elapsedMs
+  -> delay / iterations / direction / fill
+  -> easing
+  -> keyframe interpolation
+  -> resolved preview style
+```
+
+Triggers are declarative in VS-021. Preview does not create hooks, signals, event handlers, application state, or source writes. Motion stays document-owned until a framework/source adapter proves how the target project represents the animation. See `docs/semantic-motion.md`.
+
 ## Safe source synchronization
 
 ```text
@@ -105,7 +154,7 @@ visual or semantic operation
 
 Afrodite does not accept browser- or agent-authored text edits, offsets, staging paths, or verification commands. The local project bridge owns source reads, patch storage, filesystem access, process execution, and verified writes.
 
-Manual layout Inspector changes continue to emit source-sync layout transitions. Position, corner radius, text, deletion, paste, and composite gestures remain document-owned until dedicated source adapters prove authority over those properties.
+Manual layout Inspector changes continue to emit source-sync layout transitions. Position, corner radius, text, deletion, paste, composite gestures, and animations remain document-owned until dedicated source adapters prove authority over those properties.
 
 ## Constrained semantic operation API
 
@@ -203,12 +252,12 @@ See `docs/existing-screen-import.md` and `docs/multi-file-screen-import.md`.
 
 ## Workspace
 
-- `apps/studio` — Manual Canvas, Source Sync, Binding Manager, Style Ownership, Variants, Screen Import, Transactions, Semantic API, and Reviewed Execution Inbox workbenches.
+- `apps/studio` — Manual Canvas, Motion, Source Sync, Binding Manager, Style Ownership, Variants, Screen Import, Transactions, Semantic API, and Reviewed Execution Inbox workbenches.
 - `apps/preview-host` — opaque-origin trusted SolidJS and React component preview.
 - `apps/project-bridge` — authenticated localhost source, planning, verified-write, transaction, live-session, review, fresh-preparation, receipt-normalization, and reviewed-execution service.
 - `apps/agent-gateway` — policy-controlled MCP stdio adapter over the live semantic planning boundary.
-- `packages/ui-ir` — Semantic UI IR, manual position/appearance, variants, bindings, ownership, and provenance contracts.
-- `packages/canvas-engine` — reversible layout, manual interaction, document, binding, style, and variant commands with read-only enforcement.
+- `packages/ui-ir` — Semantic UI IR, manual position/appearance, motion, variants, bindings, ownership, and provenance contracts.
+- `packages/canvas-engine` — reversible layout, manual interaction, motion, document, binding, style, and variant commands with read-only enforcement.
 - `packages/project-session` — live session state, transition provenance, snapshot subscriptions, browser session registry, and reviewed document execution port.
 - `packages/framework-core` — framework and patch-plan contracts.
 - `packages/binding-core` — target discovery and stable-marker plans.
