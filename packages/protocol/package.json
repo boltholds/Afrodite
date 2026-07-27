@@ -10,6 +10,10 @@
     "./semantic-batch": {
       "types": "./src/semantic-batch.ts",
       "import": "./src/semantic-batch.ts"
+    },
+    "./semantic-batch-review": {
+      "types": "./src/semantic-batch-review.ts",
+      "import": "./src/semantic-batch-review.ts"
     }
   },
   "scripts": {
