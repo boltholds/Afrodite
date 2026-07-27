@@ -206,7 +206,7 @@ Delivered:
 - compare-and-swap rollback that refuses to overwrite later independent changes;
 - explicit `applied`, `rejected`, `rolled-back`, and `rollback-failed` transaction results;
 - authenticated `/api/transaction/plan` and `/api/transaction/apply` bridge routes;
-- semantic `layout` and `style` operation input with no browser-authored edits, staging paths, or verification commands;
+- semantic `layout`, `style`, and `variant` operation input with no browser-authored edits, staging paths, or verification commands;
 - exact per-file unified diff review and one approval covering every source version;
 - Studio Transactions workbench with shared verification review and per-file before/after/restored versions;
 - tests for success, stale-source rejection, verification rollback, partial-commit rollback, duplicate-target refusal, filesystem staging, and bridge integration.
@@ -218,16 +218,48 @@ Current boundary:
 - same-file plan merging, file creation/deletion, import insertion, and component extraction are deferred;
 - the transaction is logically all-or-rollback while the bridge process is alive, but a process or machine crash between file replacements is not yet recoverable.
 
-## VS-014: Responsive variants and component states
+## VS-014: Responsive variants and component states — complete
 
-**Goal:** represent breakpoint and interaction-state intent in Semantic UI IR and materialize owned variants through framework/style adapters without flattening runtime behavior.
+**Goal:** represent breakpoint and interaction-state intent in Semantic UI IR and materialize owned variants through style adapters without flattening runtime behavior.
+
+Delivered:
+
+- optional `UiNode.variants` with partial responsive and state layout overrides;
+- pixel `minWidth`/`maxWidth` breakpoint ranges with stable IDs and validation;
+- `hover`, `focus`, `disabled`, `loading`, and `error` state variants;
+- duplicate-ID, duplicate-state, empty-override, and invalid-range validation;
+- deterministic effective-layout resolution for viewport and selected preview states;
+- reversible `createVariantsCommand` with source-backed read-only enforcement;
+- framework-neutral `@afrodite/variants-core` registry and operation contracts;
+- explicit ownership validation for every property changed by a variant;
+- React and SolidJS static Tailwind variant materialization;
+- generated, replaceable CSS Module variant regions for media queries and state selectors;
+- explicit blocking diagnostics for static inline and unscoped design-token variants;
+- authenticated `/api/variant/plan` bridge route;
+- semantic `variant` operations inside atomic multi-file transactions;
+- Studio Variants workbench with semantic preview, selected viewport/states, exact diff approval, verification, and rollback;
+- tests for UI IR validation, reversible commands, effective layout, Tailwind/CSS Module output, unsupported strategies, bridge planning, and multi-file transactions;
+- architecture and trust-boundary documentation in `docs/responsive-state-variants.md`.
+
+Current boundary:
+
+- breakpoint names are local IDs over explicit pixel ranges rather than imported project breakpoint configuration;
+- compound state combinations do not have separate override records;
+- loading/error variants do not create application state logic;
+- dynamic class helpers remain read-only;
+- inline and design-token variants require future deterministic selector/runtime scopes;
+- manual browser visual inspection remains separate from CI verification.
+
+## VS-015: Constrained semantic operation API
+
+**Goal:** expose project-aware AI and automation commands as validated semantic operations that reuse UI IR ownership, adapters, transactions, diagnostics, and approval rather than rewriting files directly.
 
 Planned acceptance criteria:
 
-- add named responsive breakpoints and `hover`, `focus`, `disabled`, `loading`, and `error` variants to UI IR;
-- keep base layout and variant overrides independently reversible;
-- expose adapter capability and read-only diagnostics for unsupported states;
-- map owned variants to static CSS, CSS Modules, Tailwind variants, or design tokens;
-- preview selected states without mutating production runtime state;
-- plan all affected source files through the VS-013 transaction boundary;
-- preserve handwritten conditions, handlers, and dynamic class logic when ownership is not explicit.
+- define versioned operations such as `convert_to_grid`, `create_responsive_variant`, `replace_spacing_with_token`, and `explain_unpatchable_region`;
+- resolve every target through existing node IDs and source bindings;
+- provide dry-run effects, capability checks, and human-readable explanations;
+- require exact diff approval before any source write;
+- group multi-file effects through the VS-013 transaction boundary;
+- keep unsupported or ambiguous commands read-only with structured diagnostics;
+- expose the same operation API to Studio and future MCP/agent adapters.
