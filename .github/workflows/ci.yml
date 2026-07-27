@@ -43,6 +43,12 @@ jobs:
       - name: Build
         run: pnpm build 2>&1 | tee .ci-logs/build.log
 
+      - name: Clean declaration build
+        run: |
+          find apps packages -type d -name dist -prune -exec rm -rf {} +
+          find apps packages -type f -name '*.tsbuildinfo' -delete
+          pnpm build 2>&1 | tee .ci-logs/clean-build.log
+
       - name: Upload verification logs
         if: always()
         uses: actions/upload-artifact@v4
