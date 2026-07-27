@@ -1,5 +1,6 @@
 import {
   animationClipSchema,
+  animationClipsSchema,
   type AnimationClip,
   type MotionKeyframe,
   type MotionTrack,
@@ -56,7 +57,7 @@ export function createReplaceAnimationsCommand(
 ): DocumentCommand {
   const node = requireEditableNode(document, nodeId);
   const before = node.animations ? cloneAnimations(node.animations) : undefined;
-  const parsed = animationClipSchema.array().max(32).parse(animations);
+  const parsed = animationClipsSchema.parse(animations);
   const after = cloneAnimations(parsed);
 
   return {
