@@ -18,6 +18,90 @@ export const layoutSchema = z.object({
   }),
 });
 
+export const layoutOverrideSchema = z.object({
+  display: z.enum(["block", "flex", "grid"]).optional(),
+  direction: layoutDirectionSchema.optional(),
+  gap: z.number().nonnegative().optional(),
+  padding: z.number().nonnegative().optional(),
+  sizing: z.object({
+    width: sizingValueSchema.optional(),
+    height: sizingValueSchema.optional(),
+  }).optional(),
+}).superRefine((override, context) => {
+  const sizingChanged = override.sizing
+    && (override.sizing.width !== undefined || override.sizing.height !== undefined);
+  if (
+    override.display === undefined
+    && override.direction === undefined
+    && override.gap === undefined
+    && override.padding === undefined
+    && !sizingChanged
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "A layout override must change at least one property.",
+    });
+  }
+});
+
+export const interactionStateSchema = z.enum([
+  "hover",
+  "focus",
+  "disabled",
+  "loading",
+  "error",
+]);
+
+const variantIdSchema = z.string().regex(
+  /^[A-Za-z][A-Za-z0-9._-]*$/,
+  "Variant identifiers must start with a letter and use letters, digits, dots, underscores, or hyphens.",
+);
+
+export const responsiveVariantSchema = z.object({
+  id: variantIdSchema,
+  name: z.string().min(1).optional(),
+  minWidth: z.number().int().nonnegative(),
+  maxWidth: z.number().int().nonnegative().optional(),
+  layout: layoutOverrideSchema,
+}).superRefine((variant, context) => {
+  if (variant.maxWidth !== undefined && variant.maxWidth <= variant.minWidth) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["maxWidth"],
+      message: "Responsive variant maxWidth must be greater than minWidth.",
+    });
+  }
+});
+
+export const stateVariantSchema = z.object({
+  id: variantIdSchema,
+  name: z.string().min(1).optional(),
+  state: interactionStateSchema,
+  layout: layoutOverrideSchema,
+});
+
+export const uiVariantsSchema = z.object({
+  responsive: z.array(responsiveVariantSchema).default([]),
+  states: z.array(stateVariantSchema).default([]),
+}).superRefine((variants, context) => {
+  const ids = [...variants.responsive, ...variants.states].map((variant) => variant.id);
+  if (new Set(ids).size !== ids.length) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Variant identifiers must be unique within a node.",
+    });
+  }
+
+  const states = variants.states.map((variant) => variant.state);
+  if (new Set(states).size !== states.length) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["states"],
+      message: "A node may define only one override for each interaction state.",
+    });
+  }
+});
+
 const frameworkIdentifierSchema = z.string().regex(
   /^[a-z][a-z0-9.-]*$/,
   "Framework identifiers must use lowercase letters, digits, dots, and hyphens.",
@@ -147,6 +231,11 @@ export const sourceRegionSchema = z.object({
 
 export type LayoutDirection = z.infer<typeof layoutDirectionSchema>;
 export type Layout = z.infer<typeof layoutSchema>;
+export type LayoutOverride = z.infer<typeof layoutOverrideSchema>;
+export type InteractionState = z.infer<typeof interactionStateSchema>;
+export type ResponsiveVariant = z.infer<typeof responsiveVariantSchema>;
+export type StateVariant = z.infer<typeof stateVariantSchema>;
+export type UiVariants = z.infer<typeof uiVariantsSchema>;
 export type StyleProperty = z.infer<typeof stylePropertySchema>;
 export type StyleOwnership = z.infer<typeof styleOwnershipSchema>;
 export type SourceBinding = z.infer<typeof sourceBindingSchema>;
@@ -158,6 +247,7 @@ interface UiNodeBase {
   id: string;
   name: string;
   layout: Layout;
+  variants?: UiVariants | undefined;
   props: Record<string, unknown>;
   sourceBinding?: SourceBinding | undefined;
   sourceRegion?: SourceRegion | undefined;
@@ -183,6 +273,7 @@ const uiNodeBaseSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   layout: layoutSchema,
+  variants: uiVariantsSchema.optional(),
   props: z.record(z.string(), z.unknown()).default({}),
   sourceBinding: sourceBindingSchema.optional(),
   sourceRegion: sourceRegionSchema.optional(),

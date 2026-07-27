@@ -22,6 +22,7 @@ import {
   type BridgeTransactionOperation,
   type BridgeTransactionPlanView,
   type BridgeTransactionSourceApproval,
+  type BridgeVariantOperation,
   type ScreenImportRequest,
   type ScreenImportResult,
 } from "@afrodite/protocol";
@@ -106,6 +107,16 @@ export class ProjectBridgeClient {
   async planStylePatch(operation: BridgeStyleOperation): Promise<BridgePatchPlanView> {
     const response = await this.#request(
       "/api/style/plan",
+      { method: "POST", body: JSON.stringify({ operation }) },
+      bridgePlanResponseSchema,
+    );
+    if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
+    return response.plan;
+  }
+
+  async planVariantPatch(operation: BridgeVariantOperation): Promise<BridgePatchPlanView> {
+    const response = await this.#request(
+      "/api/variant/plan",
       { method: "POST", body: JSON.stringify({ operation }) },
       bridgePlanResponseSchema,
     );

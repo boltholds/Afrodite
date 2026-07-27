@@ -19,16 +19,19 @@ Afrodite can:
 11. import existing React or SolidJS screens into Semantic UI IR without executing them;
 12. expand bounded graphs of direct local JSX components with cycle detection and deterministic budgets;
 13. preserve unsupported behavior and unresolved imports as source-backed boundaries;
-14. apply several existing source-file changes through one reviewed staged transaction and shared verification boundary.
+14. apply several existing source-file changes through one reviewed staged transaction and shared verification boundary;
+15. represent responsive breakpoints and hover, focus, disabled, loading, and error states independently from base layout;
+16. materialize owned variants through static Tailwind utilities or generated CSS Module regions.
 
 ## Architecture
 
 Shared editor code remains framework-neutral.
 
-- `@afrodite/ui-ir` defines semantic layout, source bindings, style ownership, and source-backed regions.
+- `@afrodite/ui-ir` defines semantic layout, responsive/state variants, source bindings, style ownership, and source-backed regions.
 - `@afrodite/framework-core` defines framework adapters, source operations, deterministic patch plans, diagnostics, and verification steps.
 - `@afrodite/binding-core` discovers source targets and plans stable-marker installation.
-- `@afrodite/style-core` maps semantic layout to inline styles, Tailwind utilities, CSS Modules, or design tokens.
+- `@afrodite/style-core` maps semantic base layout to inline styles, Tailwind utilities, CSS Modules, or design tokens.
+- `@afrodite/variants-core` resolves effective variant layout and materializes owned responsive/state overrides.
 - `@afrodite/import-core` reconstructs bounded existing screens through syntax-specific import adapters.
 - `@afrodite/import-core/graph` follows direct local component imports through a provider-controlled, budgeted graph.
 - `@afrodite/verified-write` provides single-file and multi-file approval, staging, compare-and-swap writes, verification, and rollback.
@@ -41,7 +44,7 @@ React and SolidJS use separate adapter identities. They currently share static J
 ```text
 visual or semantic operation
   -> explicit source binding and ownership
-  -> framework or style strategy adapter
+  -> framework, style, or variant strategy adapter
   -> deterministic SourcePatchPlan
   -> exact unified diff
   -> approval bound to planId + sourceVersion
@@ -57,7 +60,7 @@ Afrodite does not accept browser-authored text edits or verification commands. T
 Several server-generated source plans can be grouped into one deterministic transaction:
 
 ```text
-semantic layout/style operations
+semantic layout/style/variant operations
   -> one adapter plan per target file
   -> exact diff for every file
   -> approval bound to transactionId + every source version
@@ -68,7 +71,7 @@ semantic layout/style operations
   -> keep every file or restore every committed file
 ```
 
-The transaction route accepts semantic `layout` and `style` operations. It does not accept client-authored offsets, replacements, temporary paths, or verification commands.
+The transaction route accepts semantic `layout`, `style`, and `variant` operations. It does not accept client-authored offsets, replacements, temporary paths, or verification commands.
 
 Every target must be unique and already exist. If any file changed after review, the transaction is rejected before the first complete commit. If a later staged commit or required verification fails, committed files are restored in reverse order through compare-and-swap writes.
 
@@ -107,7 +110,7 @@ A source binding may declare one strategy and the exact semantic layout properti
 
 Properties outside `managedProperties` remain handwritten. Dynamic or ambiguous owned regions are rejected rather than overwritten.
 
-Current strategies:
+Current base-style strategies:
 
 - React and SolidJS static inline style objects;
 - static Tailwind `className` or `class` strings;
@@ -115,6 +118,47 @@ Current strategies:
 - existing unique CSS custom-property tokens.
 
 See `docs/style-ownership.md` and `docs/style-ownership-examples.md`.
+
+## Responsive and component-state variants
+
+A node may keep partial layout overrides separately from its base layout:
+
+```json
+{
+  "responsive": [
+    {
+      "id": "tablet",
+      "minWidth": 768,
+      "layout": { "direction": "row", "gap": 16 }
+    }
+  ],
+  "states": [
+    {
+      "id": "loading",
+      "state": "loading",
+      "layout": { "display": "grid" }
+    }
+  ]
+}
+```
+
+Responsive overrides are resolved by matching width and ascending `minWidth`. Preview state priority is deterministic:
+
+```text
+hover -> focus -> disabled -> loading -> error
+```
+
+This is a semantic editor preview. Afrodite does not invent runtime loading/error logic, handlers, or application state.
+
+Current source materialization:
+
+- static Tailwind responsive, pseudo-state, disabled, and `data-state` utility variants;
+- one replaceable generated variant region for an explicitly owned CSS Module class;
+- explicit read-only diagnostics for static inline styles and unscoped design-token bindings.
+
+Every changed variant property must be included in `styleOwnership.managedProperties`. Handwritten dynamic classes and unrelated CSS remain untouched.
+
+See `docs/responsive-state-variants.md`.
 
 ## Existing screen and component-graph import
 
@@ -158,7 +202,7 @@ Canvas and Source Sync share one active session:
 
 ```text
 UiDocument + command history
-  -> exact layout transitions
+  -> exact layout and variant transitions
   -> source snapshots and patch plans
   -> reviewed diffs
   -> verified writes or rollback
@@ -170,15 +214,16 @@ See `docs/live-project-session.md`.
 
 ## Workspace
 
-- `apps/studio` — Canvas, Source Sync, Binding Manager, Style Ownership, bounded component-graph import, and Transactions workbenches.
+- `apps/studio` — Canvas, Source Sync, Binding Manager, Style Ownership, Variants, bounded component-graph import, and Transactions workbenches.
 - `apps/preview-host` — opaque-origin trusted SolidJS and React component preview.
 - `apps/project-bridge` — authenticated localhost source, import, planning, single-file verified-write, multi-file transaction, and rollback service.
-- `packages/ui-ir` — Semantic UI IR and provenance contracts.
+- `packages/ui-ir` — Semantic UI IR, variants, and provenance contracts.
 - `packages/canvas-engine` — reversible document commands and read-only enforcement.
 - `packages/project-session` — live session state and transition provenance.
 - `packages/framework-core` — framework and patch-plan contracts.
 - `packages/binding-core` — target discovery and stable-marker plans.
-- `packages/style-core` — style ownership strategies.
+- `packages/style-core` — base style ownership strategies.
+- `packages/variants-core` — responsive/state resolution and source materialization strategies.
 - `packages/import-core` — bounded single-file screen-import adapters.
 - `packages/import-core/graph` — multi-file component graph traversal, resolution, budgets, cycles, and provenance.
 - `packages/verified-write` — approval, staging, compare-and-swap, verification, and rollback.
@@ -186,7 +231,7 @@ See `docs/live-project-session.md`.
 - `packages/adapter-react` — React framework, binding, and screen-import adapter factories.
 - `packages/project-indexer` — static SolidJS component catalog.
 - `packages/indexer-react` — static React component catalog.
-- `packages/protocol` — catalog, preview, bridge, binding, style, import, and transaction schemas.
+- `packages/protocol` — catalog, preview, bridge, binding, style, variant, import, and transaction schemas.
 
 ## Development
 
@@ -204,7 +249,7 @@ Start a local bridge in another terminal:
 pnpm dev:bridge --project ./path/to/project
 ```
 
-The bridge listens on `127.0.0.1:4175` by default and prints a generated session token. Paste it into Source Sync, Binding Manager, Style Ownership, Screen Import, or Transactions.
+The bridge listens on `127.0.0.1:4175` by default and prints a generated session token. Paste it into Source Sync, Binding Manager, Style Ownership, Variants, Screen Import, or Transactions.
 
 Verification:
 
@@ -214,4 +259,4 @@ pnpm test
 pnpm build
 ```
 
-The next slice introduces responsive variants and component states in Semantic UI IR and materializes owned overrides through the multi-file transaction boundary.
+The next slice introduces a constrained semantic-operation API for project-aware AI commands such as `convert_to_grid`, `create_responsive_variant`, `replace_spacing_with_token`, and `explain_unpatchable_region`.

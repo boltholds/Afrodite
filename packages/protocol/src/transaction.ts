@@ -7,6 +7,7 @@ import {
   bridgeVerificationStepSchema,
 } from "./bridge";
 import { bridgeStyleOperationSchema } from "./style";
+import { bridgeVariantOperationSchema } from "./variant";
 
 export const bridgeTransactionOperationSchema = z.discriminatedUnion("type", [
   z.object({
@@ -16,6 +17,10 @@ export const bridgeTransactionOperationSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("style"),
     operation: bridgeStyleOperationSchema,
+  }),
+  z.object({
+    type: z.literal("variant"),
+    operation: bridgeVariantOperationSchema,
   }),
 ]);
 
