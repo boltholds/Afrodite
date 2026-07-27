@@ -104,6 +104,14 @@ export {
   liveSessionPublishRequestSchema,
   liveSessionResponseSchema,
   liveSessionSnapshotSchema,
+  reviewedDocumentComparisonSchema,
+  reviewedExecutionComparisonSchema,
+  reviewedExecutionPreparationSchema,
+  reviewedExecutionPrepareRequestSchema,
+  reviewedExecutionRecordRequestSchema,
+  reviewedExecutionRecordSchema,
+  reviewedExecutionSourceResultSchema,
+  reviewedSourceComparisonSchema,
 } from "./review";
 
 export type {
@@ -205,4 +213,12 @@ export type {
   LiveSessionPublishRequest,
   LiveSessionResponse,
   LiveSessionSnapshot,
+  ReviewedDocumentComparison,
+  ReviewedExecutionComparison,
+  ReviewedExecutionPreparation,
+  ReviewedExecutionPrepareRequest,
+  ReviewedExecutionRecord,
+  ReviewedExecutionRecordRequest,
+  ReviewedExecutionSourceResult,
+  ReviewedSourceComparison,
 } from "./review";
