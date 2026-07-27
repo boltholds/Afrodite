@@ -15,6 +15,7 @@
     "@afrodite/adapter-solid": "workspace:*",
     "@afrodite/binding-core": "workspace:*",
     "@afrodite/framework-core": "workspace:*",
+    "@afrodite/import-core": "workspace:*",
     "@afrodite/protocol": "workspace:*",
     "@afrodite/style-core": "workspace:*",
     "@afrodite/verified-write": "workspace:*",
