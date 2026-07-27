@@ -77,17 +77,30 @@ jobs:
       - name: Validate Compose model
         run: |
           mkdir -p .ci-logs
-          docker compose config --quiet 2>&1 | tee .ci-logs/docker-compose-config.log
+          docker compose config --quiet > .ci-logs/docker-compose-config.log 2>&1
+          echo 'Compose model is valid.'
 
       - name: Build Docker image targets
         env:
           DOCKER_BUILDKIT: "1"
         run: |
-          docker compose build studio preview-host project-bridge agent-gateway tunnel-client 2>&1 | tee .ci-logs/docker-build.log
+          if ! docker compose build studio preview-host project-bridge agent-gateway tunnel-client > .ci-logs/docker-build.log 2>&1; then
+            tail -n 120 .ci-logs/docker-build.log
+            exit 1
+          fi
+          echo 'All Docker image targets built successfully.'
 
       - name: Start Dockerized core services
         run: |
-          docker compose up -d --no-build studio preview-host project-bridge agent-gateway
+          set +e
+          docker compose up -d --no-build studio preview-host project-bridge agent-gateway > .ci-logs/docker-up.log 2>&1
+          status=$?
+          cat .ci-logs/docker-up.log
+          docker compose ps
+          if [ "$status" -ne 0 ]; then
+            docker compose logs --no-color studio preview-host project-bridge agent-gateway || true
+          fi
+          exit "$status"
 
       - name: Smoke test Dockerized core services
         run: |
@@ -104,7 +117,7 @@ jobs:
             if [ "$attempt" -eq 30 ]; then
               echo 'Dockerized core services did not become healthy.' >&2
               docker compose ps
-              docker compose logs studio preview-host project-bridge agent-gateway
+              docker compose logs --no-color studio preview-host project-bridge agent-gateway
               exit 1
             fi
             sleep 2
