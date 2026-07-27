@@ -4,6 +4,7 @@ import { ManualProjectStudio } from "./ManualProjectStudio";
 import { MotionWorkbench } from "./MotionWorkbench";
 import { ReviewInboxWorkbench } from "./ReviewInboxWorkbench";
 import { ScreenImportWorkbench } from "./ScreenImportWorkbench";
+import { SemanticBatchWorkbench } from "./SemanticBatchWorkbench";
 import { SemanticOperationsWorkbench } from "./SemanticOperationsWorkbench";
 import { StudioCollaborationBridge } from "./StudioCollaborationBridge";
 import { StyleOwnershipWorkbench } from "./StyleOwnershipWorkbench";
@@ -19,6 +20,7 @@ import "./screen-import.css";
 import "./transaction.css";
 import "./variant.css";
 import "./semantic-operations.css";
+import "./semantic-batch.css";
 import "./review-inbox.css";
 import "./manual-interaction.css";
 import "./motion.css";
@@ -29,7 +31,16 @@ if (!root) {
   throw new Error("Afrodite Studio root element was not found");
 }
 
-type StudioMode = "project" | "motion" | "style-ownership" | "screen-import" | "transaction" | "variants" | "semantic" | "reviews";
+type StudioMode =
+  | "project"
+  | "motion"
+  | "style-ownership"
+  | "screen-import"
+  | "transaction"
+  | "variants"
+  | "semantic"
+  | "semantic-batch"
+  | "reviews";
 
 function StudioRoot() {
   const [mode, setMode] = createSignal<StudioMode>("project");
@@ -39,6 +50,7 @@ function StudioRoot() {
       <nav class="studio-mode-switcher" aria-label="Afrodite Studio mode">
         <button classList={{ active: mode() === "project" }} onClick={() => setMode("project")}>Project session</button>
         <button classList={{ active: mode() === "motion" }} onClick={() => setMode("motion")}>Motion</button>
+        <button classList={{ active: mode() === "semantic-batch" }} onClick={() => setMode("semantic-batch")}>Batches</button>
         <button classList={{ active: mode() === "reviews" }} onClick={() => setMode("reviews")}>Review inbox</button>
         <button classList={{ active: mode() === "style-ownership" }} onClick={() => setMode("style-ownership")}>Style ownership</button>
         <button classList={{ active: mode() === "variants" }} onClick={() => setMode("variants")}>Variants</button>
@@ -47,28 +59,32 @@ function StudioRoot() {
         <button classList={{ active: mode() === "transaction" }} onClick={() => setMode("transaction")}>Transactions</button>
       </nav>
       <Show when={mode() === "reviews"} fallback={
-        <Show when={mode() === "semantic"} fallback={
-          <Show when={mode() === "transaction"} fallback={
-            <Show when={mode() === "screen-import"} fallback={
-              <Show when={mode() === "variants"} fallback={
-                <Show when={mode() === "style-ownership"} fallback={
-                  <Show when={mode() === "motion"} fallback={<ManualProjectStudio />}>
-                    <MotionWorkbench />
+        <Show when={mode() === "semantic-batch"} fallback={
+          <Show when={mode() === "semantic"} fallback={
+            <Show when={mode() === "transaction"} fallback={
+              <Show when={mode() === "screen-import"} fallback={
+                <Show when={mode() === "variants"} fallback={
+                  <Show when={mode() === "style-ownership"} fallback={
+                    <Show when={mode() === "motion"} fallback={<ManualProjectStudio />}>
+                      <MotionWorkbench />
+                    </Show>
+                  }>
+                    <StyleOwnershipWorkbench />
                   </Show>
                 }>
-                  <StyleOwnershipWorkbench />
+                  <VariantWorkbench />
                 </Show>
               }>
-                <VariantWorkbench />
+                <ScreenImportWorkbench onOpenProjectSession={() => setMode("project")} />
               </Show>
             }>
-              <ScreenImportWorkbench onOpenProjectSession={() => setMode("project")} />
+              <TransactionWorkbench />
             </Show>
           }>
-            <TransactionWorkbench />
+            <SemanticOperationsWorkbench />
           </Show>
         }>
-          <SemanticOperationsWorkbench />
+          <SemanticBatchWorkbench />
         </Show>
       }>
         <ReviewInboxWorkbench />
