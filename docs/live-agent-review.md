@@ -103,6 +103,14 @@ Collaboration records survive Studio and gateway restarts in:
 <project-root>/.afrodite/collaboration.json
 ```
 
+This file contains the full Semantic UI IR and exact review diffs. Project bridge creates the directory with mode `0700` and replacement files with mode `0600` on POSIX systems. Add the following rule to the target application's `.gitignore` so local review data is not committed:
+
+```gitignore
+.afrodite/
+```
+
+On Windows, filesystem ACLs remain controlled by the current user and host configuration rather than POSIX mode bits.
+
 Pending review records become `expired` after their request expiry time. Source plans have their own project-bridge TTL and may expire earlier or later independently. Persisting a review does not persist executable text edits outside the existing server plan store and does not extend source-plan lifetime.
 
 ## Current limits
