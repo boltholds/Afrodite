@@ -96,11 +96,63 @@ export const sourceBindingSchema = z.object({
   styleOwnership: styleOwnershipSchema.optional(),
 });
 
+export const sourceRegionModeSchema = z.enum([
+  "editable",
+  "requires-binding",
+  "read-only",
+]);
+
+export const sourceRegionKindSchema = z.enum([
+  "element",
+  "component",
+  "fragment",
+  "text",
+  "expression",
+  "conditional",
+  "iteration",
+  "call",
+  "unsupported",
+]);
+
+export const sourceRegionSchema = z.object({
+  frameworkId: frameworkIdentifierSchema,
+  adapterId: z.string().min(1),
+  repositoryPath: z.string().min(1),
+  sourceVersion: z.string().min(1),
+  exportName: z.string().min(1).optional(),
+  start: z.number().int().nonnegative(),
+  end: z.number().int().nonnegative(),
+  line: z.number().int().positive(),
+  column: z.number().int().positive(),
+  mode: sourceRegionModeSchema,
+  regionKind: sourceRegionKindSchema,
+  excerpt: z.string().max(500),
+  reason: z.string().min(1).optional(),
+}).superRefine((region, context) => {
+  if (region.end < region.start) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["end"],
+      message: "Source region end must not precede its start.",
+    });
+  }
+  if (region.mode === "read-only" && !region.reason) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["reason"],
+      message: "Read-only source regions require an explicit reason.",
+    });
+  }
+});
+
 export type LayoutDirection = z.infer<typeof layoutDirectionSchema>;
 export type Layout = z.infer<typeof layoutSchema>;
 export type StyleProperty = z.infer<typeof stylePropertySchema>;
 export type StyleOwnership = z.infer<typeof styleOwnershipSchema>;
 export type SourceBinding = z.infer<typeof sourceBindingSchema>;
+export type SourceRegionMode = z.infer<typeof sourceRegionModeSchema>;
+export type SourceRegionKind = z.infer<typeof sourceRegionKindSchema>;
+export type SourceRegion = z.infer<typeof sourceRegionSchema>;
 
 interface UiNodeBase {
   id: string;
@@ -108,6 +160,7 @@ interface UiNodeBase {
   layout: Layout;
   props: Record<string, unknown>;
   sourceBinding?: SourceBinding | undefined;
+  sourceRegion?: SourceRegion | undefined;
   children: UiNode[];
 }
 
@@ -119,6 +172,11 @@ export type UiNode =
   | (UiNodeBase & {
       kind: "component";
       component: string;
+    })
+  | (UiNodeBase & {
+      kind: "source-region";
+      regionKind: SourceRegionKind;
+      sourceRegion: SourceRegion;
     });
 
 const uiNodeBaseSchema = z.object({
@@ -127,6 +185,7 @@ const uiNodeBaseSchema = z.object({
   layout: layoutSchema,
   props: z.record(z.string(), z.unknown()).default({}),
   sourceBinding: sourceBindingSchema.optional(),
+  sourceRegion: sourceRegionSchema.optional(),
 });
 
 export const uiNodeSchema: z.ZodType<UiNode> = z.lazy(() =>
@@ -141,6 +200,12 @@ export const uiNodeSchema: z.ZodType<UiNode> = z.lazy(() =>
       z.object({
         kind: z.literal("component"),
         component: z.string().min(1),
+        children: z.array(uiNodeSchema).default([]),
+      }),
+      z.object({
+        kind: z.literal("source-region"),
+        regionKind: sourceRegionKindSchema,
+        sourceRegion: sourceRegionSchema,
         children: z.array(uiNodeSchema).default([]),
       }),
     ]),
