@@ -20,33 +20,113 @@ export interface ResolvedMotionStyle {
   readonly backgroundColor?: string;
 }
 
+export type MotionPreset =
+  | "fade-in"
+  | "slide-up"
+  | "scale-in"
+  | "spin"
+  | "pulse"
+  | "color-shift";
+
 let motionCommandSequence = 0;
 let defaultClipSequence = 0;
 
 export function createDefaultAnimationClip(name = "New animation"): AnimationClip {
+  return createAnimationPreset("fade-in", name);
+}
+
+export function createAnimationPreset(
+  preset: MotionPreset,
+  name = presetName(preset),
+): AnimationClip {
   defaultClipSequence += 1;
-  return animationClipSchema.parse({
-    id: `animation-${defaultClipSequence}`,
+  const base = {
+    id: `${preset}-${defaultClipSequence}`,
     name,
     enabled: true,
-    trigger: { type: "manual" },
+    priority: 0,
+    blend: "replace" as const,
+    trigger: { type: "manual" as const },
     timeline: {
-      durationMs: 300,
+      durationMs: preset === "spin" ? 600 : 300,
       delayMs: 0,
-      easing: "ease-out",
-      iterations: 1,
-      direction: "normal",
-      fill: "both",
+      easing: preset === "pulse" ? "ease-in-out" as const : "ease-out" as const,
+      iterations: preset === "pulse" ? 2 : 1,
+      direction: preset === "pulse" ? "alternate" as const : "normal" as const,
+      fill: "both" as const,
     },
-    tracks: [{
-      id: "opacity",
-      property: "opacity",
-      keyframes: [
-        { offset: 0, value: 0 },
-        { offset: 1, value: 1 },
-      ],
-    }],
-  });
+  };
+
+  switch (preset) {
+    case "slide-up":
+      return animationClipSchema.parse({
+        ...base,
+        tracks: [{
+          id: "translate-y",
+          property: "transform.y",
+          keyframes: [{ offset: 0, value: 24 }, { offset: 1, value: 0 }],
+        }],
+      });
+    case "scale-in":
+      return animationClipSchema.parse({
+        ...base,
+        tracks: [{
+          id: "scale",
+          property: "transform.scale",
+          keyframes: [{ offset: 0, value: 0.92 }, { offset: 1, value: 1 }],
+        }],
+      });
+    case "spin":
+      return animationClipSchema.parse({
+        ...base,
+        timeline: { ...base.timeline, easing: "linear" },
+        tracks: [{
+          id: "rotate",
+          property: "transform.rotate",
+          keyframes: [{ offset: 0, value: 0 }, { offset: 1, value: 360 }],
+        }],
+      });
+    case "pulse":
+      return animationClipSchema.parse({
+        ...base,
+        blend: "multiply",
+        tracks: [{
+          id: "scale",
+          property: "transform.scale",
+          keyframes: [{ offset: 0, value: 1 }, { offset: 1, value: 1.06 }],
+        }],
+      });
+    case "color-shift":
+      return animationClipSchema.parse({
+        ...base,
+        tracks: [{
+          id: "background-color",
+          property: "backgroundColor",
+          keyframes: [{ offset: 0, value: "#111827" }, { offset: 1, value: "#ff3bbd" }],
+        }],
+      });
+    case "fade-in":
+    default:
+      return animationClipSchema.parse({
+        ...base,
+        tracks: [{
+          id: "opacity",
+          property: "opacity",
+          keyframes: [{ offset: 0, value: 0 }, { offset: 1, value: 1 }],
+        }],
+      });
+  }
+}
+
+export function duplicateAnimationClip(
+  clip: AnimationClip,
+  existing: readonly AnimationClip[],
+): AnimationClip {
+  const base = `${clip.id}-copy`;
+  let id = base;
+  let sequence = 2;
+  while (existing.some((candidate) => candidate.id === id)) id = `${base}-${sequence++}`;
+  return animationClipSchema.parse({ ...cloneJson(clip), id, name: `${clip.name} copy` });
 }
 
 export function createReplaceAnimationsCommand(
@@ -106,7 +186,7 @@ export function resolveMotionStyle(
   if (progress === undefined) return {};
   const result: Record<string, number | string> = {};
   for (const track of clip.tracks) {
-    result[track.property] = resolveTrackValue(track, progress);
+    result[track.property] = resolveMotionTrackValue(track, progress);
   }
   return {
     ...(typeof result.opacity === "number" ? { opacity: result.opacity } : {}),
@@ -117,6 +197,60 @@ export function resolveMotionStyle(
     ...(typeof result.borderRadius === "number" ? { borderRadius: result.borderRadius } : {}),
     ...(typeof result.backgroundColor === "string" ? { backgroundColor: result.backgroundColor } : {}),
   };
+}
+
+export function resolveMotionComposition(
+  clips: readonly AnimationClip[],
+  elapsedMs: number,
+  activeClipIds?: ReadonlySet<string>,
+): ResolvedMotionStyle {
+  const active = clips
+    .filter((clip) => clip.enabled && (!activeClipIds || activeClipIds.has(clip.id)))
+    .slice()
+    .sort((left, right) => left.priority - right.priority || left.id.localeCompare(right.id));
+
+  const result: Record<keyof ResolvedMotionStyle, number | string | undefined> = {
+    opacity: undefined,
+    translateX: undefined,
+    translateY: undefined,
+    scale: undefined,
+    rotate: undefined,
+    borderRadius: undefined,
+    backgroundColor: undefined,
+  };
+
+  for (const clip of active) {
+    const style = resolveMotionStyle(clip, elapsedMs);
+    composeNumber(result, "opacity", style.opacity, clip.blend, 1, true);
+    composeNumber(result, "translateX", style.translateX, clip.blend, 0);
+    composeNumber(result, "translateY", style.translateY, clip.blend, 0);
+    composeNumber(result, "scale", style.scale, clip.blend, 1, false, true);
+    composeNumber(result, "rotate", style.rotate, clip.blend, 0);
+    composeNumber(result, "borderRadius", style.borderRadius, clip.blend, 0, false, true);
+    if (style.backgroundColor !== undefined) result.backgroundColor = style.backgroundColor;
+  }
+
+  return {
+    ...(typeof result.opacity === "number" ? { opacity: result.opacity } : {}),
+    ...(typeof result.translateX === "number" ? { translateX: result.translateX } : {}),
+    ...(typeof result.translateY === "number" ? { translateY: result.translateY } : {}),
+    ...(typeof result.scale === "number" ? { scale: result.scale } : {}),
+    ...(typeof result.rotate === "number" ? { rotate: result.rotate } : {}),
+    ...(typeof result.borderRadius === "number" ? { borderRadius: result.borderRadius } : {}),
+    ...(typeof result.backgroundColor === "string" ? { backgroundColor: result.backgroundColor } : {}),
+  };
+}
+
+export function resolveMotionCompositionDuration(
+  clips: readonly AnimationClip[],
+  activeClipIds?: ReadonlySet<string>,
+): number {
+  return clips
+    .filter((clip) => clip.enabled && (!activeClipIds || activeClipIds.has(clip.id)))
+    .reduce((maximum, clip) => Math.max(
+      maximum,
+      clip.timeline.delayMs + clip.timeline.durationMs * clip.timeline.iterations,
+    ), 0);
 }
 
 export function resolveMotionProgress(
@@ -142,7 +276,7 @@ export function resolveMotionProgress(
   return applyEasing(applyDirection(raw, iteration, direction), easing);
 }
 
-function resolveTrackValue(track: MotionTrack, progress: number): number | string {
+export function resolveMotionTrackValue(track: MotionTrack, progress: number): number | string {
   const first = track.keyframes[0]!;
   const last = track.keyframes.at(-1)!;
   if (progress <= first.offset) return first.value;
@@ -156,6 +290,25 @@ function resolveTrackValue(track: MotionTrack, progress: number): number | strin
     return interpolateKeyframes(left, right, segment);
   }
   return last.value;
+}
+
+function composeNumber(
+  result: Record<keyof ResolvedMotionStyle, number | string | undefined>,
+  key: keyof ResolvedMotionStyle,
+  value: number | undefined,
+  blend: AnimationClip["blend"],
+  identity: number,
+  clampUnit = false,
+  clampNonNegative = false,
+): void {
+  if (value === undefined) return;
+  const current = typeof result[key] === "number" ? result[key] as number : identity;
+  let next = value;
+  if (blend === "add") next = current + value;
+  if (blend === "multiply") next = current * value;
+  if (clampUnit) next = Math.max(0, Math.min(1, next));
+  if (clampNonNegative) next = Math.max(0, next);
+  result[key] = next;
 }
 
 function interpolateKeyframes(
@@ -197,6 +350,10 @@ function applyEasing(
   }
 }
 
+function presetName(preset: MotionPreset): string {
+  return preset.split("-").map((part) => part[0]!.toUpperCase() + part.slice(1)).join(" ");
+}
+
 function requireEditableNode(document: UiDocument, nodeId: string): UiNode {
   const node = findNode(document.root, nodeId);
   if (!node) throw new Error(`Cannot edit animation: node ${nodeId} was not found`);
@@ -234,7 +391,11 @@ function updateNode(
 }
 
 function cloneAnimations(animations: readonly AnimationClip[]): AnimationClip[] {
-  return JSON.parse(JSON.stringify(animations)) as AnimationClip[];
+  return cloneJson(animations);
+}
+
+function cloneJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }
 
 function createMotionCommandId(nodeId: string): string {
