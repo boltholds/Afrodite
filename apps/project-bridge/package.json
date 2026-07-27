@@ -16,6 +16,7 @@
     "@afrodite/binding-core": "workspace:*",
     "@afrodite/framework-core": "workspace:*",
     "@afrodite/import-core": "workspace:*",
+    "@afrodite/motion-core": "workspace:*",
     "@afrodite/protocol": "workspace:*",
     "@afrodite/semantic-ops": "workspace:*",
     "@afrodite/style-core": "workspace:*",
