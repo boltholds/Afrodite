@@ -38,6 +38,7 @@ import type {
   BridgeTransactionOperation,
   BridgeTransactionPlanView,
   BridgeTransactionSourceApproval,
+  BridgeVariantOperation,
   ScreenImportRequest,
   ScreenImportResult,
 } from "@afrodite/protocol";
@@ -46,6 +47,11 @@ import {
   resolveStyleSourcePath,
   type StylePatchOperation,
 } from "@afrodite/style-core";
+import {
+  createDefaultVariantStrategyRegistry,
+  resolveVariantSourcePath,
+  type VariantPatchOperation,
+} from "@afrodite/variants-core";
 import {
   FileSystemSourceRepository,
   ProcessVerificationRunner,
@@ -100,6 +106,7 @@ export class ProjectBridgeService {
   readonly #bindingRegistry = new SourceBindingAdapterRegistry();
   readonly #importRegistry = new ScreenImportAdapterRegistry();
   readonly #styleRegistry = createDefaultStyleStrategyRegistry();
+  readonly #variantRegistry = createDefaultVariantStrategyRegistry();
   readonly #plans = new Map<string, StoredPlan>();
   readonly #transactions = new Map<string, StoredTransaction>();
   readonly #planTtlMs: number;
@@ -220,6 +227,12 @@ export class ProjectBridgeService {
     return this.#createPlanView(plan, source, true);
   }
 
+  async planVariantPatch(operation: BridgeVariantOperation): Promise<BridgePatchPlanView> {
+    this.#pruneExpiredPlans();
+    const { plan, source } = await this.#createVariantPlan(operation);
+    return this.#createPlanView(plan, source, true);
+  }
+
   async planTransaction(
     operations: readonly BridgeTransactionOperation[],
   ): Promise<BridgeTransactionPlanView> {
@@ -227,10 +240,16 @@ export class ProjectBridgeService {
     const plans: SourcePatchPlan[] = [];
 
     for (const entry of operations) {
-      if (entry.type === "layout") {
-        plans.push((await this.#createLayoutPlan(entry.operation)).plan);
-      } else {
-        plans.push((await this.#createStylePlan(entry.operation)).plan);
+      switch (entry.type) {
+        case "layout":
+          plans.push((await this.#createLayoutPlan(entry.operation)).plan);
+          break;
+        case "style":
+          plans.push((await this.#createStylePlan(entry.operation)).plan);
+          break;
+        case "variant":
+          plans.push((await this.#createVariantPlan(entry.operation)).plan);
+          break;
       }
     }
 
@@ -360,17 +379,7 @@ export class ProjectBridgeService {
     operation: BridgeStyleOperation,
   ): Promise<{ readonly plan: SourcePatchPlan; readonly source: SourceSnapshot }> {
     const normalized = operation as StylePatchOperation;
-    if (operation.binding.styleOwnership) {
-      const serializedBinding = JSON.stringify(operation.binding.styleOwnership);
-      const serializedOperation = JSON.stringify(operation.ownership);
-      if (serializedBinding !== serializedOperation) {
-        throw new ProjectBridgeServiceError(
-          "STYLE_OWNERSHIP_MISMATCH",
-          "The requested ownership does not match the ownership stored in the source binding.",
-        );
-      }
-    }
-
+    this.#assertOwnershipMatches(operation.binding.styleOwnership, operation.ownership);
     const strategy = this.#styleRegistry.resolve(normalized);
     if (!strategy) {
       throw new ProjectBridgeServiceError(
@@ -382,6 +391,33 @@ export class ProjectBridgeService {
     const sourcePath = resolveStyleSourcePath(normalized);
     const source = await this.#repository.read(sourcePath);
     return { plan: strategy.plan(normalized, source), source };
+  }
+
+  async #createVariantPlan(
+    operation: BridgeVariantOperation,
+  ): Promise<{ readonly plan: SourcePatchPlan; readonly source: SourceSnapshot }> {
+    const normalized = operation as VariantPatchOperation;
+    this.#assertOwnershipMatches(operation.binding.styleOwnership, operation.ownership);
+    const strategy = this.#variantRegistry.resolve(normalized);
+    if (!strategy) {
+      throw new ProjectBridgeServiceError(
+        "VARIANT_STRATEGY_NOT_FOUND",
+        `No variant strategy supports ${operation.ownership.strategy} for ${operation.binding.frameworkId ?? "the selected framework"}.`,
+      );
+    }
+    const sourcePath = resolveVariantSourcePath(normalized);
+    const source = await this.#repository.read(sourcePath);
+    return { plan: strategy.plan(normalized, source), source };
+  }
+
+  #assertOwnershipMatches(bindingOwnership: unknown, operationOwnership: unknown): void {
+    if (bindingOwnership === undefined) return;
+    if (JSON.stringify(bindingOwnership) !== JSON.stringify(operationOwnership)) {
+      throw new ProjectBridgeServiceError(
+        "STYLE_OWNERSHIP_MISMATCH",
+        "The requested ownership does not match the ownership stored in the source binding.",
+      );
+    }
   }
 
   #createPlanView(
