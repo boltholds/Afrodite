@@ -21,6 +21,7 @@ export {
 
 export {
   animationClipSchema,
+  animationClipsSchema,
   motionDirectionSchema,
   motionEasingSchema,
   motionFillSchema,
