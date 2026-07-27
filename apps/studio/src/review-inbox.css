@@ -153,13 +153,17 @@
 .source-result.status-applied,
 .execution-record.status-applied,
 .execution-record.status-document-only,
-.execution-record.status-source-only { border-color: rgba(99, 238, 196, 0.44); }
+.execution-record.status-source-only,
+.transaction-receipt.status-applied { border-color: rgba(99, 238, 196, 0.44); }
 .review-summary.status-rejected,
 .review-summary.status-expired,
 .source-result.status-rejected,
 .source-result.status-rollback-failed,
-.execution-record.status-failed { border-color: rgba(255, 91, 125, 0.46); }
-.execution-record.status-partial { border-color: rgba(255, 182, 92, 0.5); }
+.execution-record.status-failed,
+.transaction-receipt.status-rejected,
+.transaction-receipt.status-rollback-failed { border-color: rgba(255, 91, 125, 0.46); }
+.execution-record.status-partial,
+.transaction-receipt.status-rolled-back { border-color: rgba(255, 182, 92, 0.5); }
 
 .source-result {
   padding: 9px;
@@ -201,15 +205,70 @@
 
 .fresh-source-plan,
 .fresh-document-effect,
-.execution-history {
+.execution-history,
+.fresh-transaction-plan,
+.transaction-receipt {
   margin-top: 14px;
 }
 
-.fresh-source-plan {
+.fresh-source-plan,
+.fresh-transaction-plan,
+.transaction-receipt {
   padding: 12px;
-  border: 1px solid rgba(255, 105, 214, 0.16);
   border-radius: 10px;
   background: rgba(8, 6, 13, 0.55);
+}
+
+.fresh-source-plan {
+  border: 1px solid rgba(255, 105, 214, 0.16);
+}
+
+.fresh-transaction-plan {
+  border: 1px solid rgba(97, 223, 255, 0.36);
+  box-shadow: inset 0 0 28px rgba(97, 223, 255, 0.035);
+}
+
+.transaction-receipt {
+  border: 1px solid rgba(97, 223, 255, 0.22);
+}
+
+.transaction-file-versions {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0;
+}
+
+.transaction-file-versions > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 9px;
+  border: 1px solid rgba(97, 223, 255, 0.13);
+  border-radius: 8px;
+}
+
+.transaction-file-versions code,
+.transaction-receipt code {
+  overflow-wrap: anywhere;
+}
+
+.verification-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.verification-step code {
+  overflow-wrap: anywhere;
+  color: #b8aabd;
+}
+
+.transaction-receipt small {
+  display: block;
+  margin-top: 7px;
+  color: #b8aabd;
 }
 
 .approval-check {
@@ -244,4 +303,6 @@
   .review-inbox-grid { grid-template-columns: 1fr; }
   .review-summary dl,
   .execution-review dl { grid-template-columns: 1fr; }
+  .transaction-file-versions > div,
+  .verification-step { grid-template-columns: 1fr; }
 }
