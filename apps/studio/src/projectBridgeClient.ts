@@ -5,6 +5,8 @@ import {
   bridgeHealthResponseSchema,
   bridgePlanResponseSchema,
   bridgeSourceResponseSchema,
+  bridgeTransactionApplyResponseSchema,
+  bridgeTransactionPlanResponseSchema,
   screenImportResponseSchema,
   type BindingDiscoveryRequest,
   type BindingDiscoveryResult,
@@ -16,6 +18,10 @@ import {
   type BridgePatchPlanView,
   type BridgeSourceSnapshot,
   type BridgeStyleOperation,
+  type BridgeTransactionApplyResult,
+  type BridgeTransactionOperation,
+  type BridgeTransactionPlanView,
+  type BridgeTransactionSourceApproval,
   type ScreenImportRequest,
   type ScreenImportResult,
 } from "@afrodite/protocol";
@@ -119,6 +125,35 @@ export class ProjectBridgeClient {
         body: JSON.stringify({ planId, sourceVersion, approvedBy }),
       },
       bridgeApplyResponseSchema,
+    );
+    if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
+    return response.result;
+  }
+
+  async planTransaction(
+    operations: readonly BridgeTransactionOperation[],
+  ): Promise<BridgeTransactionPlanView> {
+    const response = await this.#request(
+      "/api/transaction/plan",
+      { method: "POST", body: JSON.stringify({ operations }) },
+      bridgeTransactionPlanResponseSchema,
+    );
+    if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
+    return response.transaction;
+  }
+
+  async applyTransaction(
+    transactionId: string,
+    sources: readonly BridgeTransactionSourceApproval[],
+    approvedBy = "afrodite-studio",
+  ): Promise<BridgeTransactionApplyResult> {
+    const response = await this.#request(
+      "/api/transaction/apply",
+      {
+        method: "POST",
+        body: JSON.stringify({ transactionId, sources, approvedBy }),
+      },
+      bridgeTransactionApplyResponseSchema,
     );
     if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
     return response.result;

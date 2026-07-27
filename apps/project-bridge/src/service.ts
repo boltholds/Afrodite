@@ -34,6 +34,10 @@ import type {
   BridgePatchPlanView,
   BridgeSourceSnapshot,
   BridgeStyleOperation,
+  BridgeTransactionApplyResult,
+  BridgeTransactionOperation,
+  BridgeTransactionPlanView,
+  BridgeTransactionSourceApproval,
   ScreenImportRequest,
   ScreenImportResult,
 } from "@afrodite/protocol";
@@ -45,8 +49,13 @@ import {
 import {
   FileSystemSourceRepository,
   ProcessVerificationRunner,
+  VerifiedMultiFileTransactionService,
   VerifiedWriteService,
+  createMultiFileTransactionPlan,
   createPatchApproval,
+  type MultiFileTransactionApproval,
+  type MultiFileTransactionPlan,
+  type MultiFileTransactionPreview,
   type SourceRepository,
   type VerificationRunner,
 } from "@afrodite/verified-write";
@@ -55,6 +64,12 @@ import { createUnifiedDiff } from "@afrodite/verified-write/diff";
 interface StoredPlan {
   readonly plan: SourcePatchPlan;
   readonly preview: PatchPreview;
+  readonly createdAt: number;
+}
+
+interface StoredTransaction {
+  readonly plan: MultiFileTransactionPlan;
+  readonly preview: MultiFileTransactionPreview;
   readonly createdAt: number;
 }
 
@@ -80,11 +95,13 @@ export class ProjectBridgeService {
   readonly #projectRoot: string;
   readonly #repository: SourceRepository;
   readonly #writeService: VerifiedWriteService;
+  readonly #transactionService: VerifiedMultiFileTransactionService;
   readonly #registry = new FrameworkAdapterRegistry();
   readonly #bindingRegistry = new SourceBindingAdapterRegistry();
   readonly #importRegistry = new ScreenImportAdapterRegistry();
   readonly #styleRegistry = createDefaultStyleStrategyRegistry();
   readonly #plans = new Map<string, StoredPlan>();
+  readonly #transactions = new Map<string, StoredTransaction>();
   readonly #planTtlMs: number;
   readonly #now: () => number;
 
@@ -95,6 +112,7 @@ export class ProjectBridgeService {
       projectRoot: this.#projectRoot,
     });
     this.#writeService = new VerifiedWriteService(this.#repository, runner);
+    this.#transactionService = new VerifiedMultiFileTransactionService(this.#repository, runner);
     this.#planTtlMs = options.planTtlMs ?? 10 * 60_000;
     this.#now = options.now ?? Date.now;
 
@@ -192,51 +210,46 @@ export class ProjectBridgeService {
 
   async planPatch(operation: BridgeOperation): Promise<BridgePatchPlanView> {
     this.#pruneExpiredPlans();
-    const adapter = this.#registry.resolveForBinding(operation.binding);
-    if (!adapter) {
-      throw new ProjectBridgeServiceError(
-        "ADAPTER_NOT_FOUND",
-        "No registered framework adapter matches the selected source binding.",
-      );
-    }
-    if (!adapter.descriptor.capabilities.sourcePatching || !adapter.planPatch) {
-      throw new ProjectBridgeServiceError(
-        "SOURCE_PATCHING_UNAVAILABLE",
-        `${adapter.descriptor.displayName} does not provide source patch planning.`,
-      );
-    }
-
-    const source = await this.#repository.read(operation.binding.repositoryPath);
-    const plan = adapter.planPatch(operation as FrameworkOperation, source);
+    const { plan, source } = await this.#createLayoutPlan(operation);
     return this.#createPlanView(plan, source, true);
   }
 
   async planStylePatch(operation: BridgeStyleOperation): Promise<BridgePatchPlanView> {
     this.#pruneExpiredPlans();
-    const normalized = operation as StylePatchOperation;
-    if (operation.binding.styleOwnership) {
-      const serializedBinding = JSON.stringify(operation.binding.styleOwnership);
-      const serializedOperation = JSON.stringify(operation.ownership);
-      if (serializedBinding !== serializedOperation) {
-        throw new ProjectBridgeServiceError(
-          "STYLE_OWNERSHIP_MISMATCH",
-          "The requested ownership does not match the ownership stored in the source binding.",
-        );
+    const { plan, source } = await this.#createStylePlan(operation);
+    return this.#createPlanView(plan, source, true);
+  }
+
+  async planTransaction(
+    operations: readonly BridgeTransactionOperation[],
+  ): Promise<BridgeTransactionPlanView> {
+    this.#pruneExpiredPlans();
+    const plans: SourcePatchPlan[] = [];
+
+    for (const entry of operations) {
+      if (entry.type === "layout") {
+        plans.push((await this.#createLayoutPlan(entry.operation)).plan);
+      } else {
+        plans.push((await this.#createStylePlan(entry.operation)).plan);
       }
     }
 
-    const strategy = this.#styleRegistry.resolve(normalized);
-    if (!strategy) {
-      throw new ProjectBridgeServiceError(
-        "STYLE_STRATEGY_NOT_FOUND",
-        `No style strategy supports ${operation.ownership.strategy} for ${operation.binding.frameworkId ?? "the selected framework"}.`,
-      );
-    }
+    const transaction = createMultiFileTransactionPlan({ plans });
+    const preview = await this.#transactionService.preview(transaction);
+    const view = this.#createTransactionView(preview);
+    const blocking = [
+      ...preview.diagnostics,
+      ...preview.files.flatMap((file) => file.diagnostics),
+    ].some((diagnostic) => diagnostic.severity === "error");
 
-    const sourcePath = resolveStyleSourcePath(normalized);
-    const source = await this.#repository.read(sourcePath);
-    const plan = strategy.plan(normalized, source);
-    return this.#createPlanView(plan, source, true);
+    if (!blocking && preview.changedFiles === preview.files.length) {
+      this.#transactions.set(transaction.transactionId, {
+        plan: transaction,
+        preview,
+        createdAt: this.#now(),
+      });
+    }
+    return view;
   }
 
   async applyPatch(
@@ -270,14 +283,105 @@ export class ProjectBridgeService {
       ...(result.after ? { afterVersion: result.after.version } : {}),
       ...(result.restored ? { restoredVersion: result.restored.version } : {}),
       diagnostics: result.diagnostics.map((diagnostic) => ({ ...diagnostic })),
-      verification: result.verification.map((execution) => ({
-        step: { ...execution.step },
-        ok: execution.ok,
-        ...(execution.exitCode === undefined ? {} : { exitCode: execution.exitCode }),
-        stdout: execution.stdout,
-        stderr: execution.stderr,
-      })),
+      verification: result.verification.map(cloneVerificationExecution),
     };
+  }
+
+  async applyTransaction(
+    transactionId: string,
+    sources: readonly BridgeTransactionSourceApproval[],
+    approvedBy?: string,
+  ): Promise<BridgeTransactionApplyResult> {
+    this.#pruneExpiredPlans();
+    const stored = this.#transactions.get(transactionId);
+    if (!stored) {
+      throw new ProjectBridgeServiceError(
+        "TRANSACTION_NOT_FOUND",
+        "The transaction is missing, blocked, expired, or was already applied. Create a new transaction plan.",
+      );
+    }
+
+    const approval: MultiFileTransactionApproval = approvedBy
+      ? {
+          transactionId,
+          sources: sources.map((source) => ({ ...source })),
+          approved: true,
+          approvedAt: new Date().toISOString(),
+          approvedBy,
+        }
+      : {
+          transactionId,
+          sources: sources.map((source) => ({ ...source })),
+          approved: true,
+          approvedAt: new Date().toISOString(),
+        };
+    const result = await this.#transactionService.apply(stored.plan, approval);
+    this.#transactions.delete(transactionId);
+
+    return {
+      status: result.status,
+      transactionId: result.transactionId,
+      files: result.files.map((file) => ({
+        repositoryPath: file.repositoryPath,
+        beforeVersion: file.before.version,
+        ...(file.after ? { afterVersion: file.after.version } : {}),
+        ...(file.restored ? { restoredVersion: file.restored.version } : {}),
+      })),
+      diagnostics: result.diagnostics.map((diagnostic) => ({ ...diagnostic })),
+      verification: result.verification.map(cloneVerificationExecution),
+    };
+  }
+
+  async #createLayoutPlan(
+    operation: BridgeOperation,
+  ): Promise<{ readonly plan: SourcePatchPlan; readonly source: SourceSnapshot }> {
+    const adapter = this.#registry.resolveForBinding(operation.binding);
+    if (!adapter) {
+      throw new ProjectBridgeServiceError(
+        "ADAPTER_NOT_FOUND",
+        "No registered framework adapter matches the selected source binding.",
+      );
+    }
+    if (!adapter.descriptor.capabilities.sourcePatching || !adapter.planPatch) {
+      throw new ProjectBridgeServiceError(
+        "SOURCE_PATCHING_UNAVAILABLE",
+        `${adapter.descriptor.displayName} does not provide source patch planning.`,
+      );
+    }
+
+    const source = await this.#repository.read(operation.binding.repositoryPath);
+    return {
+      plan: adapter.planPatch(operation as FrameworkOperation, source),
+      source,
+    };
+  }
+
+  async #createStylePlan(
+    operation: BridgeStyleOperation,
+  ): Promise<{ readonly plan: SourcePatchPlan; readonly source: SourceSnapshot }> {
+    const normalized = operation as StylePatchOperation;
+    if (operation.binding.styleOwnership) {
+      const serializedBinding = JSON.stringify(operation.binding.styleOwnership);
+      const serializedOperation = JSON.stringify(operation.ownership);
+      if (serializedBinding !== serializedOperation) {
+        throw new ProjectBridgeServiceError(
+          "STYLE_OWNERSHIP_MISMATCH",
+          "The requested ownership does not match the ownership stored in the source binding.",
+        );
+      }
+    }
+
+    const strategy = this.#styleRegistry.resolve(normalized);
+    if (!strategy) {
+      throw new ProjectBridgeServiceError(
+        "STYLE_STRATEGY_NOT_FOUND",
+        `No style strategy supports ${operation.ownership.strategy} for ${operation.binding.frameworkId ?? "the selected framework"}.`,
+      );
+    }
+
+    const sourcePath = resolveStyleSourcePath(normalized);
+    const source = await this.#repository.read(sourcePath);
+    return { plan: strategy.plan(normalized, source), source };
   }
 
   #createPlanView(
@@ -301,16 +405,60 @@ export class ProjectBridgeService {
     };
   }
 
+  #createTransactionView(preview: MultiFileTransactionPreview): BridgeTransactionPlanView {
+    return {
+      transactionId: preview.transactionId,
+      files: preview.files.map((file) => ({
+        planId: file.planId,
+        repositoryPath: file.repositoryPath,
+        sourceVersion: file.sourceVersion,
+        changed: file.changed,
+        diff: createUnifiedDiff({
+          planId: file.planId,
+          repositoryPath: file.repositoryPath,
+          sourceVersion: file.sourceVersion,
+          before: file.before,
+          after: file.after,
+          changed: file.changed,
+          diagnostics: file.diagnostics,
+        }),
+        diagnostics: file.diagnostics.map((diagnostic) => ({ ...diagnostic })),
+      })),
+      changedFiles: preview.changedFiles,
+      diagnostics: preview.diagnostics.map((diagnostic) => ({ ...diagnostic })),
+      verification: preview.verification.map((step) => ({ ...step })),
+    };
+  }
+
   #pruneExpiredPlans(): void {
     const threshold = this.#now() - this.#planTtlMs;
     for (const [planId, stored] of this.#plans) {
       if (stored.createdAt < threshold) this.#plans.delete(planId);
+    }
+    for (const [transactionId, stored] of this.#transactions) {
+      if (stored.createdAt < threshold) this.#transactions.delete(transactionId);
     }
   }
 }
 
 function cloneBinding<T extends { readonly styleOwnership?: unknown }>(binding: T): T {
   return cloneJson(binding);
+}
+
+function cloneVerificationExecution<T extends {
+  readonly step: object;
+  readonly ok: boolean;
+  readonly exitCode?: number;
+  readonly stdout: string;
+  readonly stderr: string;
+}>(execution: T) {
+  return {
+    step: { ...execution.step },
+    ok: execution.ok,
+    ...(execution.exitCode === undefined ? {} : { exitCode: execution.exitCode }),
+    stdout: execution.stdout,
+    stderr: execution.stderr,
+  };
 }
 
 function cloneJson<T>(value: T): T {

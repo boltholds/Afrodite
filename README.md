@@ -18,7 +18,8 @@ Afrodite can:
 10. show exact unified diffs, require approval, verify writes, and roll back failures;
 11. import existing React or SolidJS screens into Semantic UI IR without executing them;
 12. expand bounded graphs of direct local JSX components with cycle detection and deterministic budgets;
-13. preserve unsupported behavior and unresolved imports as source-backed boundaries.
+13. preserve unsupported behavior and unresolved imports as source-backed boundaries;
+14. apply several existing source-file changes through one reviewed staged transaction and shared verification boundary.
 
 ## Architecture
 
@@ -30,7 +31,7 @@ Shared editor code remains framework-neutral.
 - `@afrodite/style-core` maps semantic layout to inline styles, Tailwind utilities, CSS Modules, or design tokens.
 - `@afrodite/import-core` reconstructs bounded existing screens through syntax-specific import adapters.
 - `@afrodite/import-core/graph` follows direct local component imports through a provider-controlled, budgeted graph.
-- `@afrodite/verified-write` provides approval, compare-and-swap filesystem writes, verification, and rollback.
+- `@afrodite/verified-write` provides single-file and multi-file approval, staging, compare-and-swap writes, verification, and rollback.
 - `@afrodite/project-session` keeps Canvas and Source Sync inside one command history and provenance timeline.
 
 React and SolidJS use separate adapter identities. They currently share static JSX binding and screen-import implementations, while keeping framework-specific runtime and source-style behavior behind adapters.
@@ -50,6 +51,30 @@ visual or semantic operation
 ```
 
 Afrodite does not accept browser-authored text edits or verification commands. The local project bridge owns source reads, offsets, patch storage, filesystem access, and process execution.
+
+## Atomic multi-file transactions
+
+Several server-generated source plans can be grouped into one deterministic transaction:
+
+```text
+semantic layout/style operations
+  -> one adapter plan per target file
+  -> exact diff for every file
+  -> approval bound to transactionId + every source version
+  -> preflight read of every target
+  -> stage every final file body
+  -> compare-and-swap commit
+  -> one shared verification sequence
+  -> keep every file or restore every committed file
+```
+
+The transaction route accepts semantic `layout` and `style` operations. It does not accept client-authored offsets, replacements, temporary paths, or verification commands.
+
+Every target must be unique and already exist. If any file changed after review, the transaction is rejected before the first complete commit. If a later staged commit or required verification fails, committed files are restored in reverse order through compare-and-swap writes.
+
+The boundary is logically all-or-rollback while the project bridge process remains alive. It is not yet crash-recoverable across a process or machine failure between individual file replacements.
+
+See `docs/multi-file-transactions.md`.
 
 ## Visual Source Binding Manager
 
@@ -145,9 +170,9 @@ See `docs/live-project-session.md`.
 
 ## Workspace
 
-- `apps/studio` — Canvas, Source Sync, Binding Manager, Style Ownership, and bounded component-graph import.
+- `apps/studio` — Canvas, Source Sync, Binding Manager, Style Ownership, bounded component-graph import, and Transactions workbenches.
 - `apps/preview-host` — opaque-origin trusted SolidJS and React component preview.
-- `apps/project-bridge` — authenticated localhost source, import, planning, verified-write, and rollback service.
+- `apps/project-bridge` — authenticated localhost source, import, planning, single-file verified-write, multi-file transaction, and rollback service.
 - `packages/ui-ir` — Semantic UI IR and provenance contracts.
 - `packages/canvas-engine` — reversible document commands and read-only enforcement.
 - `packages/project-session` — live session state and transition provenance.
@@ -156,12 +181,12 @@ See `docs/live-project-session.md`.
 - `packages/style-core` — style ownership strategies.
 - `packages/import-core` — bounded single-file screen-import adapters.
 - `packages/import-core/graph` — multi-file component graph traversal, resolution, budgets, cycles, and provenance.
-- `packages/verified-write` — approval, compare-and-swap, verification, and rollback.
+- `packages/verified-write` — approval, staging, compare-and-swap, verification, and rollback.
 - `packages/adapter-solid` — SolidJS framework, binding, and screen-import adapter factories.
 - `packages/adapter-react` — React framework, binding, and screen-import adapter factories.
 - `packages/project-indexer` — static SolidJS component catalog.
 - `packages/indexer-react` — static React component catalog.
-- `packages/protocol` — catalog, preview, bridge, binding, style, and import schemas.
+- `packages/protocol` — catalog, preview, bridge, binding, style, import, and transaction schemas.
 
 ## Development
 
@@ -179,7 +204,7 @@ Start a local bridge in another terminal:
 pnpm dev:bridge --project ./path/to/project
 ```
 
-The bridge listens on `127.0.0.1:4175` by default and prints a generated session token. Paste it into Source Sync, Binding Manager, Style Ownership, or Screen Import.
+The bridge listens on `127.0.0.1:4175` by default and prints a generated session token. Paste it into Source Sync, Binding Manager, Style Ownership, Screen Import, or Transactions.
 
 Verification:
 
@@ -189,4 +214,4 @@ pnpm test
 pnpm build
 ```
 
-The next slice introduces atomic multi-file patch plans so one reviewed operation can update component, stylesheet, token, and import files under one compare-and-swap and rollback boundary.
+The next slice introduces responsive variants and component states in Semantic UI IR and materializes owned overrides through the multi-file transaction boundary.

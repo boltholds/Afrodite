@@ -1,5 +1,5 @@
 import { exec as execCallback } from "node:child_process";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import {
@@ -11,6 +11,11 @@ import {
   type VerificationStep,
   type VersionedSourceSnapshot,
 } from "@afrodite/framework-core";
+import type {
+  StagedSourceTransaction,
+  StagedSourceWrite,
+  TransactionalSourceRepository,
+} from "./transaction.js";
 
 const exec = promisify(execCallback);
 
@@ -237,8 +242,23 @@ export class VerifiedWriteService {
   }
 }
 
-export class FileSystemSourceRepository implements SourceRepository {
+interface FileSystemStagedEntry {
+  readonly repositoryPath: string;
+  readonly targetPath: string;
+  readonly temporaryPath: string;
+  readonly before: VersionedSourceSnapshot;
+  readonly content: string;
+  readonly stagedVersion: string;
+}
+
+interface FileSystemStagedState {
+  readonly transaction: StagedSourceTransaction;
+  readonly entries: ReadonlyMap<string, FileSystemStagedEntry>;
+}
+
+export class FileSystemSourceRepository implements TransactionalSourceRepository {
   readonly #projectRoot: string;
+  readonly #stagedTransactions = new Map<string, FileSystemStagedState>();
 
   constructor(projectRoot: string) {
     this.#projectRoot = path.resolve(projectRoot);
@@ -272,6 +292,97 @@ export class FileSystemSourceRepository implements SourceRepository {
       content,
       version: createSourceVersion(content),
     };
+  }
+
+  async stageTransaction(
+    transactionId: string,
+    writes: readonly StagedSourceWrite[],
+  ): Promise<StagedSourceTransaction> {
+    if (this.#stagedTransactions.has(transactionId)) {
+      throw new Error(`Transaction ${transactionId} is already staged.`);
+    }
+
+    const entries = new Map<string, FileSystemStagedEntry>();
+    const token = sanitizeStageToken(transactionId);
+    try {
+      for (const [index, write] of writes.entries()) {
+        const repositoryPath = normalizeRepositoryPath(write.repositoryPath);
+        if (entries.has(repositoryPath)) {
+          throw new Error(`Transaction contains duplicate staged target ${repositoryPath}.`);
+        }
+        const before = await this.read(repositoryPath);
+        if (before.version !== write.expectedVersion) {
+          throw new Error(`Cannot stage ${repositoryPath} because its source version changed.`);
+        }
+        const targetPath = this.#resolve(repositoryPath);
+        const temporaryPath = path.join(
+          path.dirname(targetPath),
+          `.${path.basename(targetPath)}.afrodite-${token}-${index}.stage`,
+        );
+        await mkdir(path.dirname(targetPath), { recursive: true });
+        await writeFile(temporaryPath, write.content, "utf8");
+        entries.set(repositoryPath, {
+          repositoryPath,
+          targetPath,
+          temporaryPath,
+          before,
+          content: write.content,
+          stagedVersion: createSourceVersion(write.content),
+        });
+      }
+    } catch (error) {
+      await Promise.all([...entries.values()].map((entry) => rm(entry.temporaryPath, { force: true })));
+      throw error;
+    }
+
+    const transaction: StagedSourceTransaction = {
+      transactionId,
+      files: [...entries.values()].map((entry) => ({
+        repositoryPath: entry.repositoryPath,
+        before: entry.before,
+        stagedVersion: entry.stagedVersion,
+      })),
+    };
+    this.#stagedTransactions.set(transactionId, { transaction, entries });
+    return transaction;
+  }
+
+  async commitStagedFile(
+    transaction: StagedSourceTransaction,
+    repositoryPath: string,
+    expectedVersion: string,
+  ): Promise<VersionedSourceSnapshot> {
+    const state = this.#stagedTransactions.get(transaction.transactionId);
+    const normalized = normalizeRepositoryPath(repositoryPath);
+    const entry = state?.entries.get(normalized);
+    if (!state || !entry) throw new Error(`No staged source exists for ${normalized}.`);
+
+    const current = await this.read(normalized);
+    if (current.version !== expectedVersion || current.version !== entry.before.version) {
+      throw new Error(`Compare-and-swap rejected staged commit for ${normalized}.`);
+    }
+
+    try {
+      await rename(entry.temporaryPath, entry.targetPath);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "EPERM" && code !== "EEXIST" && code !== "ENOTEMPTY") throw error;
+      await writeFile(entry.targetPath, entry.content, "utf8");
+      await rm(entry.temporaryPath, { force: true });
+    }
+
+    return {
+      repositoryPath: normalized,
+      content: entry.content,
+      version: entry.stagedVersion,
+    };
+  }
+
+  async discardTransaction(transaction: StagedSourceTransaction): Promise<void> {
+    const state = this.#stagedTransactions.get(transaction.transactionId);
+    if (!state) return;
+    await Promise.all([...state.entries.values()].map((entry) => rm(entry.temporaryPath, { force: true })));
+    this.#stagedTransactions.delete(transaction.transactionId);
   }
 
   #resolve(repositoryPath: string): string {
@@ -342,3 +453,28 @@ export class ProcessVerificationRunner implements VerificationRunner {
 function normalizeRepositoryPath(repositoryPath: string): string {
   return repositoryPath.replaceAll("\\", "/").replace(/^\.\//, "");
 }
+
+function sanitizeStageToken(transactionId: string): string {
+  return transactionId.replace(/[^a-zA-Z0-9_-]/g, "-").slice(-72);
+}
+
+export {
+  VerifiedMultiFileTransactionService,
+  createMultiFileTransactionApproval,
+  createMultiFileTransactionPlan,
+} from "./transaction.js";
+export type {
+  CreateMultiFileTransactionPlanInput,
+  MultiFileTransactionApproval,
+  MultiFileTransactionFileResult,
+  MultiFileTransactionPlan,
+  MultiFileTransactionPreview,
+  MultiFileTransactionResult,
+  MultiFileTransactionStatus,
+  StagedSourceFile,
+  StagedSourceTransaction,
+  StagedSourceWrite,
+  TransactionFilePreview,
+  TransactionSourceApproval,
+  TransactionalSourceRepository,
+} from "./transaction.js";

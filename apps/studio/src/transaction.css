@@ -1,0 +1,151 @@
+.transaction-shell {
+  min-height: 100vh;
+  background: #08070d;
+  color: #f6efff;
+}
+
+.transaction-header {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 22px;
+  border-bottom: 1px solid rgba(255, 73, 194, 0.24);
+  background: rgba(13, 9, 22, 0.96);
+}
+
+.transaction-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
+  gap: 16px;
+  padding: 16px;
+}
+
+.transaction-panel,
+.transaction-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.transaction-card {
+  border: 1px solid rgba(255, 92, 204, 0.2);
+  border-radius: 14px;
+  padding: 16px;
+  background: rgba(17, 12, 28, 0.94);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.22);
+}
+
+.transaction-card label {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  color: #c9bcd8;
+  font-size: 12px;
+}
+
+.transaction-card input,
+.transaction-card textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.operation-editor textarea {
+  min-height: 520px;
+  resize: vertical;
+  font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.transaction-empty {
+  min-height: 260px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  color: #a99bb8;
+}
+
+.transaction-identity,
+.transaction-file-meta,
+.transaction-verification,
+.transaction-result-file {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.transaction-identity code,
+.transaction-file-meta code,
+.transaction-verification code,
+.transaction-result-file code {
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: rgba(74, 219, 255, 0.08);
+  color: #8fe6ff;
+  overflow-wrap: anywhere;
+}
+
+.transaction-verification {
+  flex-direction: column;
+}
+
+.transaction-diff {
+  max-height: 430px;
+  overflow: auto;
+  margin: 14px 0 0;
+  padding: 14px;
+  border-radius: 10px;
+  background: #09070e;
+  color: #d8cde5;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.transaction-approval label {
+  grid-template-columns: auto 1fr;
+  align-items: start;
+}
+
+.transaction-approval input {
+  width: auto;
+  margin-top: 2px;
+}
+
+.transaction-result {
+  border-color: rgba(100, 224, 255, 0.3);
+}
+
+.transaction-result.status-applied {
+  border-color: rgba(84, 239, 190, 0.36);
+}
+
+.transaction-result.status-rolled-back,
+.transaction-result.status-rejected {
+  border-color: rgba(255, 194, 87, 0.36);
+}
+
+.transaction-result.status-rollback-failed {
+  border-color: rgba(255, 99, 132, 0.5);
+}
+
+.transaction-result-file {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) repeat(3, minmax(120px, auto));
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+@media (max-width: 1050px) {
+  .transaction-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .operation-editor textarea {
+    min-height: 320px;
+  }
+}
