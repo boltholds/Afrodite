@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "@afrodite/binding-core": "workspace:*",
-    "@afrodite/framework-core": "workspace:*"
+    "@afrodite/framework-core": "workspace:*",
+    "@afrodite/import-core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.8.3",
