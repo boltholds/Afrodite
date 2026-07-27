@@ -60,6 +60,10 @@ export {
   bridgeStylePlanRequestSchema,
 } from "./style";
 export {
+  bridgeVariantOperationSchema,
+  bridgeVariantPlanRequestSchema,
+} from "./variant";
+export {
   screenImportGraphBudgetSchema,
   screenImportGraphEdgeSchema,
   screenImportGraphFileSchema,
@@ -135,6 +139,10 @@ export type {
   BridgeStyleOperation,
   BridgeStylePlanRequest,
 } from "./style";
+export type {
+  BridgeVariantOperation,
+  BridgeVariantPlanRequest,
+} from "./variant";
 export type {
   ScreenImportGraphBudget,
   ScreenImportGraphEdge,
