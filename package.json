@@ -6,6 +6,11 @@
   "engines": {
     "node": ">=22"
   },
+  "pnpm": {
+    "overrides": {
+      "typescript": "5.8.3"
+    }
+  },
   "scripts": {
     "dev": "pnpm --parallel --filter @afrodite/studio --filter @afrodite/preview-host dev",
     "dev:studio": "pnpm --filter @afrodite/studio dev",
