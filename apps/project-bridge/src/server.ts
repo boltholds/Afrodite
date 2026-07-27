@@ -9,6 +9,7 @@ import {
   bridgeStylePlanRequestSchema,
   bridgeTransactionApplyRequestSchema,
   bridgeTransactionPlanRequestSchema,
+  bridgeVariantPlanRequestSchema,
   screenImportRequestSchema,
 } from "@afrodite/protocol";
 import { ZodError } from "zod";
@@ -96,6 +97,13 @@ export function createProjectBridgeServer(options: ProjectBridgeServerOptions): 
       if (request.method === "POST" && url.pathname === "/api/style/plan") {
         const input = bridgeStylePlanRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
         const plan = await options.service.planStylePatch(input.operation);
+        sendJson(response, 200, { ok: true, plan });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/variant/plan") {
+        const input = bridgeVariantPlanRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const plan = await options.service.planVariantPatch(input.operation);
         sendJson(response, 200, { ok: true, plan });
         return;
       }
