@@ -114,6 +114,7 @@ export const humanReviewRequestSchema = z.object({
   decision: humanReviewDecisionSchema.optional(),
   preparation: reviewedExecutionPreparationSchema.optional(),
   execution: reviewedExecutionRecordSchema.optional(),
+  executionHistory: z.array(reviewedExecutionRecordSchema).optional(),
 });
 
 export const humanReviewSubmitRequestSchema = z.object({
