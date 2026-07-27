@@ -18,27 +18,38 @@ install_target_dependencies() {
 
   package_manager=""
   lock_file=""
-  install_command=""
+  frozen="true"
   if [ -f "$project_root/pnpm-lock.yaml" ]; then
     package_manager="pnpm"
     lock_file="$project_root/pnpm-lock.yaml"
-    install_command="pnpm install --frozen-lockfile"
   elif [ -f "$project_root/package-lock.json" ]; then
     package_manager="npm"
     lock_file="$project_root/package-lock.json"
-    install_command="npm ci"
   elif [ -f "$project_root/yarn.lock" ]; then
     package_manager="yarn"
     lock_file="$project_root/yarn.lock"
-    install_command="yarn install --immutable"
   else
-    echo "[afrodite-project-bridge] no supported lockfile; skipping automatic dependency bootstrap"
-    return
+    frozen="false"
+    declared_manager="$(node -e 'const p=require(process.argv[1]); process.stdout.write(String(p.packageManager || ""))' "$project_root/package.json")"
+    case "$declared_manager" in
+      pnpm@*) package_manager="pnpm" ;;
+      yarn@*) package_manager="yarn" ;;
+      npm@*) package_manager="npm" ;;
+      *)
+        if [ -f "$project_root/pnpm-workspace.yaml" ]; then
+          package_manager="pnpm"
+        else
+          package_manager="npm"
+        fi
+        ;;
+    esac
+    lock_file="$project_root/package.json"
+    echo "[afrodite-project-bridge] no lockfile; installing without creating or updating one"
   fi
 
   fingerprint="$({ sha256sum "$project_root/package.json"; sha256sum "$lock_file"; } | sha256sum | cut -d' ' -f1)"
   if [ -f "$stamp_file" ] && [ "$(cat "$stamp_file")" = "$fingerprint" ]; then
-    echo "[afrodite-project-bridge] target dependencies already match $package_manager lockfile"
+    echo "[afrodite-project-bridge] target dependencies already match $package_manager inputs"
     return
   fi
 
@@ -46,17 +57,28 @@ install_target_dependencies() {
   mkdir -p "$project_root/node_modules"
   (
     cd "$project_root"
-    case "$package_manager" in
-      pnpm)
+    case "$package_manager:$frozen" in
+      pnpm:true)
         corepack enable
         pnpm install --frozen-lockfile
         ;;
-      npm)
+      pnpm:false)
+        corepack enable
+        pnpm install --no-frozen-lockfile --lockfile=false
+        ;;
+      npm:true)
         npm ci
         ;;
-      yarn)
+      npm:false)
+        npm install --package-lock=false
+        ;;
+      yarn:true)
         corepack enable
         yarn install --immutable
+        ;;
+      yarn:false)
+        corepack enable
+        yarn install --no-immutable --mode=skip-build
         ;;
     esac
   )
