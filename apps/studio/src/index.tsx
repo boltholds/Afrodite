@@ -24,6 +24,7 @@ import "./semantic-batch.css";
 import "./review-inbox.css";
 import "./manual-interaction.css";
 import "./motion.css";
+import "./motion-v23.css";
 
 const root = document.getElementById("root");
 
