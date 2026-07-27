@@ -19,6 +19,10 @@ import {
   semanticPlanRequestSchema,
 } from "@afrodite/protocol";
 import { semanticBatchPlanRequestSchema } from "@afrodite/protocol/semantic-batch";
+import {
+  semanticBatchReviewDecisionRequestSchema,
+  semanticBatchReviewSubmitRequestSchema,
+} from "@afrodite/protocol/semantic-batch-review";
 import { ZodError } from "zod";
 import {
   ProjectCollaborationError,
@@ -27,12 +31,17 @@ import {
 import type { ReviewedExecutionService } from "./reviewExecution.js";
 import { planProjectSemanticOperation } from "./semantic.js";
 import { planProjectSemanticBatch } from "./semanticBatch.js";
+import {
+  SemanticBatchReviewError,
+  type SemanticBatchReviewStore,
+} from "./semanticBatchReview.js";
 import { ProjectBridgeService, ProjectBridgeServiceError } from "./service.js";
 
 export interface ProjectBridgeServerOptions {
   readonly service: ProjectBridgeService;
   readonly collaboration: ProjectCollaborationStore;
   readonly reviewedExecution: ReviewedExecutionService;
+  readonly batchReviews: SemanticBatchReviewStore;
   readonly token: string;
   readonly allowedOrigins: readonly string[];
   readonly maxBodyBytes?: number;
@@ -155,6 +164,34 @@ export function createProjectBridgeServer(options: ProjectBridgeServerOptions): 
         const input = semanticBatchPlanRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
         const batch = await planProjectSemanticBatch(options.service, input.document, input.commands);
         sendJson(response, 200, { ok: true, batch });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/semantic/batch/review/submit") {
+        const input = semanticBatchReviewSubmitRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const review = await options.batchReviews.submit(input);
+        sendJson(response, 200, { ok: true, request: review });
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/semantic/batch/review/list") {
+        const requests = await options.batchReviews.list();
+        sendJson(response, 200, { ok: true, requests });
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/semantic/batch/review/get") {
+        const requestId = url.searchParams.get("requestId");
+        if (!requestId) throw new HttpRequestError("REQUEST_ID_REQUIRED", "requestId is required.", 400);
+        const review = await options.batchReviews.get(requestId);
+        sendJson(response, 200, { ok: true, request: review });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/semantic/batch/review/decide") {
+        const input = semanticBatchReviewDecisionRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
+        const review = await options.batchReviews.decide(input);
+        sendJson(response, 200, { ok: true, request: review });
         return;
       }
 
@@ -294,6 +331,7 @@ function normalizeError(error: unknown): { code: string; message: string; status
   if (error instanceof HttpRequestError) return { code: error.code, message: error.message, status: error.status };
   if (error instanceof ProjectBridgeServiceError) return { code: error.code, message: error.message, status: 409 };
   if (error instanceof ProjectCollaborationError) return { code: error.code, message: error.message, status: 409 };
+  if (error instanceof SemanticBatchReviewError) return { code: error.code, message: error.message, status: 409 };
   if (error instanceof ZodError) {
     return {
       code: "INVALID_REQUEST",
