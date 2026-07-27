@@ -203,9 +203,13 @@ export class ProjectCollaborationStore {
   }
 
   async #write(state: PersistedCollaborationState): Promise<void> {
-    await mkdir(this.#directory, { recursive: true });
+    await mkdir(this.#directory, { recursive: true, mode: 0o700 });
     const temporaryPath = `${this.#statePath}.${process.pid}.${Date.now()}.tmp`;
-    await writeFile(temporaryPath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+    await writeFile(
+      temporaryPath,
+      `${JSON.stringify(state, null, 2)}\n`,
+      { encoding: "utf8", mode: 0o600 },
+    );
     await rename(temporaryPath, this.#statePath);
   }
 
