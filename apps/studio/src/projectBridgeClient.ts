@@ -5,6 +5,7 @@ import {
   bridgeHealthResponseSchema,
   bridgePlanResponseSchema,
   bridgeSourceResponseSchema,
+  screenImportResponseSchema,
   type BindingDiscoveryRequest,
   type BindingDiscoveryResult,
   type BindingMarkerPlanRequest,
@@ -15,6 +16,8 @@ import {
   type BridgePatchPlanView,
   type BridgeSourceSnapshot,
   type BridgeStyleOperation,
+  type ScreenImportRequest,
+  type ScreenImportResult,
 } from "@afrodite/protocol";
 
 interface Parser<T> {
@@ -52,6 +55,16 @@ export class ProjectBridgeClient {
     );
     if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
     return response.source;
+  }
+
+  async importScreen(request: ScreenImportRequest): Promise<ScreenImportResult> {
+    const response = await this.#request(
+      "/api/import/screen",
+      { method: "POST", body: JSON.stringify(request) },
+      screenImportResponseSchema,
+    );
+    if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
+    return response.result;
   }
 
   async discoverBindings(request: BindingDiscoveryRequest): Promise<BindingDiscoveryResult> {
