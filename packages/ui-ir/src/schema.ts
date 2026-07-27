@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { animationClipSchema, type AnimationClip } from "./motion";
+import { animationClipsSchema, type AnimationClip } from "./motion";
 
 export const layoutDirectionSchema = z.enum(["row", "column"]);
 
@@ -291,7 +291,7 @@ const uiNodeBaseSchema = z.object({
   position: positionSchema.optional(),
   appearance: appearanceSchema.optional(),
   variants: uiVariantsSchema.optional(),
-  animations: z.array(animationClipSchema).max(32).optional(),
+  animations: animationClipsSchema.optional(),
   props: z.record(z.string(), z.unknown()).default({}),
   sourceBinding: sourceBindingSchema.optional(),
   sourceRegion: sourceRegionSchema.optional(),
