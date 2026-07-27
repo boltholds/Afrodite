@@ -22,6 +22,7 @@ export {
 export {
   animationClipSchema,
   animationClipsSchema,
+  motionBlendModeSchema,
   motionDirectionSchema,
   motionEasingSchema,
   motionFillSchema,
@@ -66,6 +67,7 @@ export type {
 
 export type {
   AnimationClip,
+  MotionBlendMode,
   MotionDirection,
   MotionEasing,
   MotionFill,
