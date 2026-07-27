@@ -18,6 +18,15 @@ export const layoutSchema = z.object({
   }),
 });
 
+export const positionSchema = z.object({
+  x: z.number().finite().default(0),
+  y: z.number().finite().default(0),
+});
+
+export const appearanceSchema = z.object({
+  borderRadius: z.number().finite().nonnegative().default(0),
+});
+
 export const layoutOverrideSchema = z.object({
   display: z.enum(["block", "flex", "grid"]).optional(),
   direction: layoutDirectionSchema.optional(),
@@ -231,6 +240,8 @@ export const sourceRegionSchema = z.object({
 
 export type LayoutDirection = z.infer<typeof layoutDirectionSchema>;
 export type Layout = z.infer<typeof layoutSchema>;
+export type Position = z.infer<typeof positionSchema>;
+export type Appearance = z.infer<typeof appearanceSchema>;
 export type LayoutOverride = z.infer<typeof layoutOverrideSchema>;
 export type InteractionState = z.infer<typeof interactionStateSchema>;
 export type ResponsiveVariant = z.infer<typeof responsiveVariantSchema>;
@@ -247,6 +258,8 @@ interface UiNodeBase {
   id: string;
   name: string;
   layout: Layout;
+  position?: Position | undefined;
+  appearance?: Appearance | undefined;
   variants?: UiVariants | undefined;
   props: Record<string, unknown>;
   sourceBinding?: SourceBinding | undefined;
@@ -273,6 +286,8 @@ const uiNodeBaseSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   layout: layoutSchema,
+  position: positionSchema.optional(),
+  appearance: appearanceSchema.optional(),
   variants: uiVariantsSchema.optional(),
   props: z.record(z.string(), z.unknown()).default({}),
   sourceBinding: sourceBindingSchema.optional(),

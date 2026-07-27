@@ -11,6 +11,10 @@
       "types": "./src/binding.ts",
       "import": "./src/binding.ts"
     },
+    "./interaction": {
+      "types": "./src/interaction.ts",
+      "import": "./src/interaction.ts"
+    },
     "./style": {
       "types": "./src/style.ts",
       "import": "./src/style.ts"

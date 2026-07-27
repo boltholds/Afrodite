@@ -26,13 +26,14 @@ Afrodite can:
 18. expose semantic inspection and dry runs through a policy-controlled local MCP gateway;
 19. publish the active Studio session to a durable human review inbox for agent-proposed changes;
 20. re-plan approved requests against current document and source versions, compare drift, and execute them only after a second explicit human confirmation;
-21. bind several fresh source effects to one reviewed transaction with shared verification, complete rollback, and one durable execution receipt.
+21. bind several fresh source effects to one reviewed transaction with shared verification, complete rollback, and one durable execution receipt;
+22. edit the active project session manually through keyboard navigation, object clipboard, drag gestures, wheel-controlled corner radius, inline text editing, Inspector fields, and JSON.
 
 ## Architecture
 
 Shared editor code remains framework-neutral.
 
-- `@afrodite/ui-ir` defines semantic layout, responsive/state variants, source bindings, style ownership, and source-backed regions.
+- `@afrodite/ui-ir` defines semantic layout, manual position and appearance, responsive/state variants, source bindings, style ownership, and source-backed regions.
 - `@afrodite/framework-core` defines framework adapters, source operations, deterministic patch plans, diagnostics, and verification steps.
 - `@afrodite/binding-core` discovers source targets and plans stable-marker installation.
 - `@afrodite/style-core` maps semantic base layout to inline styles, Tailwind utilities, CSS Modules, or design tokens.
@@ -42,9 +43,51 @@ Shared editor code remains framework-neutral.
 - `@afrodite/semantic-ops` turns API v1 commands into deterministic UI-document effects and typed style or variant intents.
 - `@afrodite/agent-gateway-core` applies agent policy, redaction, inspection budgets, dry-run limits, approval-request rules, and audit records.
 - `@afrodite/verified-write` provides single-file and multi-file approval, staging, compare-and-swap writes, verification, and rollback.
-- `@afrodite/project-session` keeps Canvas and Source Sync inside one command history, emits live-session snapshots, and retains a browser-local session registry for reversible reviewed execution.
+- `@afrodite/canvas-engine/interaction` provides reversible delete, move, radius, text, duplication, traversal, and composite-gesture commands.
+- `@afrodite/project-session` keeps manual Canvas and Source Sync inside one command history, emits live-session snapshots, and retains a browser-local session registry for reversible reviewed execution.
 
 React and SolidJS use separate adapter identities. They currently share static JSX binding and screen-import implementations while keeping framework-specific runtime and source-style behavior behind adapters.
+
+## Manual interaction workflow
+
+```text
+keyboard / pointer / wheel / object clipboard / Inspector / JSON
+  -> context and read-only checks
+  -> deterministic DocumentCommand
+  -> shared LiveProjectSession history
+  -> revision increment
+  -> source-plan invalidation or layout transition
+  -> undo / redo
+```
+
+The manual project canvas supports:
+
+```text
+Delete / Backspace          delete selected subtree
+Tab / Shift+Tab             deterministic depth-first navigation
+Arrow keys                  move 1 px
+Shift + Arrow               move 10 px
+Ctrl/Cmd+C and Ctrl/Cmd+V   semantic object copy and paste
+Ctrl/Cmd+Z and Ctrl/Cmd+Y   undo and redo
+Enter or F2                 edit static text
+Ctrl/Cmd+L                  edit text when the browser dispatches it
+pointer drag                free object translation
+held pointer + wheel        corner-radius adjustment
+Escape                      cancel transient gesture or text edit
+```
+
+Drag and held-wheel changes are previewed transiently and committed as one history command on pointer release. Pasted nodes receive fresh IDs and lose source authority so that two objects cannot claim one stable marker. Read-only source regions reject destructive manual commands.
+
+Manual position and appearance are visible in JSON:
+
+```json
+{
+  "position": { "x": 24, "y": -8 },
+  "appearance": { "borderRadius": 18 }
+}
+```
+
+Browsers may reserve `Ctrl/Cmd+L` for the address bar; `Enter` and `F2` are the guaranteed shortcuts. See `docs/manual-interaction.md`.
 
 ## Safe source synchronization
 
@@ -61,6 +104,8 @@ visual or semantic operation
 ```
 
 Afrodite does not accept browser- or agent-authored text edits, offsets, staging paths, or verification commands. The local project bridge owns source reads, patch storage, filesystem access, process execution, and verified writes.
+
+Manual layout Inspector changes continue to emit source-sync layout transitions. Position, corner radius, text, deletion, paste, and composite gestures remain document-owned until dedicated source adapters prove authority over those properties.
 
 ## Constrained semantic operation API
 
@@ -158,12 +203,12 @@ See `docs/existing-screen-import.md` and `docs/multi-file-screen-import.md`.
 
 ## Workspace
 
-- `apps/studio` — Canvas, Source Sync, Binding Manager, Style Ownership, Variants, Screen Import, Transactions, Semantic API, and Reviewed Execution Inbox workbenches.
+- `apps/studio` — Manual Canvas, Source Sync, Binding Manager, Style Ownership, Variants, Screen Import, Transactions, Semantic API, and Reviewed Execution Inbox workbenches.
 - `apps/preview-host` — opaque-origin trusted SolidJS and React component preview.
 - `apps/project-bridge` — authenticated localhost source, planning, verified-write, transaction, live-session, review, fresh-preparation, receipt-normalization, and reviewed-execution service.
 - `apps/agent-gateway` — policy-controlled MCP stdio adapter over the live semantic planning boundary.
-- `packages/ui-ir` — Semantic UI IR, variants, bindings, ownership, and provenance contracts.
-- `packages/canvas-engine` — reversible document commands and read-only enforcement.
+- `packages/ui-ir` — Semantic UI IR, manual position/appearance, variants, bindings, ownership, and provenance contracts.
+- `packages/canvas-engine` — reversible layout, manual interaction, document, binding, style, and variant commands with read-only enforcement.
 - `packages/project-session` — live session state, transition provenance, snapshot subscriptions, browser session registry, and reviewed document execution port.
 - `packages/framework-core` — framework and patch-plan contracts.
 - `packages/binding-core` — target discovery and stable-marker plans.
