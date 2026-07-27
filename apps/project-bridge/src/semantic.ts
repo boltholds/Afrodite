@@ -31,6 +31,7 @@ export async function planProjectSemanticOperation(
   }
 
   return {
+    apiVersion: 1,
     planId: semantic.planId,
     documentVersion: semantic.documentVersion,
     status: semantic.status,
