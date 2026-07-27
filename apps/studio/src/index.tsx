@@ -42,31 +42,28 @@ function StudioRoot() {
         <button classList={{ active: mode() === "screen-import" }} onClick={() => setMode("screen-import")}>Screen import</button>
         <button classList={{ active: mode() === "transaction" }} onClick={() => setMode("transaction")}>Transactions</button>
       </nav>
-
-      <div hidden={mode() !== "project"} aria-hidden={mode() !== "project"}>
-        <LiveStudioAppV9 />
-      </div>
-
-      <Show when={mode() !== "project"}>
-        <Show when={mode() === "reviews"} fallback={
-          <Show when={mode() === "semantic"} fallback={
-            <Show when={mode() === "transaction"} fallback={
-              <Show when={mode() === "screen-import"} fallback={
-                <Show when={mode() === "variants"} fallback={<StyleOwnershipWorkbench />}>
-                  <VariantWorkbench />
+      <Show when={mode() === "reviews"} fallback={
+        <Show when={mode() === "semantic"} fallback={
+          <Show when={mode() === "transaction"} fallback={
+            <Show when={mode() === "screen-import"} fallback={
+              <Show when={mode() === "variants"} fallback={
+                <Show when={mode() === "style-ownership"} fallback={<LiveStudioAppV9 />}>
+                  <StyleOwnershipWorkbench />
                 </Show>
               }>
-                <ScreenImportWorkbench onOpenProjectSession={() => setMode("project")} />
+                <VariantWorkbench />
               </Show>
             }>
-              <TransactionWorkbench />
+              <ScreenImportWorkbench onOpenProjectSession={() => setMode("project")} />
             </Show>
           }>
-            <SemanticOperationsWorkbench />
+            <TransactionWorkbench />
           </Show>
         }>
-          <ReviewInboxWorkbench />
+          <SemanticOperationsWorkbench />
         </Show>
+      }>
+        <ReviewInboxWorkbench />
       </Show>
     </>
   );
