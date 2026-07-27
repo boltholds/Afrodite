@@ -1,0 +1,231 @@
+.semantic-batch-shell {
+  min-height: 100vh;
+  color: #f8f5ff;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255, 42, 173, 0.16), transparent 34rem),
+    radial-gradient(circle at 100% 20%, rgba(62, 226, 255, 0.1), transparent 30rem),
+    #08050d;
+}
+
+.semantic-batch-header {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 22px;
+  border-bottom: 1px solid rgba(255, 89, 194, 0.24);
+  background: rgba(12, 7, 20, 0.92);
+}
+
+.semantic-batch-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
+  gap: 16px;
+  padding: 16px;
+}
+
+.semantic-batch-panel,
+.semantic-batch-card,
+.semantic-batch-empty {
+  border: 1px solid rgba(255, 116, 207, 0.2);
+  border-radius: 16px;
+  background: rgba(18, 11, 28, 0.9);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.24);
+}
+
+.semantic-batch-panel {
+  position: sticky;
+  top: 16px;
+  align-self: start;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.semantic-batch-panel label {
+  display: grid;
+  gap: 7px;
+  font-size: 0.82rem;
+  color: #cfc4de;
+}
+
+.semantic-batch-panel input,
+.semantic-batch-panel textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 116, 207, 0.22);
+  border-radius: 10px;
+  color: #fff;
+  background: #0d0814;
+}
+
+.semantic-batch-panel input {
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+.semantic-batch-panel textarea {
+  min-height: 360px;
+  padding: 12px;
+  resize: vertical;
+  font: 0.78rem/1.55 "JetBrains Mono", "Cascadia Code", monospace;
+}
+
+.semantic-batch-results {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.semantic-batch-card,
+.semantic-batch-empty {
+  padding: 16px;
+}
+
+.semantic-batch-empty {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: #a99eb9;
+}
+
+.semantic-batch-metadata,
+.semantic-batch-source-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.semantic-batch-metadata span,
+.semantic-batch-source-meta code,
+.semantic-batch-version,
+.semantic-batch-step > span {
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #d7cce5;
+  font-size: 0.75rem;
+}
+
+.semantic-batch-version {
+  display: grid;
+  gap: 5px;
+  border-radius: 10px;
+}
+
+.semantic-batch-version code {
+  overflow-wrap: anywhere;
+}
+
+.semantic-batch-step {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.semantic-batch-step:last-child {
+  border-bottom: 0;
+}
+
+.semantic-batch-step > div {
+  display: grid;
+  gap: 4px;
+}
+
+.semantic-batch-step > code {
+  grid-column: 1 / -1;
+  color: #8feeff;
+  overflow-wrap: anywhere;
+}
+
+.semantic-batch-diagnostic {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  margin: 8px 0;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.semantic-batch-diagnostic.severity-error {
+  border-left: 3px solid #ff537f;
+}
+
+.semantic-batch-diagnostic.severity-warning {
+  border-left: 3px solid #ffc66d;
+}
+
+.semantic-batch-diagnostic.severity-info {
+  border-left: 3px solid #58dfff;
+}
+
+.semantic-batch-diff,
+.semantic-batch-document {
+  max-height: 430px;
+  overflow: auto;
+  margin: 12px 0 0;
+  padding: 14px;
+  border-radius: 12px;
+  background: #07050b;
+  color: #e9e1f3;
+  font: 0.76rem/1.55 "JetBrains Mono", "Cascadia Code", monospace;
+  white-space: pre;
+}
+
+.semantic-batch-errors {
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 83, 127, 0.45);
+  background: rgba(255, 83, 127, 0.09);
+}
+
+.semantic-batch-errors p {
+  margin: 4px 0;
+  font-size: 0.78rem;
+}
+
+.semantic-batch-approval {
+  display: grid;
+  gap: 14px;
+}
+
+.semantic-batch-approval label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.semantic-batch-card.status-ready {
+  border-color: rgba(74, 255, 184, 0.34);
+}
+
+.semantic-batch-card.status-blocked,
+.semantic-batch-step.status-blocked {
+  border-color: rgba(255, 83, 127, 0.42);
+}
+
+.transaction-card {
+  border-color: rgba(64, 223, 255, 0.3);
+}
+
+@media (max-width: 980px) {
+  .semantic-batch-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .semantic-batch-panel {
+    position: static;
+  }
+
+  .semantic-batch-step {
+    grid-template-columns: 1fr;
+  }
+}
