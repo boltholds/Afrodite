@@ -80,14 +80,14 @@ export function createMoveNodeCommand(
   label = "Move object",
 ): DocumentCommand {
   const node = requireEditableNode(document, nodeId, "move");
-  const before: Position = { x: node.position?.x ?? 0, y: node.position?.y ?? 0 };
+  const before = node.position ? { ...node.position } : undefined;
   const after: Position = { x: finite(position.x), y: finite(position.y) };
 
   return {
     id: createInteractionCommandId("move", nodeId),
     label,
-    apply: (current) => updateDocumentNode(current, nodeId, (target) => ({ ...target, position: { ...after } })),
-    revert: (current) => updateDocumentNode(current, nodeId, (target) => ({ ...target, position: { ...before } })),
+    apply: (current) => updateDocumentNode(current, nodeId, (target) => withPosition(target, after)),
+    revert: (current) => updateDocumentNode(current, nodeId, (target) => withPosition(target, before)),
   };
 }
 
@@ -98,14 +98,14 @@ export function createBorderRadiusCommand(
   label = "Update corner radius",
 ): DocumentCommand {
   const node = requireEditableNode(document, nodeId, "update corner radius");
-  const before: Appearance = { borderRadius: node.appearance?.borderRadius ?? 0 };
+  const before = node.appearance ? { ...node.appearance } : undefined;
   const after: Appearance = { borderRadius: Math.max(0, finite(borderRadius)) };
 
   return {
     id: createInteractionCommandId("radius", nodeId),
     label,
-    apply: (current) => updateDocumentNode(current, nodeId, (target) => ({ ...target, appearance: { ...after } })),
-    revert: (current) => updateDocumentNode(current, nodeId, (target) => ({ ...target, appearance: { ...before } })),
+    apply: (current) => updateDocumentNode(current, nodeId, (target) => withAppearance(target, after)),
+    revert: (current) => updateDocumentNode(current, nodeId, (target) => withAppearance(target, before)),
   };
 }
 
@@ -150,17 +150,27 @@ export function cloneNodeForPaste(
   node: UiNode,
   createId: (sourceId: string) => string,
 ): UiNode {
+  return cloneNodeForPasteInternal(node, createId, true);
+}
+
+function cloneNodeForPasteInternal(
+  node: UiNode,
+  createId: (sourceId: string) => string,
+  root: boolean,
+): UiNode {
   if (node.kind === "source-region" || node.children.some(containsSourceRegion)) {
     throw new Error("Source-region subtrees cannot be duplicated without a new import or binding review");
   }
 
-  const children = node.children.map((child) => cloneNodeForPaste(child, createId));
+  const children = node.children.map((child) => cloneNodeForPasteInternal(child, createId, false));
   const common = {
     ...node,
     id: createId(node.id),
-    name: `${node.name} copy`,
+    name: root ? `${node.name} copy` : node.name,
     layout: cloneLayout(node.layout),
-    ...(node.position ? { position: { ...node.position, x: node.position.x + 16, y: node.position.y + 16 } } : { position: { x: 16, y: 16 } }),
+    ...(node.position
+      ? { position: { ...node.position, x: node.position.x + 16, y: node.position.y + 16 } }
+      : { position: { x: 16, y: 16 } }),
     ...(node.appearance ? { appearance: { ...node.appearance } } : {}),
     props: cloneJson(node.props),
     children,
@@ -209,6 +219,18 @@ function updateDocumentNode(
 function updateNode(node: UiNode, nodeId: string, transform: (node: UiNode) => UiNode): UiNode {
   if (node.id === nodeId) return transform(node);
   return { ...node, children: node.children.map((child) => updateNode(child, nodeId, transform)) };
+}
+
+function withPosition(node: UiNode, position: Position | undefined): UiNode {
+  if (position) return { ...node, position: { ...position } };
+  const { position: _position, ...withoutPosition } = node;
+  return withoutPosition as UiNode;
+}
+
+function withAppearance(node: UiNode, appearance: Appearance | undefined): UiNode {
+  if (appearance) return { ...node, appearance: { ...appearance } };
+  const { appearance: _appearance, ...withoutAppearance } = node;
+  return withoutAppearance as UiNode;
 }
 
 function removeNode(document: UiDocument, nodeId: string): UiDocument {
