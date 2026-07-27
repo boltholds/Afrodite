@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   humanReviewRequestSchema,
   liveSessionPublishRequestSchema,
+  reviewedExecutionPreparationSchema,
+  reviewedExecutionRecordSchema,
 } from "../src/index.js";
 
 const document = {
@@ -21,6 +23,22 @@ const document = {
     props: {},
     children: [],
   },
+};
+
+const semanticPlan = {
+  apiVersion: 1 as const,
+  planId: "semantic-fresh",
+  documentVersion: "ui-fnv1a32:before",
+  status: "ready" as const,
+  applicationMode: "document-only" as const,
+  capabilities: {
+    documentMutation: true,
+    sourcePlanning: false,
+    requirements: [],
+  },
+  diagnostics: [],
+  documentAfter: document,
+  sourcePlans: [],
 };
 
 describe("collaboration protocol", () => {
@@ -55,5 +73,43 @@ describe("collaboration protocol", () => {
     expect(request.status).toBe("approved");
     expect(request).not.toHaveProperty("apply");
     expect(request).not.toHaveProperty("approvedEdits");
+  });
+
+  it("validates a fresh preparation and an independent execution receipt", () => {
+    const preparation = reviewedExecutionPreparationSchema.parse({
+      preparationId: "preparation-1",
+      preparedAt: "2026-07-27T04:05:00.000Z",
+      preparedBy: "human",
+      liveSessionId: "studio-1",
+      liveRevision: 8,
+      liveDocumentVersion: "ui-fnv1a32:before",
+      plan: semanticPlan,
+      comparison: {
+        exactMatch: true,
+        applicationModeMatches: true,
+        document: {
+          status: "identical",
+          approvedDocumentVersion: "ui-fnv1a32:after",
+          freshDocumentVersion: "ui-fnv1a32:after",
+        },
+        sources: [],
+        summary: "Fresh effects match.",
+      },
+    });
+    const execution = reviewedExecutionRecordSchema.parse({
+      executionId: "execution-1",
+      preparationId: preparation.preparationId,
+      executedAt: "2026-07-27T04:06:00.000Z",
+      executedBy: "human",
+      status: "document-only",
+      documentApplied: true,
+      documentCommandId: "command:replace:1",
+      documentRevision: 9,
+      documentVersionAfter: "ui-fnv1a32:after",
+      sourceResults: [],
+    });
+
+    expect(execution.status).toBe("document-only");
+    expect(execution.preparationId).toBe(preparation.preparationId);
   });
 });
