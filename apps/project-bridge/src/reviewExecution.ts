@@ -47,10 +47,13 @@ export class ReviewedExecutionService {
         "Only an approved review request can be prepared for execution.",
       );
     }
-    if (review.execution) {
+    if (
+      review.execution
+      && ["applied", "document-only", "source-only"].includes(review.execution.status)
+    ) {
       throw new ProjectCollaborationError(
         "REVIEW_ALREADY_EXECUTED",
-        `Review request ${review.requestId} already has execution ${review.execution.executionId}.`,
+        `Review request ${review.requestId} already has terminal execution ${review.execution.executionId}.`,
       );
     }
 
