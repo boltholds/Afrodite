@@ -35,6 +35,12 @@ export const motionFillSchema = z.enum([
   "both",
 ]);
 
+export const motionBlendModeSchema = z.enum([
+  "replace",
+  "add",
+  "multiply",
+]);
+
 export const motionTimelineSchema = z.object({
   durationMs: z.number().finite().positive().max(600_000),
   delayMs: z.number().finite().nonnegative().max(600_000).default(0),
@@ -121,6 +127,8 @@ export const animationClipSchema = z.object({
   id: motionIdentifierSchema,
   name: z.string().min(1),
   enabled: z.boolean().default(true),
+  priority: z.number().int().min(-1_000).max(1_000).default(0),
+  blend: motionBlendModeSchema.default("replace"),
   trigger: motionTriggerSchema,
   timeline: motionTimelineSchema,
   tracks: z.array(motionTrackSchema).min(1).max(32),
@@ -141,6 +149,17 @@ export const animationClipSchema = z.object({
       message: "An animation clip may define only one track per property.",
     });
   }
+  if (clip.blend !== "replace") {
+    clip.tracks.forEach((track, index) => {
+      if (track.property === "backgroundColor") {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["tracks", index, "property"],
+          message: "backgroundColor supports replace composition only.",
+        });
+      }
+    });
+  }
 });
 
 export const animationClipsSchema = z.array(animationClipSchema).max(32).superRefine((clips, context) => {
@@ -157,6 +176,7 @@ export type MotionTrigger = z.infer<typeof motionTriggerSchema>;
 export type MotionEasing = z.infer<typeof motionEasingSchema>;
 export type MotionDirection = z.infer<typeof motionDirectionSchema>;
 export type MotionFill = z.infer<typeof motionFillSchema>;
+export type MotionBlendMode = z.infer<typeof motionBlendModeSchema>;
 export type MotionTimeline = z.infer<typeof motionTimelineSchema>;
 export type MotionTrackProperty = z.infer<typeof motionTrackPropertySchema>;
 export type MotionKeyframe = z.infer<typeof motionKeyframeSchema>;
