@@ -1,6 +1,6 @@
 import { createSignal, Show } from "solid-js";
 import { render } from "solid-js/web";
-import { LiveStudioAppV9 } from "./LiveStudioAppV9";
+import { ManualProjectStudio } from "./ManualProjectStudio";
 import { ReviewInboxWorkbench } from "./ReviewInboxWorkbench";
 import { ScreenImportWorkbench } from "./ScreenImportWorkbench";
 import { SemanticOperationsWorkbench } from "./SemanticOperationsWorkbench";
@@ -19,6 +19,7 @@ import "./transaction.css";
 import "./variant.css";
 import "./semantic-operations.css";
 import "./review-inbox.css";
+import "./manual-interaction.css";
 
 const root = document.getElementById("root");
 
@@ -47,7 +48,7 @@ function StudioRoot() {
           <Show when={mode() === "transaction"} fallback={
             <Show when={mode() === "screen-import"} fallback={
               <Show when={mode() === "variants"} fallback={
-                <Show when={mode() === "style-ownership"} fallback={<LiveStudioAppV9 />}>
+                <Show when={mode() === "style-ownership"} fallback={<ManualProjectStudio />}>
                   <StyleOwnershipWorkbench />
                 </Show>
               }>
