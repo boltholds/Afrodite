@@ -1,7 +1,7 @@
 import { createSignal, Show } from "solid-js";
 import { render } from "solid-js/web";
 import { ManualProjectStudio } from "./ManualProjectStudio";
-import { MotionWorkbench } from "./MotionWorkbench";
+import { MotionWorkbench } from "./MotionWorkbenchV23";
 import { ReviewInboxWorkbench } from "./ReviewInboxWorkbench";
 import { ScreenImportWorkbench } from "./ScreenImportWorkbench";
 import { SemanticBatchWorkbench } from "./SemanticBatchWorkbench";
