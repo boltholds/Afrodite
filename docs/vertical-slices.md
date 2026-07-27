@@ -158,23 +158,47 @@ Delivered:
 - command-engine enforcement that rejects layout mutations against read-only regions;
 - tests for UI IR validation, import behavior, adapter registration, bridge routing, server-module handling, and command safety.
 
-Current boundary:
-
-- imports one explicit exported component from one TSX/JSX file;
-- does not follow child-component imports across files;
-- does not reconstruct routers, provider trees, runtime state, CSS cascade, or executable preview bundles;
-- opening an imported document does not modify repository source.
-
-## VS-012: Bounded multi-file import graph
+## VS-012: Bounded multi-file import graph — complete
 
 **Goal:** expand an explicitly selected screen through imported child components while retaining deterministic limits and provenance.
 
+Delivered:
+
+- asynchronous graph orchestration in `@afrodite/import-core/graph` over the existing framework-specific import adapters;
+- fixed-root source access through an abstract `ScreenImportSourceProvider` supplied by project bridge;
+- direct relative TSX/JSX resolution for default and named imports;
+- recursive local component expansion without importing or executing target modules;
+- instance-scoped node IDs when the same component definition is expanded more than once;
+- exact `SourceRegion` provenance retained for every expanded file;
+- file records and component edges with source version, export, depth, node count, target, status, and reason;
+- cycle detection using the active component path, with cyclic references retained as explicit boundaries;
+- hard file, node, graph-depth, and per-file syntax-depth budgets;
+- depth-first node pruning that never exceeds the configured materialized-node budget;
+- `all-local` and `explicit` expansion modes;
+- user-defined include and stop boundaries by component name or parent-file component identity;
+- structured `expanded`, `boundary`, `cycle`, `missing`, `budget`, and `failed` edge outcomes;
+- external packages, aliases, barrels, namespace imports, dynamic imports, and unresolved files left unexpanded rather than guessed;
+- protocol schemas for graph controls, file provenance, edges, and budget telemetry;
+- Studio controls and visual review for graph budgets, files, edges, cycles, truncation, and recovered UI IR;
+- tests covering recursive expansion, unique IDs, provenance, cycles, explicit boundaries, stop boundaries, file limits, node limits, depth limits, and bridge integration.
+
+Current boundary:
+
+- only direct relative JSX source imports are followed;
+- path aliases, package exports, barrel re-exports, lazy loaders, router configuration, and provider trees remain boundaries;
+- graph construction remains read-only and never modifies source;
+- expanded definitions are semantic inspection children of component instances, not executable preview bundles.
+
+## VS-013: Atomic multi-file verified transactions
+
+**Goal:** apply one reviewed semantic operation across component, stylesheet, token, and import files as a single compare-and-swap transaction with complete rollback.
+
 Planned acceptance criteria:
 
-- resolve only explicit local component imports;
-- require user-configurable file, node, and depth budgets;
-- detect cycles and repeated component references;
-- retain source version and region provenance per file;
-- allow users to stop expansion at any component boundary;
-- preserve external packages, dynamic imports, lazy components, and unresolved aliases as read-only component regions;
-- never execute the imported application during graph construction.
+- represent several source snapshots and edit sets in one deterministic plan;
+- bind approval to every file version in the transaction;
+- reject the whole transaction when any source became stale;
+- write through a staged commit boundary rather than independent file writes;
+- run shared verification only after all staged edits are present;
+- roll every changed file back when a required check fails;
+- expose one combined diff and per-file verification outcome in Studio.
