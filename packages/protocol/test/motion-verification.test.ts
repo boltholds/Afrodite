@@ -21,27 +21,7 @@ function manifest() {
     nodeId: "node.card",
     className: "card",
     managedClipIds: ["fade"],
-    clips: [{
-      id: "fade",
-      name: "Fade",
-      enabled: true,
-      priority: 0,
-      blend: "replace" as const,
-      trigger: { type: "hover" as const },
-      timeline: {
-        durationMs: 200,
-        delayMs: 0,
-        easing: "linear" as const,
-        iterations: 1,
-        direction: "normal" as const,
-        fill: "both" as const,
-      },
-      tracks: [{
-        id: "opacity",
-        property: "opacity" as const,
-        keyframes: [{ offset: 0, value: 0 }, { offset: 1, value: 1 }],
-      }],
-    }],
+    clips: [clip("fade")],
     cssRegion,
     cssFingerprint: createMotionCssFingerprint(cssRegion),
     challenge: "abcdefghijklmnop",
@@ -55,8 +35,32 @@ function manifest() {
   };
 }
 
+function clip(id: string) {
+  return {
+    id,
+    name: `Clip ${id}`,
+    enabled: true,
+    priority: 0,
+    blend: "replace" as const,
+    trigger: { type: "hover" as const },
+    timeline: {
+      durationMs: 200,
+      delayMs: 0,
+      easing: "linear" as const,
+      iterations: 1,
+      direction: "normal" as const,
+      fill: "both" as const,
+    },
+    tracks: [{
+      id: `opacity-${id}`,
+      property: "opacity" as const,
+      keyframes: [{ offset: 0, value: 0 }, { offset: 1, value: 1 }],
+    }],
+  };
+}
+
 describe("motion verification protocol", () => {
-  it("accepts an exact version-bound manifest", () => {
+  it("loads the refined animation schema and accepts an exact manifest", () => {
     const parsed = motionVerificationManifestSchema.parse(manifest());
     expect(parsed.cssFingerprint).toBe(createMotionCssFingerprint(cssRegion));
     expect(parsed.scenarios[0]?.sampleTimesMs).toEqual([0, 100, 200]);
@@ -77,8 +81,12 @@ describe("motion verification protocol", () => {
     })).toThrow(/unique/i);
     expect(() => motionVerificationManifestSchema.parse({
       ...manifest(),
-      managedClipIds: Array.from({ length: 9 }, (_, index) => `clip-${index}`),
-    })).toThrow();
+      clips: Array.from({ length: 9 }, (_, index) => clip(`clip-${index}`)),
+      scenarios: [{
+        ...manifest().scenarios[0],
+        activeClipIds: [],
+      }],
+    })).toThrow(/at most eight clips/i);
   });
 
   it("allows a baseline removal scenario with no active animations", () => {
