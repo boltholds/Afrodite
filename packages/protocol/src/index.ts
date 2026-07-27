@@ -64,6 +64,11 @@ export {
   bridgeVariantPlanRequestSchema,
 } from "./variant";
 export {
+  bridgeMotionOperationSchema,
+  bridgeMotionPlanRequestSchema,
+  motionOwnershipSchema,
+} from "./motion";
+export {
   screenImportGraphBudgetSchema,
   screenImportGraphEdgeSchema,
   screenImportGraphFileSchema,
@@ -172,6 +177,11 @@ export type {
   BridgeVariantOperation,
   BridgeVariantPlanRequest,
 } from "./variant";
+export type {
+  BridgeMotionOperation,
+  BridgeMotionPlanRequest,
+  MotionOwnership,
+} from "./motion";
 export type {
   ScreenImportGraphBudget,
   ScreenImportGraphEdge,
