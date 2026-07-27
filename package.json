@@ -13,7 +13,7 @@
     "dev:bridge": "pnpm --filter @afrodite/project-bridge dev --",
     "dev:agent": "pnpm --filter @afrodite/agent-gateway dev --",
     "dev:agent:http": "pnpm --filter @afrodite/agent-gateway dev:http --",
-    "build": "pnpm -r build",
+    "build": "pnpm -r --workspace-concurrency=1 build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "docker:config": "docker compose config",
