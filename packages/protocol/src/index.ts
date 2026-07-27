@@ -84,6 +84,15 @@ export {
   bridgeTransactionPlanViewSchema,
   bridgeTransactionSourceApprovalSchema,
 } from "./transaction";
+export {
+  semanticCapabilityVerdictSchema,
+  semanticDiagnosticSchema,
+  semanticExplanationSchema,
+  semanticOperationCommandSchema,
+  semanticPlanRequestSchema,
+  semanticPlanResponseSchema,
+  semanticPlanViewSchema,
+} from "./semantic";
 
 export type {
   CatalogDecodeResult,
@@ -164,3 +173,12 @@ export type {
   BridgeTransactionPlanView,
   BridgeTransactionSourceApproval,
 } from "./transaction";
+export type {
+  SemanticCapabilityVerdict,
+  SemanticDiagnostic,
+  SemanticExplanation,
+  SemanticOperationCommand,
+  SemanticPlanRequest,
+  SemanticPlanResponse,
+  SemanticPlanView,
+} from "./semantic";
