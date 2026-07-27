@@ -2,6 +2,9 @@ import { randomUUID } from "node:crypto";
 import {
   PolicyControlledAgentGateway,
 } from "@afrodite/agent-gateway-core";
+import {
+  PolicyControlledSemanticBatchGateway,
+} from "@afrodite/agent-gateway-core/batch";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SemanticOnlyProjectBridgeClient } from "./bridgeClient.js";
 import { createAfroditeAgentMcpServer } from "./mcp.js";
@@ -25,11 +28,15 @@ async function main(): Promise<void> {
     documentProvider: bridge,
     semanticPlanner: bridge,
   });
+  const batchGateway = new PolicyControlledSemanticBatchGateway({
+    documentProvider: bridge,
+    batchPlanner: bridge,
+  });
   const context = {
     actor: options.actor,
     sessionId: randomUUID(),
   };
-  const server = createAfroditeAgentMcpServer(gateway, context, bridge);
+  const server = createAfroditeAgentMcpServer(gateway, batchGateway, context, bridge);
   const transport = new StdioServerTransport();
 
   console.error(`[afrodite-agent-gateway] policy-controlled stdio session ${context.sessionId}`);
@@ -83,7 +90,7 @@ function requireValue(argument: string, value: string | undefined): string {
 }
 
 function printHelp(): void {
-  console.error(`Afrodite policy-controlled MCP agent gateway\n\nUsage:\n  pnpm dev:agent [options]\n\nOptions:\n  --bridge-url <url>          Project bridge URL (default http://127.0.0.1:4175)\n  --bridge-token-env <name>   Environment variable holding the bridge token\n  --actor <name>              Audit actor label (default mcp-agent)\n\nStudio must be connected and must have published its live project session. The gateway exposes inspection, dry-run planning, and review-request tools only.`);
+  console.error(`Afrodite policy-controlled MCP agent gateway\n\nUsage:\n  pnpm dev:agent [options]\n\nOptions:\n  --bridge-url <url>          Project bridge URL (default http://127.0.0.1:4175)\n  --bridge-token-env <name>   Environment variable holding the bridge token\n  --actor <name>              Audit actor label (default mcp-agent)\n\nStudio must be connected and must have published its live project session. The gateway exposes inspection, single and batch dry-run planning, and human review-request tools only.`);
 }
 
 main().catch((error) => {
