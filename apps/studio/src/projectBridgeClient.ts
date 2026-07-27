@@ -29,6 +29,7 @@ import {
   type BridgeVariantOperation,
   type HumanReviewRequest,
   type LiveSessionSnapshot,
+  type ReviewedExecutionSourceResult,
   type ScreenImportRequest,
   type ScreenImportResult,
   type SemanticOperationCommand,
@@ -114,6 +115,41 @@ export class ProjectBridgeClient {
           ...(note?.trim() ? { note: note.trim() } : {}),
         }),
       },
+      humanReviewResponseSchema,
+    );
+    if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
+    return response.request;
+  }
+
+  async prepareReviewExecution(
+    requestId: string,
+    preparedBy: string,
+  ): Promise<HumanReviewRequest> {
+    const response = await this.#request(
+      "/api/review/prepare-execution",
+      {
+        method: "POST",
+        body: JSON.stringify({ requestId, preparedBy }),
+      },
+      humanReviewResponseSchema,
+    );
+    if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
+    return response.request;
+  }
+
+  async recordReviewExecution(input: {
+    readonly requestId: string;
+    readonly preparationId: string;
+    readonly executedBy: string;
+    readonly documentApplied: boolean;
+    readonly documentCommandId?: string;
+    readonly documentRevision?: number;
+    readonly documentVersionAfter?: string;
+    readonly sourceResults: readonly ReviewedExecutionSourceResult[];
+  }): Promise<HumanReviewRequest> {
+    const response = await this.#request(
+      "/api/review/record-execution",
+      { method: "POST", body: JSON.stringify(input) },
       humanReviewResponseSchema,
     );
     if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
