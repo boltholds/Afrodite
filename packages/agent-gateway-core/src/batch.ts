@@ -102,6 +102,10 @@ export class PolicyControlledSemanticBatchGateway {
     this.#idFactory = dependencies.idFactory ?? randomId;
   }
 
+  inspectPolicy(): AgentSemanticBatchPolicy {
+    return cloneJson(this.#policy);
+  }
+
   async planSemanticBatch(
     commands: readonly SemanticOperationCommand[],
     context: AgentGatewayCallContext,
@@ -229,10 +233,12 @@ export class PolicyControlledSemanticBatchGateway {
 }
 
 function normalizePolicy(policy: AgentSemanticBatchPolicy): AgentSemanticBatchPolicy {
+  const maxCommands = positiveInteger(policy.maxCommands, "maxCommands");
+  if (maxCommands > 16) throw new Error("maxCommands must not exceed the semantic batch protocol limit of 16.");
   return Object.freeze({
     policyId: policy.policyId,
     allowedTools: policy.allowedTools.filter((tool, index, values) => values.indexOf(tool) === index),
-    maxCommands: positiveInteger(policy.maxCommands, "maxCommands"),
+    maxCommands,
     maxSourcePlans: positiveInteger(policy.maxSourcePlans, "maxSourcePlans"),
     maxDiffCharacters: positiveInteger(policy.maxDiffCharacters, "maxDiffCharacters"),
     reviewRequestTtlMs: positiveInteger(policy.reviewRequestTtlMs, "reviewRequestTtlMs"),
