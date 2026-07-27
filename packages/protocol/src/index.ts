@@ -27,6 +27,22 @@ export {
   previewRuntimeSchema,
 } from "./preview";
 export {
+  MOTION_VERIFICATION_CHANNEL,
+  createMotionVerificationRequest,
+  decodeMotionVerificationMessage,
+  motionVerificationActivationSchema,
+  motionVerificationDiagnosticSchema,
+  motionVerificationDifferenceSchema,
+  motionVerificationManifestSchema,
+  motionVerificationMatrixSchema,
+  motionVerificationMessageSchema,
+  motionVerificationRequestSchema,
+  motionVerificationResultSchema,
+  motionVerificationSampleSchema,
+  motionVerificationScenarioSchema,
+  motionVerificationStyleSchema,
+} from "./motion-verification";
+export {
   PROJECT_BRIDGE_VERSION,
   bridgeAdapterSchema,
   bridgeApplyRequestSchema,
@@ -64,8 +80,15 @@ export {
   bridgeVariantPlanRequestSchema,
 } from "./variant";
 export {
+  bridgeMotionApplyRequestSchema,
+  bridgeMotionApplyResponseSchema,
   bridgeMotionOperationSchema,
   bridgeMotionPlanRequestSchema,
+  bridgeMotionPlanResponseSchema,
+  bridgeMotionPlanViewSchema,
+  bridgeMotionRuntimeEvidenceRecordRequestSchema,
+  bridgeMotionRuntimeEvidenceRecordResponseSchema,
+  bridgeMotionRuntimeEvidenceSchema,
   motionOwnershipSchema,
 } from "./motion";
 export {
@@ -143,6 +166,19 @@ export type {
   PreviewRuntime,
 } from "./preview";
 export type {
+  MotionVerificationActivation,
+  MotionVerificationDiagnostic,
+  MotionVerificationDifference,
+  MotionVerificationManifest,
+  MotionVerificationMatrix,
+  MotionVerificationMessage,
+  MotionVerificationRequest,
+  MotionVerificationResult,
+  MotionVerificationSample,
+  MotionVerificationScenario,
+  MotionVerificationStyle,
+} from "./motion-verification";
+export type {
   BridgeAdapter,
   BridgeApplyRequest,
   BridgeApplyResponse,
@@ -178,8 +214,15 @@ export type {
   BridgeVariantPlanRequest,
 } from "./variant";
 export type {
+  BridgeMotionApplyRequest,
+  BridgeMotionApplyResponse,
   BridgeMotionOperation,
   BridgeMotionPlanRequest,
+  BridgeMotionPlanResponse,
+  BridgeMotionPlanView,
+  BridgeMotionRuntimeEvidence,
+  BridgeMotionRuntimeEvidenceRecordRequest,
+  BridgeMotionRuntimeEvidenceRecordResponse,
   MotionOwnership,
 } from "./motion";
 export type {

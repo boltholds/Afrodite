@@ -1,10 +1,17 @@
 import {
-  bridgeApplyResponseSchema,
-  bridgePlanResponseSchema,
+  bridgeMotionApplyResponseSchema,
+  bridgeMotionPlanResponseSchema,
+  bridgeMotionRuntimeEvidenceRecordResponseSchema,
   type BridgeApplyResult,
   type BridgeMotionOperation,
-  type BridgePatchPlanView,
+  type BridgeMotionPlanView,
+  type BridgeMotionRuntimeEvidence,
 } from "@afrodite/protocol";
+import type { MotionVerificationResult } from "@afrodite/protocol/motion-verification";
+
+export const MOTION_RUNTIME_MANIFEST_KEY = "afrodite.motion.runtime-manifest.v1";
+export const MOTION_RUNTIME_BRIDGE_URL_KEY = "afrodite.motion.runtime-bridge-url.v1";
+export const MOTION_RUNTIME_EVIDENCE_PREFIX = "afrodite.motion.runtime-evidence.v1.";
 
 export class MotionBridgeClientError extends Error {
   readonly code: string;
@@ -20,13 +27,39 @@ export async function planMotionPatch(
   baseUrl: string,
   token: string,
   operation: BridgeMotionOperation,
-): Promise<BridgePatchPlanView> {
+): Promise<BridgeMotionPlanView> {
   const payload = await request(baseUrl, token, "/api/motion/plan", {
     operation,
   });
-  const parsed = bridgePlanResponseSchema.parse(payload);
+  const parsed = bridgeMotionPlanResponseSchema.parse(payload);
   if (!parsed.ok) throw new MotionBridgeClientError(parsed.error.code, parsed.error.message);
+  clearRuntimeEvidence(parsed.plan.planId);
+  if (parsed.plan.runtimeVerification) {
+    sessionStorage.setItem(MOTION_RUNTIME_MANIFEST_KEY, JSON.stringify(parsed.plan.runtimeVerification));
+    sessionStorage.setItem(MOTION_RUNTIME_BRIDGE_URL_KEY, baseUrl);
+  } else {
+    sessionStorage.removeItem(MOTION_RUNTIME_MANIFEST_KEY);
+  }
+  window.dispatchEvent(new Event("afrodite-motion-runtime-plan"));
   return parsed.plan;
+}
+
+export async function recordMotionRuntimeEvidence(
+  baseUrl: string,
+  token: string,
+  result: MotionVerificationResult,
+): Promise<BridgeMotionRuntimeEvidence> {
+  const payload = await request(baseUrl, token, "/api/motion/runtime-evidence", {
+    result,
+  });
+  const parsed = bridgeMotionRuntimeEvidenceRecordResponseSchema.parse(payload);
+  if (!parsed.ok) throw new MotionBridgeClientError(parsed.error.code, parsed.error.message);
+  sessionStorage.setItem(
+    `${MOTION_RUNTIME_EVIDENCE_PREFIX}${parsed.evidence.planId}`,
+    parsed.evidence.evidenceId,
+  );
+  window.dispatchEvent(new Event("afrodite-motion-runtime-evidence"));
+  return parsed.evidence;
 }
 
 export async function applyMotionPatch(
@@ -34,15 +67,33 @@ export async function applyMotionPatch(
   token: string,
   planId: string,
   sourceVersion: string,
+  runtimeEvidenceId?: string,
 ): Promise<BridgeApplyResult> {
+  const evidenceId = runtimeEvidenceId
+    ?? sessionStorage.getItem(`${MOTION_RUNTIME_EVIDENCE_PREFIX}${planId}`)
+    ?? "";
+  if (!evidenceId) {
+    throw new MotionBridgeClientError(
+      "MOTION_RUNTIME_EVIDENCE_REQUIRED",
+      "Run and record isolated runtime verification for this exact motion plan before apply.",
+    );
+  }
   const payload = await request(baseUrl, token, "/api/motion/apply", {
     planId,
     sourceVersion,
+    runtimeEvidenceId: evidenceId,
     approvedBy: "afrodite-studio-motion",
   });
-  const parsed = bridgeApplyResponseSchema.parse(payload);
+  const parsed = bridgeMotionApplyResponseSchema.parse(payload);
   if (!parsed.ok) throw new MotionBridgeClientError(parsed.error.code, parsed.error.message);
+  clearRuntimeEvidence(planId);
+  sessionStorage.removeItem(MOTION_RUNTIME_MANIFEST_KEY);
+  window.dispatchEvent(new Event("afrodite-motion-runtime-plan"));
   return parsed.result;
+}
+
+function clearRuntimeEvidence(planId: string): void {
+  sessionStorage.removeItem(`${MOTION_RUNTIME_EVIDENCE_PREFIX}${planId}`);
 }
 
 async function request(

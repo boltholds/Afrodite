@@ -8,67 +8,57 @@ Afrodite can:
 
 1. render and edit a framework-neutral `UiDocument`;
 2. statically index SolidJS and React components without executing project modules;
-3. compose trusted components through an isolated preview host;
-4. preserve framework-qualified source bindings;
-5. create and repair stable JSX bindings through exact reviewed patches;
-6. record reversible visual commands and source provenance;
-7. declare which layout properties Afrodite owns and how they are represented in source;
-8. patch React and SolidJS inline styles safely;
-9. patch static Tailwind classes, flat CSS Module rules, and existing design tokens;
-10. show exact unified diffs, require approval, verify writes, and roll back failures;
-11. import existing React or SolidJS screens into Semantic UI IR without executing them;
-12. expand bounded graphs of direct local JSX components with cycle detection and deterministic budgets;
-13. preserve unsupported behavior and unresolved imports as source-backed boundaries;
-14. apply several existing source-file changes through one reviewed staged transaction and shared verification boundary;
-15. represent responsive breakpoints and `hover`, `focus`, `disabled`, `loading`, and `error` states independently from base layout;
-16. materialize owned variants through static Tailwind utilities or generated CSS Module regions;
-17. plan constrained project-aware semantic operations without granting automation direct code-edit authority;
-18. expose semantic inspection and dry runs through a policy-controlled local MCP gateway;
-19. publish the active Studio session to durable human review inboxes for agent-proposed changes;
-20. re-plan approved single operations against current document and source versions, compare drift, and execute them only after a second explicit human confirmation;
-21. bind several fresh source effects to one reviewed transaction with shared verification, complete rollback, and one durable execution receipt;
-22. edit the active project session manually through keyboard navigation, object clipboard, drag gestures, wheel-controlled corner radius, inline text editing, Inspector fields, and JSON;
-23. define typed animation clips, edit timelines/tracks/keyframes visually or through the same UI IR JSON, and preview them through a deterministic playhead resolver;
-24. combine up to sixteen existing typed semantic commands into one deterministic document effect and one reviewed multi-file source transaction.
+3. render trusted components through an opaque-origin preview host;
+4. preserve framework-qualified source bindings and explicit ownership;
+5. create and repair stable JSX bindings through reviewed patches;
+6. record reversible visual commands, provenance, and undo/redo history;
+7. patch owned React/Solid inline styles, Tailwind utilities, CSS Modules, and existing design tokens;
+8. import bounded existing screens and local component graphs without executing them;
+9. represent responsive breakpoints and component states independently from base layout;
+10. create constrained semantic operations and ordered semantic batches without granting automation direct write authority;
+11. publish live Studio sessions into durable human review inboxes;
+12. re-plan approved operations against current document/source versions and require a second execution confirmation;
+13. apply several source effects through one staged transaction with shared verification and rollback;
+14. edit through keyboard, pointer drag, object clipboard, held-wheel radius control, Inspector fields, and JSON;
+15. define, duplicate, combine, and preview typed animation clips through visual controls and the same UI IR JSON;
+16. generate reviewed CSS keyframes only for explicitly owned CSS Module regions;
+17. verify generated motion against the semantic compositor in an isolated browser fixture before allowing the stylesheet write;
+18. expose bounded semantic read/plan/review-request tools through a local MCP gateway with no apply or approval-decision capability.
 
 ## Architecture
 
-Shared editor code remains framework-neutral.
-
-- `@afrodite/ui-ir` defines semantic layout, manual position and appearance, animation clips, responsive/state variants, source bindings, style ownership, and source-backed regions.
-- `@afrodite/framework-core` defines framework adapters, source operations, deterministic patch plans, diagnostics, and verification steps.
-- `@afrodite/binding-core` discovers source targets and plans stable-marker installation.
-- `@afrodite/style-core` maps semantic base layout to inline styles, Tailwind utilities, CSS Modules, or design tokens.
-- `@afrodite/variants-core` resolves effective variant layout and materializes owned responsive/state overrides.
-- `@afrodite/import-core` reconstructs bounded existing screens through syntax-specific import adapters.
-- `@afrodite/import-core/graph` follows direct local component imports through a provider-controlled, budgeted graph.
-- `@afrodite/semantic-ops` turns API v1 commands into deterministic UI-document effects and typed style or variant intents.
-- `@afrodite/semantic-ops/batch` preflights and composes bounded ordered command lists, detects conflicting writes, and produces one combined document effect.
-- `@afrodite/agent-gateway-core` applies agent policy, redaction, inspection budgets, dry-run limits, approval-request rules, and audit records.
-- `@afrodite/agent-gateway-core/batch` applies independent command/source/diff limits to agent-requested semantic batches and keeps batch provenance process-local.
-- `@afrodite/verified-write` provides single-file and multi-file approval, staging, compare-and-swap writes, verification, and rollback.
-- `@afrodite/canvas-engine/interaction` provides reversible delete, move, radius, text, duplication, traversal, and composite-gesture commands.
-- `@afrodite/canvas-engine/motion` provides reversible animation commands and deterministic timeline/keyframe resolution.
-- `@afrodite/project-session` keeps manual Canvas, Motion, Source Sync, and reviewed document effects inside one command history.
-
-React and SolidJS use separate adapter identities. They currently share static JSX binding and screen-import implementations while keeping framework-specific runtime and source-style behavior behind adapters.
-
-## Manual interaction workflow
+The three sources of authority are deliberately separate:
 
 ```text
-keyboard / pointer / wheel / object clipboard / Inspector / JSON
-  -> context and read-only checks
-  -> deterministic DocumentCommand
-  -> shared LiveProjectSession history
-  -> revision increment
-  -> source-plan invalidation or layout transition
-  -> undo / redo
+source code       authoritative for application behavior and business logic
+Semantic UI IR    authoritative for visual structure, intent, bindings, ownership, variants, and motion
+rendered preview  observable verification state
 ```
 
-The manual project canvas supports:
+Shared editor code remains framework-neutral.
+
+- `@afrodite/ui-ir` defines layout, manual position/appearance, animation clips, variants, source bindings, ownership, and source-backed regions.
+- `@afrodite/framework-core` defines framework adapters, deterministic source plans, diagnostics, and verification steps.
+- `@afrodite/binding-core` discovers static JSX targets and installs reviewed stable markers.
+- `@afrodite/style-core` materializes owned base styles.
+- `@afrodite/variants-core` resolves and materializes responsive/state overrides.
+- `@afrodite/motion-core` creates deterministic owned CSS keyframe regions and rejects unsupported triggers, blend modes, and source-channel conflicts.
+- `@afrodite/import-core` reconstructs bounded existing screens and direct local component graphs.
+- `@afrodite/semantic-ops` plans constrained single commands and ordered batches.
+- `@afrodite/canvas-engine` provides reversible visual, interaction, document, and motion commands plus deterministic motion composition.
+- `@afrodite/project-session` keeps Canvas, Motion, Source Sync, and reviewed document effects in one history.
+- `@afrodite/verified-write` provides approval, compare-and-swap writes, staging, shared verification, and rollback.
+- `@afrodite/agent-gateway-core` enforces redaction, inspection/diff budgets, process-local provenance, and no-write agent policies.
+- `@afrodite/protocol` defines all browser, bridge, preview, motion-evidence, semantic, transaction, and review contracts.
+
+React and SolidJS retain separate adapter identities even where bounded static implementations are shared.
+
+## Manual interaction
+
+The active project canvas supports:
 
 ```text
-Delete / Backspace          delete selected subtree
+Delete / Backspace          delete selected editable subtree
 Tab / Shift+Tab             deterministic depth-first navigation
 Arrow keys                  move 1 px
 Shift + Arrow               move 10 px
@@ -78,25 +68,16 @@ Enter or F2                 edit static text
 Ctrl/Cmd+L                  edit text when the browser dispatches it
 pointer drag                free object translation
 held pointer + wheel        corner-radius adjustment
-Escape                      cancel transient gesture or text edit
+Escape                      cancel a transient gesture or editor
 ```
 
-Drag and held-wheel changes are previewed transiently and committed as one history command on pointer release. Pasted nodes receive fresh IDs and lose source authority so that two objects cannot claim one stable marker. Read-only source regions reject destructive manual commands.
+Drag/wheel input is previewed transiently and committed as one history command. Pasted nodes receive fresh IDs and lose source authority. Read-only source regions reject destructive commands. Browsers may reserve `Ctrl/Cmd+L`; `Enter` and `F2` are guaranteed alternatives.
 
-Manual position and appearance are visible in JSON:
+See `docs/manual-interaction.md`.
 
-```json
-{
-  "position": { "x": 24, "y": -8 },
-  "appearance": { "borderRadius": 18 }
-}
-```
+## Semantic motion
 
-Browsers may reserve `Ctrl/Cmd+L` for the address bar; `Enter` and `F2` are the guaranteed shortcuts. See `docs/manual-interaction.md`.
-
-## Semantic motion workflow
-
-Animation intent is stored on the same `UiNode` that owns layout, variants, and manual appearance:
+Motion is stored directly on a `UiNode`:
 
 ```json
 {
@@ -105,6 +86,8 @@ Animation intent is stored on the same `UiNode` that owns layout, variants, and 
       "id": "button-hover",
       "name": "Button hover",
       "enabled": true,
+      "priority": 0,
+      "blend": "replace",
       "trigger": { "type": "hover" },
       "timeline": {
         "durationMs": 180,
@@ -129,19 +112,48 @@ Animation intent is stored on the same `UiNode` that owns layout, variants, and 
 }
 ```
 
-The Motion workspace supports clip creation/deletion, trigger and timeline fields, property tracks, keyframe values, play/pause/restart, and playhead scrubbing. Its JSON panel edits exactly `selectedNode.animations`; applying valid JSON creates one reversible command in the shared project-session history.
+The Motion workspace provides reusable presets, clip duplication, multiple active clips on one object, priority/blend controls, a shared playhead, detailed tracks/keyframes, and Animation JSON over the same model.
+
+Semantic preview supports numeric `replace`, `add`, and `multiply`. The CSS source adapter is intentionally narrower: it materializes `replace` clips only, requires existing CSS Module ownership, and blocks simultaneously active clips that write the same CSS channel. Mount, hover, focus, and existing `data-state` selectors are supported. Manual/click runtime wiring is rejected.
+
+See `docs/semantic-motion.md` and `docs/motion-source-composition.md`.
+
+## Isolated motion runtime verification
+
+Every changed motion source plan carries a version-bound verification manifest:
 
 ```text
-clip + elapsedMs
-  -> delay / iterations / direction / fill
-  -> easing
-  -> keyframe interpolation
-  -> resolved preview style
+planId + stylesheet sourceVersion
++ exact generated CSS region and fingerprint
++ random plan challenge
++ bounded clips, scenarios, and sample times
 ```
 
-Triggers are declarative in VS-021. Preview does not create hooks, signals, event handlers, application state, or source writes. Motion stays document-owned until a framework/source adapter proves how the target project represents the animation. See `docs/semantic-motion.md`.
+Studio sends this manifest to the preview host through a dedicated protocol channel. The host creates a closed Shadow DOM with a static `div`; it does not render project React/Solid components or execute application modules.
 
-## Constrained semantic operation API
+For bounded mount, hover, focus, and explicit `data-state` scenarios it:
+
+```text
+injects the exact generated CSS region
+-> activates a deterministic sandbox scenario
+-> pauses CSS animations
+-> assigns sampled currentTime values
+-> reads opacity, transform matrix, radius, color, and animation count
+-> compares them with resolveMotionComposition
+-> returns structured expected/actual evidence
+```
+
+Project bridge accepts evidence only for the complete exact scenario/sample set with matching source version, fingerprint, and challenge. Bridge issues the evidence ID itself. `/api/motion/apply` requires:
+
+```text
+planId + sourceVersion + bridge-issued runtimeEvidenceId
+```
+
+Runtime evidence is observational local-browser verification, not cryptographic attestation. It supplements explicit human diff review, compare-and-swap writes, formatter/build verification, and rollback.
+
+See `docs/isolated-motion-runtime-verification.md`.
+
+## Constrained semantic operations and batches
 
 The semantic API currently supports:
 
@@ -152,164 +164,84 @@ replace_spacing_with_token
 explain_unpatchable_region
 ```
 
-A command resolves one existing UI IR node, checks read-only state, binding, stable marker, style ownership, and adapter capability, then returns `ready`, `blocked`, or `informational`.
-
-Document effects and source effects remain separate. A plan may be `document-only` when the semantic change is valid but Afrodite cannot prove authority over production source. Automation cannot invent a target, binding, marker, ownership scope, source replacement, shell command, or approval. See `docs/semantic-operations.md`.
-
-## Typed semantic batches
-
-A batch is an ordered array of one to sixteen existing semantic commands:
-
-```json
-[
-  { "type": "convert_to_grid", "nodeId": "node.card", "gap": 16 },
-  { "type": "convert_to_grid", "nodeId": "node.panel", "gap": 20 }
-]
-```
-
-Planning is deterministic and bounded:
+A batch contains one to sixteen existing typed commands. Every command is independently preflighted against one immutable input document before ordered composition. Same-field writes and unproven same-file source merging block the entire batch.
 
 ```text
 one input UiDocument
-  -> validate bounded typed commands
-  -> independent preflight against the same input document
-  -> reject informational or independently blocked commands
-  -> detect same-field semantic writes
-  -> compose commands in declared order
-  -> collect typed source intents
-  -> resolve actual strategy target paths
-  -> reject unsupported same-file source merging
-  -> one combined documentAfter
-  -> zero/one source plan or one bridge-owned source transaction
+-> bounded typed-command validation
+-> independent capability/ownership preflight
+-> semantic and source conflict detection
+-> ordered combined documentAfter
+-> zero/one source plan or one bridge-owned transaction
 ```
 
-Independent preflight prevents an earlier command from granting a later command new ownership or editability. Ordered composition still produces an exact final document and per-step provenance. Conflicts are reported before any approval or write.
+Studio shows step provenance, exact diffs, transactions, and the combined document. Human approval remains distinct from application. Source effects execute before the reversible UI IR command.
 
-Actual source targets are strategy-aware: inline/Tailwind target JSX, CSS Modules target their stylesheet, and design-token operations target the token file. Two intents targeting the same actual file remain blocked until same-file AST merging is proven.
-
-Studio **Batches** shows ordered steps, diagnostics, every exact diff, the optional atomic transaction, and the combined `documentAfter`. A manual plan requires an exact batch-ID checkbox. An agent-submitted plan additionally requires a durable human approve/reject decision. Approval does not execute; application remains a second explicit action. Source effects run first, and the UI document becomes one reversible replace-document command only after complete source success.
-
-See `docs/semantic-batches.md`.
+See `docs/semantic-operations.md` and `docs/semantic-batches.md`.
 
 ## Safe source synchronization
 
 ```text
-visual or semantic operation
-  -> explicit source binding and ownership
-  -> framework, style, or variant strategy adapter
-  -> deterministic SourcePatchPlan
-  -> exact unified diff
-  -> approval bound to planId + sourceVersion
-  -> compare-and-swap write
-  -> formatter/typecheck/test/build verification
-  -> applied result or rollback
+visual or semantic intent
+-> explicit binding and ownership
+-> deterministic adapter plan
+-> exact unified diff
+-> optional runtime evidence
+-> approval bound to plan/source version
+-> compare-and-swap write
+-> formatter/typecheck/test/build verification
+-> applied result or rollback
 ```
 
-Afrodite does not accept browser- or agent-authored text edits, offsets, staging paths, or verification commands. The local project bridge owns source reads, patch storage, filesystem access, process execution, and verified writes.
+Browser and agent clients never provide source replacement text, edit offsets, staging paths, verification commands, commit order, or rollback behavior. Project bridge owns source reads, plan storage, filesystem access, process execution, verification, and rollback.
 
-Manual layout Inspector changes continue to emit source-sync layout transitions. Position, corner radius, text, deletion, paste, composite gestures, and animations remain document-owned until dedicated source adapters prove authority over those properties.
+## Agent boundary
 
-## Policy-controlled MCP agent gateway
+The local MCP gateway exposes bounded read/plan/review-request tools for single semantic operations and batches. It exposes no filesystem, shell, arbitrary source read, source write, patch apply, transaction apply, execution, approval-decision, commit, or merge capability.
 
-The local stdio gateway exposes exactly these tools:
-
-```text
-afrodite_list_semantic_operations
-afrodite_inspect_policy
-afrodite_inspect_document
-afrodite_plan_semantic_operation
-afrodite_request_human_approval
-afrodite_get_approval_request
-afrodite_plan_semantic_batch
-afrodite_request_semantic_batch_review
-afrodite_get_semantic_batch_review
-```
-
-The gateway deliberately exposes no filesystem, shell, arbitrary source-read, patch-apply, transaction-apply, commit, merge, approval-decision, or execution tools.
-
-Its default policy:
-
-- redacts prop values and source excerpts;
-- limits inspection to depth 8 and 250 nodes;
-- limits a batch to 16 commands;
-- limits dry runs to 8 source plans and 80,000 diff characters;
-- reads the current document published by the live Studio project session;
-- keeps the project bridge token private to the process;
-- requires single plans and batches to originate in the same gateway process before review submission;
-- allows an agent to submit review requests but never decide or execute them.
+The default policy redacts prop values/source excerpts, limits document inspection, limits command/source-plan/diff budgets, and requires plans to originate in the same gateway process before durable review submission.
 
 See `docs/agent-gateway.md`.
 
-## Reviewed execution workflow
+## Reviewed execution
 
-Single-operation reviewed execution retains fresh re-planning and drift comparison:
+Single-operation agent changes follow:
 
 ```text
 agent dry run
-  -> persistent pending review
-  -> first human approve/reject decision
-  -> server-side re-plan against current live document and source versions
-  -> structured approved-vs-fresh comparison
-  -> exact fresh UI IR and source diffs
-  -> optional bridge-owned multi-file transaction
-  -> second confirmation bound to preparationId + live revision
-  -> verified single-file apply or atomic source transaction
-  -> reversible Studio replace-document command after source success
-  -> persisted execution receipt or retry history
+-> durable pending review
+-> first human approve/reject decision
+-> fresh server-side re-plan
+-> approved-vs-current drift comparison
+-> exact current document/source effects
+-> second confirmation bound to preparation and live revision
+-> verified patch or atomic transaction
+-> reversible document command after source success
+-> durable execution receipt or retry history
 ```
 
-The second confirmation is invalid when the live Studio revision or document version changes. Expired source plans or transactions must be prepared again. UI IR replacement appears in the same undo/redo history as visual edits. Failed and partial attempts remain in `executionHistory` and can be re-planned against the actual new state.
+Typed batches currently use exact version-bound review plus compare-and-swap execution. Fresh batch re-planning and durable batch execution receipts remain deferred.
 
-Typed batches currently use exact version-bound review plus compare-and-swap source execution. Stale documents or source versions block application and require a new batch plan. Fresh batch re-planning and durable execution receipts are deferred.
-
-See `docs/reviewed-execution.md`, `docs/reviewed-multifile-execution.md`, and `docs/live-agent-review.md`.
-
-## Atomic multi-file transactions
-
-Several server-generated source plans can be grouped into one deterministic transaction:
-
-```text
-semantic layout/style/variant operations
-  -> one adapter plan per target file
-  -> exact diff for every file
-  -> approval bound to transactionId + every source version
-  -> preflight read of every target
-  -> stage every final file body
-  -> compare-and-swap commit
-  -> one shared verification sequence
-  -> keep every file or restore every committed file
-```
-
-The boundary is logically all-or-rollback while the project bridge process remains alive. Crash recovery across a process or machine failure is still deferred. See `docs/multi-file-transactions.md` and `docs/reviewed-multifile-execution.md`.
+See `docs/live-agent-review.md`, `docs/reviewed-execution.md`, and `docs/reviewed-multifile-execution.md`.
 
 ## Existing screen import
 
-The importer performs bounded static analysis only. It never imports target modules, starts Vite, calls hooks, evaluates conditions, fetches data, or runs package scripts.
-
-Unsupported conditions, calls, iterations, fragments, dynamic expressions, multiple return paths, server-only modules, aliases, packages, lazy loaders, and unresolved imports remain explicit read-only boundaries with source provenance.
+Import is bounded static analysis. It never imports project modules, starts project Vite, calls hooks, evaluates conditions, fetches data, or runs package scripts. Unsupported control flow and unresolved imports remain explicit source-backed boundaries.
 
 See `docs/existing-screen-import.md` and `docs/multi-file-screen-import.md`.
 
 ## Workspace
 
-- `apps/studio` — Manual Canvas, Motion, Batches, Source Sync, Binding Manager, Style Ownership, Variants, Screen Import, Transactions, Semantic API, and review workbenches.
-- `apps/preview-host` — opaque-origin trusted SolidJS and React component preview.
-- `apps/project-bridge` — authenticated localhost source, planning, verified-write, transaction, live-session, single-review, semantic-batch review, and reviewed-execution service.
-- `apps/agent-gateway` — policy-controlled MCP stdio adapter over live single and batch semantic planning boundaries.
-- `packages/ui-ir` — Semantic UI IR, manual position/appearance, motion, variants, bindings, ownership, and provenance contracts.
-- `packages/canvas-engine` — reversible layout, manual interaction, motion, document, binding, style, and variant commands with read-only enforcement.
-- `packages/project-session` — live session state, transition provenance, snapshot subscriptions, browser session registry, and reviewed document execution port.
-- `packages/framework-core` — framework and patch-plan contracts.
-- `packages/binding-core` — target discovery and stable-marker plans.
-- `packages/style-core` — base style ownership strategies.
-- `packages/variants-core` — responsive/state resolution and source materialization strategies.
-- `packages/import-core` — bounded screen and component-graph import.
+- `apps/studio` — Manual Canvas, Motion/compositor/evidence review, Batches, Source Sync, Binding Manager, ownership, variants, import, transactions, semantic API, and review inboxes.
+- `apps/preview-host` — opaque-origin React/Solid component preview plus independent static motion-verification fixture.
+- `apps/project-bridge` — authenticated source planning, live-session/review persistence, runtime-evidence normalization, verified writes, and transactions.
+- `apps/agent-gateway` — policy-controlled MCP stdio adapter over live semantic planning boundaries.
+- `packages/ui-ir` — Semantic UI IR contracts.
+- `packages/canvas-engine` — reversible editor commands and semantic motion composition.
+- `packages/framework-core`, `binding-core`, `style-core`, `variants-core`, `motion-core`, `import-core` — bounded source and import strategies.
 - `packages/semantic-ops` — constrained single-command and batch planners.
-- `packages/agent-gateway-core` — single and batch agent policy, redaction, dry-run, approval-request, and audit boundaries.
-- `packages/verified-write` — approval, staging, compare-and-swap, shared verification, and rollback.
-- `packages/adapter-solid` and `packages/adapter-react` — framework identities and adapter factories.
-- `packages/project-indexer` and `packages/indexer-react` — static component catalogs.
-- `packages/protocol` — catalog, preview, bridge, binding, style, variant, import, transaction, semantic, batch, review, preparation, and execution schemas.
+- `packages/verified-write` — compare-and-swap writes, transactions, verification, and rollback.
+- `packages/protocol` — browser, bridge, preview, motion-evidence, semantic, transaction, and review schemas.
 
 ## Development
 
@@ -321,13 +253,15 @@ pnpm dev
 
 `pnpm dev` starts Studio on `4173` and preview host on `4174`.
 
-Start project bridge in another terminal:
+Start project bridge separately:
 
 ```bash
 pnpm dev:bridge --project ./path/to/project
 ```
 
-Open Studio, connect the project bridge from Project session, and keep the page open long enough for the current revision to be published. Then start the MCP gateway with the same bridge token:
+Open Studio and paste the printed bridge token into Project session. Motion source plans appear in Motion; after planning, the isolated runtime evidence panel appears above the workbench. A successful evidence run records a bridge-issued evidence ID, after which the exact plan can be approved and applied.
+
+For MCP:
 
 ```bash
 export AFRODITE_BRIDGE_TOKEN='<local bridge token>'
@@ -337,9 +271,7 @@ pnpm dev:agent \
   --actor codex
 ```
 
-Single-operation agent requests appear in **Review inbox**. Batch requests appear in **Batches** after selecting **Load durable batch inbox**. An approval decision never applies effects automatically.
-
-Target applications should ignore local collaboration state:
+Target projects should ignore local collaboration state:
 
 ```gitignore
 .afrodite/

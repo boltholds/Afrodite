@@ -1,0 +1,119 @@
+.motion-runtime-verification-panel {
+  display: grid;
+  gap: 12px;
+  margin: 10px 14px 0;
+  padding: 14px;
+  border: 1px solid rgba(88, 223, 255, 0.24);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(20, 10, 30, 0.96), rgba(7, 12, 22, 0.96));
+  box-shadow: 0 0 28px rgba(40, 190, 255, 0.08);
+  color: #f8f5ff;
+}
+
+.motion-runtime-verification-heading,
+.motion-runtime-verification-actions,
+.motion-runtime-verification-meta,
+.motion-runtime-verification-result > div,
+.motion-runtime-verification-result article > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.motion-runtime-verification-heading {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.motion-runtime-verification-heading > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.motion-runtime-verification-heading span,
+.motion-runtime-verification-meta span {
+  color: #bdb1ca;
+  font-size: 0.82rem;
+}
+
+.motion-runtime-verification-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.motion-runtime-verification-panel code {
+  color: #77e7ff;
+  font: 0.74rem "JetBrains Mono", "Cascadia Code", monospace;
+}
+
+.motion-runtime-verification-meta {
+  flex-wrap: wrap;
+}
+
+.motion-runtime-verification-meta strong {
+  color: #89f7c7;
+}
+
+.motion-runtime-verification-frame {
+  width: 100%;
+  height: 120px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: #08050d;
+}
+
+.motion-runtime-verification-result {
+  display: grid;
+  gap: 9px;
+  padding: 11px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.motion-runtime-verification-result.passed {
+  border-left: 3px solid #61e8ac;
+}
+
+.motion-runtime-verification-result.failed {
+  border-left: 3px solid #ff537f;
+}
+
+.motion-runtime-verification-result > span {
+  color: #bdb1ca;
+}
+
+.motion-runtime-verification-result details {
+  display: grid;
+  gap: 8px;
+}
+
+.motion-runtime-verification-result article {
+  display: grid;
+  gap: 5px;
+  margin-top: 7px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.motion-runtime-verification-result article.mismatched {
+  outline: 1px solid rgba(255, 83, 127, 0.42);
+}
+
+.motion-runtime-verification-result article p {
+  margin: 0;
+  color: #d9d0e5;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 760px) {
+  .motion-runtime-verification-panel {
+    margin-inline: 8px;
+  }
+
+  .motion-runtime-verification-heading,
+  .motion-runtime-verification-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

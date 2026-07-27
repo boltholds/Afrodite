@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import path from "node:path";
 import {
   createPatchPreview,
@@ -12,8 +13,10 @@ import {
 import type {
   BridgeApplyResult,
   BridgeMotionOperation,
-  BridgePatchPlanView,
+  BridgeMotionPlanView,
+  BridgeMotionRuntimeEvidence,
 } from "@afrodite/protocol";
+import type { MotionVerificationManifest, MotionVerificationResult } from "@afrodite/protocol/motion-verification";
 import {
   FileSystemSourceRepository,
   ProcessVerificationRunner,
@@ -23,11 +26,20 @@ import {
   type VerificationRunner,
 } from "@afrodite/verified-write";
 import { createUnifiedDiff } from "@afrodite/verified-write/diff";
+import { createMotionVerificationManifest } from "./motionVerification.js";
+
+interface StoredRuntimeEvidence {
+  readonly evidenceId: string;
+  readonly result: MotionVerificationResult;
+  readonly verifiedAt: string;
+}
 
 interface StoredMotionPlan {
   readonly plan: SourcePatchPlan;
   readonly preview: PatchPreview;
+  readonly manifest: MotionVerificationManifest;
   readonly createdAt: number;
+  readonly evidence?: StoredRuntimeEvidence;
 }
 
 export interface MotionBridgeServiceOptions {
@@ -36,6 +48,8 @@ export interface MotionBridgeServiceOptions {
   readonly verificationRunner?: VerificationRunner;
   readonly planTtlMs?: number;
   readonly now?: () => number;
+  readonly challengeFactory?: () => string;
+  readonly evidenceIdFactory?: () => string;
 }
 
 export class MotionBridgeServiceError extends Error {
@@ -55,6 +69,8 @@ export class MotionBridgeService {
   readonly #plans = new Map<string, StoredMotionPlan>();
   readonly #planTtlMs: number;
   readonly #now: () => number;
+  readonly #challengeFactory: () => string;
+  readonly #evidenceIdFactory: () => string;
 
   constructor(options: MotionBridgeServiceOptions) {
     const projectRoot = path.resolve(options.projectRoot);
@@ -63,9 +79,12 @@ export class MotionBridgeService {
     this.#writeService = new VerifiedWriteService(this.#repository, runner);
     this.#planTtlMs = options.planTtlMs ?? 10 * 60_000;
     this.#now = options.now ?? Date.now;
+    this.#challengeFactory = options.challengeFactory ?? (() => randomBytes(18).toString("base64url"));
+    this.#evidenceIdFactory = options.evidenceIdFactory
+      ?? (() => `motion-evidence.${randomBytes(16).toString("base64url")}`);
   }
 
-  async planMotionPatch(operation: BridgeMotionOperation): Promise<BridgePatchPlanView> {
+  async planMotionPatch(operation: BridgeMotionOperation): Promise<BridgeMotionPlanView> {
     this.#prune();
     const normalized = operation as MotionPatchOperation;
     const strategy = this.#registry.resolve(normalized);
@@ -79,8 +98,21 @@ export class MotionBridgeService {
     const plan = strategy.plan(normalized, source);
     const preview = createPatchPreview(plan, source);
     const blocking = preview.diagnostics.some((diagnostic) => diagnostic.severity === "error");
-    if (!blocking && preview.changed) {
-      this.#plans.set(plan.planId, { plan, preview, createdAt: this.#now() });
+    const manifest = !blocking && preview.changed
+      ? createMotionVerificationManifest({
+          operation: normalized,
+          plan,
+          preview,
+          challenge: this.#challengeFactory(),
+        })
+      : undefined;
+    if (manifest) {
+      this.#plans.set(plan.planId, {
+        plan,
+        preview,
+        manifest,
+        createdAt: this.#now(),
+      });
     }
     return {
       planId: plan.planId,
@@ -90,12 +122,49 @@ export class MotionBridgeService {
       diff: createUnifiedDiff(preview),
       diagnostics: preview.diagnostics.map((diagnostic) => ({ ...diagnostic })),
       verification: plan.verification.map((step) => ({ ...step })),
+      ...(manifest ? { runtimeVerification: cloneJson(manifest) } : {}),
+    };
+  }
+
+  recordRuntimeEvidence(result: MotionVerificationResult): BridgeMotionRuntimeEvidence {
+    this.#prune();
+    const stored = this.#plans.get(result.planId);
+    if (!stored) {
+      throw new MotionBridgeServiceError(
+        "MOTION_PLAN_NOT_FOUND",
+        "The motion plan is missing, blocked, expired, or already applied.",
+      );
+    }
+    validateRuntimeResult(stored.manifest, result);
+    const verifiedAt = new Date(this.#now()).toISOString();
+    const evidence: StoredRuntimeEvidence = {
+      evidenceId: this.#evidenceIdFactory(),
+      result: cloneJson(result),
+      verifiedAt,
+    };
+    this.#plans.set(result.planId, { ...stored, evidence });
+    return {
+      evidenceId: evidence.evidenceId,
+      planId: result.planId,
+      sourceVersion: result.sourceVersion,
+      cssFingerprint: result.cssFingerprint,
+      verifiedAt,
+      sampleCount: result.samples.length,
+      diagnostics: result.diagnostics.map((diagnostic) => ({
+        code: diagnostic.code,
+        severity: diagnostic.severity,
+        message: diagnostic.message,
+        nodeId: stored.manifest.nodeId,
+        repositoryPath: stored.plan.repositoryPath,
+      })),
+      verification: [],
     };
   }
 
   async applyMotionPatch(
     planId: string,
     sourceVersion: string,
+    runtimeEvidenceId: string,
     approvedBy?: string,
   ): Promise<BridgeApplyResult> {
     this.#prune();
@@ -110,6 +179,12 @@ export class MotionBridgeService {
       throw new MotionBridgeServiceError(
         "MOTION_APPROVAL_SOURCE_VERSION_MISMATCH",
         "The motion approval does not match the exact stylesheet version shown in the diff.",
+      );
+    }
+    if (!stored.evidence || stored.evidence.evidenceId !== runtimeEvidenceId) {
+      throw new MotionBridgeServiceError(
+        "MOTION_RUNTIME_EVIDENCE_REQUIRED",
+        "A successful isolated runtime verification for this exact plan is required before apply.",
       );
     }
     const approval = createPatchApproval(stored.preview, approvedBy);
@@ -138,4 +213,58 @@ export class MotionBridgeService {
       if (stored.createdAt < threshold) this.#plans.delete(planId);
     }
   }
+}
+
+function validateRuntimeResult(
+  manifest: MotionVerificationManifest,
+  result: MotionVerificationResult,
+): void {
+  if (result.sourceVersion !== manifest.sourceVersion
+    || result.cssFingerprint !== manifest.cssFingerprint
+    || result.challenge !== manifest.challenge) {
+    throw new MotionBridgeServiceError(
+      "MOTION_RUNTIME_EVIDENCE_MISMATCH",
+      "Runtime evidence does not match the exact plan manifest, stylesheet version, CSS fingerprint, or challenge.",
+    );
+  }
+  if (!result.ok || result.diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
+    throw new MotionBridgeServiceError(
+      "MOTION_RUNTIME_VERIFICATION_FAILED",
+      "The isolated runtime verification reported a mismatch or runtime error.",
+    );
+  }
+
+  const scenarioById = new Map(manifest.scenarios.map((scenario) => [scenario.scenarioId, scenario]));
+  const expectedKeys = manifest.scenarios.flatMap((scenario) =>
+    scenario.sampleTimesMs.map((sampleTimeMs) => sampleKey(scenario.scenarioId, sampleTimeMs)));
+  const actualKeys = result.samples.map((sample) => sampleKey(sample.scenarioId, sample.sampleTimeMs));
+  if (new Set(actualKeys).size !== actualKeys.length
+    || expectedKeys.length !== actualKeys.length
+    || expectedKeys.some((key) => !actualKeys.includes(key))) {
+    throw new MotionBridgeServiceError(
+      "MOTION_RUNTIME_EVIDENCE_INCOMPLETE",
+      "Runtime evidence does not contain the exact expected scenario/sample set.",
+    );
+  }
+  for (const sample of result.samples) {
+    const scenario = scenarioById.get(sample.scenarioId)!;
+    const expectedAnimationCount = scenario.activeClipIds.length;
+    if (!sample.matched
+      || sample.differences.length > 0
+      || sample.expectedAnimationCount !== expectedAnimationCount
+      || sample.actualAnimationCount !== expectedAnimationCount) {
+      throw new MotionBridgeServiceError(
+        "MOTION_RUNTIME_STYLE_MISMATCH",
+        "At least one isolated runtime sample differs from the semantic motion compositor or expected animation set.",
+      );
+    }
+  }
+}
+
+function sampleKey(scenarioId: string, sampleTimeMs: number): string {
+  return `${scenarioId}@${sampleTimeMs}`;
+}
+
+function cloneJson<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }
