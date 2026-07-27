@@ -208,12 +208,18 @@ export class ProjectCollaborationStore {
           "Only an approved review request can be prepared for execution.",
         );
       }
+
+      let executionHistory = current.executionHistory ? [...current.executionHistory] : [];
       if (current.execution) {
-        throw new ProjectCollaborationError(
-          "REVIEW_ALREADY_EXECUTED",
-          `Review request ${requestId} already has execution ${current.execution.executionId}.`,
-        );
+        if (["applied", "document-only", "source-only"].includes(current.execution.status)) {
+          throw new ProjectCollaborationError(
+            "REVIEW_ALREADY_EXECUTED",
+            `Review request ${requestId} already has terminal execution ${current.execution.executionId}.`,
+          );
+        }
+        executionHistory = [...executionHistory, current.execution];
       }
+
       const live = state.liveSession;
       if (
         !live
@@ -227,9 +233,11 @@ export class ProjectCollaborationStore {
           "The live Studio session changed while the execution preparation was being created.",
         );
       }
+      const { execution: _previousExecution, ...withoutExecution } = current;
       const updated = humanReviewRequestSchema.parse({
-        ...current,
+        ...withoutExecution,
         preparation,
+        ...(executionHistory.length > 0 ? { executionHistory } : {}),
       });
       const reviews = [...state.reviews];
       reviews[index] = updated;
