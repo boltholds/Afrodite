@@ -13,7 +13,7 @@ export const motionVerificationScenarioSchema = z.object({
   scenarioId: z.string().regex(/^[A-Za-z][A-Za-z0-9._-]*$/),
   selector: z.string().min(1).max(240),
   activation: motionVerificationActivationSchema,
-  activeClipIds: z.array(z.string().min(1)).min(1).max(8),
+  activeClipIds: z.array(z.string().min(1)).max(8),
   sampleTimesMs: z.array(z.number().finite().nonnegative().max(600_000)).min(1).max(12),
 }).superRefine((scenario, context) => {
   if (new Set(scenario.activeClipIds).size !== scenario.activeClipIds.length) {
@@ -49,7 +49,7 @@ export const motionVerificationManifestSchema = z.object({
   className: z.string().regex(/^[A-Za-z_][A-Za-z0-9_-]*$/),
   managedClipIds: z.array(z.string().min(1)).min(1).max(8),
   clips: animationClipsSchema.max(8),
-  cssRegion: z.string().min(1).max(100_000),
+  cssRegion: z.string().max(100_000),
   cssFingerprint: z.string().regex(/^motion-css-v1:[0-9a-f]{8}$/),
   challenge: z.string().regex(/^[A-Za-z0-9_-]{16,120}$/),
   scenarios: z.array(motionVerificationScenarioSchema).min(1).max(32),
