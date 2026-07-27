@@ -12,8 +12,14 @@
     "dev:preview": "pnpm --filter @afrodite/preview-host dev",
     "dev:bridge": "pnpm --filter @afrodite/project-bridge dev --",
     "dev:agent": "pnpm --filter @afrodite/agent-gateway dev --",
+    "dev:agent:http": "pnpm --filter @afrodite/agent-gateway dev:http --",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "docker:config": "docker compose config",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up --build -d",
+    "docker:logs": "docker compose logs -f",
+    "docker:down": "docker compose down"
   }
 }
