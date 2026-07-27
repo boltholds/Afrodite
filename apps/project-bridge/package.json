@@ -18,6 +18,7 @@
     "@afrodite/import-core": "workspace:*",
     "@afrodite/protocol": "workspace:*",
     "@afrodite/style-core": "workspace:*",
+    "@afrodite/variants-core": "workspace:*",
     "@afrodite/verified-write": "workspace:*",
     "zod": "^3.25.76"
   },
