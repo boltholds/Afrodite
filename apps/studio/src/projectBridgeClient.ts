@@ -146,6 +146,7 @@ export class ProjectBridgeClient {
     readonly documentRevision?: number;
     readonly documentVersionAfter?: string;
     readonly sourceResults: readonly ReviewedExecutionSourceResult[];
+    readonly transactionResult?: BridgeTransactionApplyResult;
   }): Promise<HumanReviewRequest> {
     const response = await this.#request(
       "/api/review/record-execution",

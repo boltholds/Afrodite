@@ -130,7 +130,7 @@ export function createProjectBridgeServer(options: ProjectBridgeServerOptions): 
 
       if (request.method === "POST" && url.pathname === "/api/review/record-execution") {
         const input = reviewedExecutionRecordRequestSchema.parse(await readJsonBody(request, maxBodyBytes));
-        const review = await options.collaboration.recordExecution(input);
+        const review = await options.reviewedExecution.record(input);
         sendJson(response, 200, { ok: true, request: review });
         return;
       }
