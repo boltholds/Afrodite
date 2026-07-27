@@ -8,6 +8,8 @@ import {
   bridgePatchPlanViewSchema,
 } from "./bridge";
 
+export const SEMANTIC_OPERATION_API_VERSION = 1 as const;
+
 export const semanticOperationCommandSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("convert_to_grid"),
@@ -66,11 +68,13 @@ export const semanticExplanationSchema = z.object({
 });
 
 export const semanticPlanRequestSchema = z.object({
+  apiVersion: z.literal(SEMANTIC_OPERATION_API_VERSION).default(SEMANTIC_OPERATION_API_VERSION),
   document: uiDocumentSchema,
   command: semanticOperationCommandSchema,
 });
 
 export const semanticPlanViewSchema = z.object({
+  apiVersion: z.literal(SEMANTIC_OPERATION_API_VERSION),
   planId: z.string().min(1),
   documentVersion: z.string().min(1),
   status: z.enum(["ready", "blocked", "informational"]),
