@@ -54,6 +54,23 @@ export interface LiveProjectSessionState {
   readonly writeResults: Readonly<Record<string, BridgeApplyResult>>;
 }
 
+export interface LiveProjectSessionSnapshot {
+  readonly revision: number;
+  readonly document: UiDocument;
+}
+
+export type LiveProjectSessionListener = (snapshot: LiveProjectSessionSnapshot) => void;
+
+const liveSessionListeners = new Set<LiveProjectSessionListener>();
+const publishedSessionStates = new WeakSet<object>();
+
+export function subscribeLiveProjectSession(
+  listener: LiveProjectSessionListener,
+): () => void {
+  liveSessionListeners.add(listener);
+  return () => liveSessionListeners.delete(listener);
+}
+
 export interface ExecuteLiveCommandOptions {
   readonly layout?: LayoutCommandMetadata;
   readonly invalidateAllPatchState?: boolean;
@@ -79,6 +96,7 @@ export function createLiveProjectSession(
 }
 
 export function sessionDocument(state: LiveProjectSessionState): UiDocument {
+  publishLiveSessionSnapshot(state);
   return state.history.present;
 }
 
@@ -323,6 +341,18 @@ function clearAllPatchState(state: LiveProjectSessionState): LiveProjectSessionS
 function ensureValidSelection(state: LiveProjectSessionState): LiveProjectSessionState {
   if (findNode(state.history.present.root, state.selectedNodeId)) return state;
   return { ...state, selectedNodeId: state.history.present.root.id };
+}
+
+function publishLiveSessionSnapshot(state: LiveProjectSessionState): void {
+  if (liveSessionListeners.size === 0 || publishedSessionStates.has(state)) return;
+  publishedSessionStates.add(state);
+  const snapshot: LiveProjectSessionSnapshot = {
+    revision: state.revision,
+    document: state.history.present,
+  };
+  queueMicrotask(() => {
+    for (const listener of liveSessionListeners) listener(snapshot);
+  });
 }
 
 function createTransition(
