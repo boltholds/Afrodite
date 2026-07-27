@@ -136,7 +136,7 @@ Delivered:
 Current boundary:
 
 - one verified source file is changed per style operation;
-- nested CSS, dynamic class helpers, token creation, and multi-file atomic changes remain read-only or deferred.
+- nested CSS, dynamic class helpers, and token creation remain read-only or deferred.
 
 ## VS-011: Existing screen import — complete
 
@@ -189,16 +189,45 @@ Current boundary:
 - graph construction remains read-only and never modifies source;
 - expanded definitions are semantic inspection children of component instances, not executable preview bundles.
 
-## VS-013: Atomic multi-file verified transactions
+## VS-013: Atomic multi-file verified transactions — complete
 
-**Goal:** apply one reviewed semantic operation across component, stylesheet, token, and import files as a single compare-and-swap transaction with complete rollback.
+**Goal:** apply one reviewed semantic change across component, stylesheet, token, and other existing source files through one staged compare-and-swap transaction with complete rollback.
+
+Delivered:
+
+- deterministic `MultiFileTransactionPlan` identities over sorted file plans and shared verification;
+- approval bound to the transaction ID and the complete reviewed path/source-version set;
+- preflight re-read of every target before staging and again before each commit;
+- rejection of stale files, unchanged targets, duplicate paths, or blocked adapter plans before a complete commit;
+- filesystem staging of every final file body into temporary sibling files before the first source replacement;
+- compare-and-swap commit of staged files;
+- shared verification deduplicated across all adapter plans and run once after every commit;
+- reverse-order rollback of every committed file after commit failure or required verification failure;
+- compare-and-swap rollback that refuses to overwrite later independent changes;
+- explicit `applied`, `rejected`, `rolled-back`, and `rollback-failed` transaction results;
+- authenticated `/api/transaction/plan` and `/api/transaction/apply` bridge routes;
+- semantic `layout` and `style` operation input with no browser-authored edits, staging paths, or verification commands;
+- exact per-file unified diff review and one approval covering every source version;
+- Studio Transactions workbench with shared verification review and per-file before/after/restored versions;
+- tests for success, stale-source rejection, verification rollback, partial-commit rollback, duplicate-target refusal, filesystem staging, and bridge integration.
+
+Current boundary:
+
+- transaction targets must already exist;
+- one deterministic adapter plan is allowed per target file;
+- same-file plan merging, file creation/deletion, import insertion, and component extraction are deferred;
+- the transaction is logically all-or-rollback while the bridge process is alive, but a process or machine crash between file replacements is not yet recoverable.
+
+## VS-014: Responsive variants and component states
+
+**Goal:** represent breakpoint and interaction-state intent in Semantic UI IR and materialize owned variants through framework/style adapters without flattening runtime behavior.
 
 Planned acceptance criteria:
 
-- represent several source snapshots and edit sets in one deterministic plan;
-- bind approval to every file version in the transaction;
-- reject the whole transaction when any source became stale;
-- write through a staged commit boundary rather than independent file writes;
-- run shared verification only after all staged edits are present;
-- roll every changed file back when a required check fails;
-- expose one combined diff and per-file verification outcome in Studio.
+- add named responsive breakpoints and `hover`, `focus`, `disabled`, `loading`, and `error` variants to UI IR;
+- keep base layout and variant overrides independently reversible;
+- expose adapter capability and read-only diagnostics for unsupported states;
+- map owned variants to static CSS, CSS Modules, Tailwind variants, or design tokens;
+- preview selected states without mutating production runtime state;
+- plan all affected source files through the VS-013 transaction boundary;
+- preserve handwritten conditions, handlers, and dynamic class logic when ownership is not explicit.
