@@ -87,6 +87,8 @@ export const reviewedExecutionSourceResultSchema = z.object({
   repositoryPath: z.string().min(1),
   sourceVersion: z.string().min(1),
   result: bridgeApplyResultSchema,
+  transactionId: z.string().min(1).optional(),
+  transactionResult: bridgeTransactionApplyResultSchema.optional(),
 });
 
 export const reviewedExecutionRecordSchema = z.object({
@@ -100,7 +102,6 @@ export const reviewedExecutionRecordSchema = z.object({
   documentRevision: z.number().int().nonnegative().optional(),
   documentVersionAfter: z.string().min(1).optional(),
   sourceResults: z.array(reviewedExecutionSourceResultSchema),
-  transactionResult: bridgeTransactionApplyResultSchema.optional(),
 });
 
 export const humanReviewRequestSchema = z.object({
