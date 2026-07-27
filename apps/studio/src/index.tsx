@@ -1,7 +1,7 @@
 import { createSignal, Show } from "solid-js";
 import { render } from "solid-js/web";
 import { ManualProjectStudio } from "./ManualProjectStudio";
-import { MotionWorkbench } from "./MotionWorkbenchV23";
+import { MotionCompositionWorkbench } from "./MotionCompositionWorkbench";
 import { ReviewInboxWorkbench } from "./ReviewInboxWorkbench";
 import { ScreenImportWorkbench } from "./ScreenImportWorkbench";
 import { SemanticBatchWorkbench } from "./SemanticBatchWorkbench";
@@ -67,7 +67,7 @@ function StudioRoot() {
                 <Show when={mode() === "variants"} fallback={
                   <Show when={mode() === "style-ownership"} fallback={
                     <Show when={mode() === "motion"} fallback={<ManualProjectStudio />}>
-                      <MotionWorkbench />
+                      <MotionCompositionWorkbench />
                     </Show>
                   }>
                     <StyleOwnershipWorkbench />
