@@ -1,10 +1,12 @@
 import {
   PolicyControlledAgentGateway,
   type AgentGatewayCallContext,
+  type AgentPlannedOperation,
 } from "@afrodite/agent-gateway-core";
 import { semanticOperationCommandSchema } from "@afrodite/protocol";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import type { AgentReviewClient } from "./bridgeClient.js";
 
 export const AFRODITE_AGENT_MCP_TOOLS = [
   "afrodite_list_semantic_operations",
@@ -18,11 +20,13 @@ export const AFRODITE_AGENT_MCP_TOOLS = [
 export function createAfroditeAgentMcpServer(
   gateway: PolicyControlledAgentGateway,
   context: AgentGatewayCallContext,
+  reviewClient?: AgentReviewClient,
 ): McpServer {
   const server = new McpServer({
     name: "afrodite-agent-gateway",
-    version: "0.1.0",
+    version: "0.2.0",
   });
+  const plannedOperations = new Map<string, AgentPlannedOperation>();
 
   server.registerTool(
     "afrodite_list_semantic_operations",
@@ -45,7 +49,7 @@ export function createAfroditeAgentMcpServer(
   server.registerTool(
     "afrodite_inspect_document",
     {
-      description: "Inspect a sanitized, bounded Semantic UI IR tree. Prop values and source excerpts are redacted.",
+      description: "Inspect the current sanitized, bounded Studio project session. Prop values and source excerpts are redacted.",
       inputSchema: {
         nodeId: z.string().min(1).optional(),
         maxDepth: z.number().int().nonnegative().optional(),
@@ -63,39 +67,60 @@ export function createAfroditeAgentMcpServer(
   server.registerTool(
     "afrodite_plan_semantic_operation",
     {
-      description: "Create a dry-run semantic plan through Afrodite's existing binding, ownership, adapter, diff, and verification boundaries. The tool never applies the plan.",
+      description: "Create a dry-run semantic plan against the current live Studio document. The tool never applies the plan.",
       inputSchema: {
         command: semanticOperationCommandSchema,
       },
     },
-    async ({ command }) => toolResult(() => gateway.planSemanticOperation(command, context)),
+    async ({ command }) => toolResult(async () => {
+      const planned = await gateway.planSemanticOperation(command, context);
+      plannedOperations.set(planned.plan.planId, planned);
+      return planned;
+    }),
   );
 
   server.registerTool(
     "afrodite_request_human_approval",
     {
-      description: "Create a pending human approval request for a semantic plan produced by this gateway process. This tool cannot approve or apply the plan.",
+      description: "Submit a pending review request to Afrodite Studio for a semantic plan produced by this gateway process. This tool cannot approve or apply the plan.",
       inputSchema: {
         semanticPlanId: z.string().min(1),
         rationale: z.string().max(2_000).optional(),
       },
     },
-    async ({ semanticPlanId, rationale }) => toolResult(() => gateway.requestHumanApproval(
-      semanticPlanId,
-      rationale,
-      context,
-    )),
+    async ({ semanticPlanId, rationale }) => toolResult(async () => {
+      const local = gateway.requestHumanApproval(
+        semanticPlanId,
+        rationale,
+        context,
+      );
+      if (!reviewClient) return local;
+      const planned = plannedOperations.get(semanticPlanId);
+      if (!planned) throw new Error("The exact dry-run plan is no longer available in this MCP session.");
+      return reviewClient.submitReview({
+        requestId: local.requestId,
+        actor: local.actor,
+        ...(local.sessionId ? { agentSessionId: local.sessionId } : {}),
+        createdAt: local.createdAt,
+        expiresAt: local.expiresAt,
+        ...(local.rationale ? { rationale: local.rationale } : {}),
+        plan: planned.plan,
+        command: planned.command,
+      });
+    }),
   );
 
   server.registerTool(
     "afrodite_get_approval_request",
     {
-      description: "Read the pending or expired status of a previously created approval request. No approval decision can be made through MCP.",
+      description: "Read the human inbox status of a review request. No approval decision can be made through MCP.",
       inputSchema: {
         requestId: z.string().min(1),
       },
     },
-    async ({ requestId }) => toolResult(() => gateway.getApprovalRequest(requestId, context)),
+    async ({ requestId }) => toolResult(() => reviewClient
+      ? reviewClient.getReview(requestId)
+      : gateway.getApprovalRequest(requestId, context)),
   );
 
   return server;
