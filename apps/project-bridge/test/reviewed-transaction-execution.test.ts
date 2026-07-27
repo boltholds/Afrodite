@@ -183,7 +183,7 @@ function reviewInput(current: UiDocument): HumanReviewSubmitRequest {
       capabilities: {
         documentMutation: false,
         sourcePlanning: true,
-        sourceRepresentation: "mixed",
+        sourceRepresentation: "inline",
         requirements: [],
       },
       diagnostics: [],
@@ -211,7 +211,7 @@ function transactionPreparation(current: UiDocument): ReviewedExecutionPreparati
       capabilities: {
         documentMutation: false,
         sourcePlanning: true,
-        sourceRepresentation: "mixed",
+        sourceRepresentation: "inline",
         requirements: [],
       },
       diagnostics: [],
