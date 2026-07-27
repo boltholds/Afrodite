@@ -5,6 +5,7 @@ import {
 } from "@afrodite/project-session/execution";
 import type {
   BridgeApplyResult,
+  BridgeTransactionApplyResult,
   HumanReviewRequest,
   ReviewedExecutionSourceResult,
 } from "@afrodite/protocol";
@@ -26,6 +27,7 @@ export function ReviewInboxWorkbench() {
   const [status, setStatus] = createSignal("Connect to the project bridge to review agent requests.");
   const [confirmedPreparationId, setConfirmedPreparationId] = createSignal("");
   const [sourceResults, setSourceResults] = createSignal<Record<string, BridgeApplyResult>>({});
+  const [latestTransactionResult, setLatestTransactionResult] = createSignal<BridgeTransactionApplyResult>();
 
   const selected = createMemo(() => requests().find((request) => request.requestId === selectedId()));
   const preparation = createMemo(() => selected()?.preparation);
@@ -35,8 +37,19 @@ export function ReviewInboxWorkbench() {
     if (!current || current.plan.status !== "ready") return true;
     if (current.plan.diagnostics.some((diagnostic) => diagnostic.severity === "error")) return true;
     if (current.plan.sourcePlans.some((plan) => plan.diagnostics.some((diagnostic) => diagnostic.severity === "error"))) return true;
-    if (changedFreshPlans().length > 1) return true;
-    return !current.plan.documentAfter && changedFreshPlans().length === 0;
+
+    const changed = changedFreshPlans();
+    if (changed.length > 1) {
+      const transaction = current.transaction;
+      if (!transaction) return true;
+      if (transaction.changedFiles !== changed.length || transaction.files.length !== changed.length) return true;
+      if (transaction.diagnostics.some((diagnostic) => diagnostic.severity === "error")) return true;
+      if (transaction.files.some((file) => !file.changed || file.diagnostics.some((diagnostic) => diagnostic.severity === "error"))) return true;
+    } else if (current.transaction) {
+      return true;
+    }
+
+    return !current.plan.documentAfter && changed.length === 0;
   });
   const client = () => new ProjectBridgeClient(bridgeUrl(), bridgeToken());
 
@@ -104,10 +117,14 @@ export function ReviewInboxWorkbench() {
     replaceRequest(updated);
     setConfirmedPreparationId("");
     setSourceResults({});
+    setLatestTransactionResult(undefined);
     const current = updated.preparation!;
+    const transactionSuffix = current.transaction
+      ? ` Transaction ${current.transaction.transactionId} contains ${current.transaction.changedFiles} files.`
+      : "";
     setStatus(current.comparison.exactMatch
-      ? `Prepared ${current.preparationId}; fresh effects exactly match the approved snapshot.`
-      : `Prepared ${current.preparationId}; fresh effects differ and require a new execution review.`);
+      ? `Prepared ${current.preparationId}; fresh effects exactly match the approved snapshot.${transactionSuffix}`
+      : `Prepared ${current.preparationId}; fresh effects differ and require a new execution review.${transactionSuffix}`);
   });
 
   const executePreparation = () => run(async () => {
@@ -136,46 +153,89 @@ export function ReviewInboxWorkbench() {
     }
 
     const freshChangedPlans = current.plan.sourcePlans.filter((plan) => plan.changed);
-    if (freshChangedPlans.length > 1) {
-      throw new ProjectBridgeClientError(
-        "REVIEW_MULTI_SOURCE_EXECUTION_UNSUPPORTED",
-        "Reviewed execution v1 supports at most one changed source plan. Use the transaction workbench for multi-file effects.",
-      );
-    }
-
     const recordedSourceResults: ReviewedExecutionSourceResult[] = [];
-    for (const plan of freshChangedPlans) {
-      let result: BridgeApplyResult;
+    let transactionResult: BridgeTransactionApplyResult | undefined;
+
+    if (current.transaction) {
+      if (freshChangedPlans.length < 2) {
+        throw new ProjectBridgeClientError(
+          "REVIEW_TRANSACTION_PLAN_MISMATCH",
+          "A reviewed multi-file transaction must contain at least two changed source plans.",
+        );
+      }
       try {
-        result = await client().applyPatch(plan.planId, plan.sourceVersion, reviewer().trim());
+        transactionResult = await client().applyTransaction(
+          current.transaction.transactionId,
+          current.transaction.files.map((file) => ({
+            repositoryPath: file.repositoryPath,
+            sourceVersion: file.sourceVersion,
+          })),
+          reviewer().trim(),
+        );
       } catch (error) {
-        if (error instanceof ProjectBridgeClientError && error.code === "PLAN_NOT_FOUND") {
+        if (error instanceof ProjectBridgeClientError && error.code === "TRANSACTION_NOT_FOUND") {
           throw new ProjectBridgeClientError(
             "REVIEW_PREPARATION_EXPIRED",
-            "The prepared source plan expired or was consumed. Prepare the execution again and review the fresh diff.",
+            "The prepared transaction expired or was consumed. Prepare again and review every fresh file diff.",
           );
         }
         throw error;
       }
-      recordedSourceResults.push({
-        planId: plan.planId,
-        repositoryPath: plan.repositoryPath,
-        sourceVersion: plan.sourceVersion,
-        result,
-      });
-      setSourceResults((previous) => ({ ...previous, [plan.planId]: result }));
-      if (result.status !== "applied") {
+      setLatestTransactionResult(transactionResult);
+      if (transactionResult.status !== "applied") {
         const updated = await client().recordReviewExecution({
           requestId: request.requestId,
           preparationId: current.preparationId,
           executedBy: reviewer().trim(),
           documentApplied: false,
-          sourceResults: recordedSourceResults,
+          sourceResults: [],
+          transactionResult,
         });
         replaceRequest(updated);
         setConfirmedPreparationId("");
-        setStatus(`Fresh source plan completed with ${result.status}; the document effect was not applied.`);
+        setStatus(`Atomic transaction completed with ${transactionResult.status}; the UI IR effect was not applied.`);
         return;
+      }
+    } else {
+      if (freshChangedPlans.length > 1) {
+        throw new ProjectBridgeClientError(
+          "REVIEW_TRANSACTION_REQUIRED",
+          "Several fresh source files require one reviewed transaction before execution.",
+        );
+      }
+      for (const plan of freshChangedPlans) {
+        let result: BridgeApplyResult;
+        try {
+          result = await client().applyPatch(plan.planId, plan.sourceVersion, reviewer().trim());
+        } catch (error) {
+          if (error instanceof ProjectBridgeClientError && error.code === "PLAN_NOT_FOUND") {
+            throw new ProjectBridgeClientError(
+              "REVIEW_PREPARATION_EXPIRED",
+              "The prepared source plan expired or was consumed. Prepare the execution again and review the fresh diff.",
+            );
+          }
+          throw error;
+        }
+        recordedSourceResults.push({
+          planId: plan.planId,
+          repositoryPath: plan.repositoryPath,
+          sourceVersion: plan.sourceVersion,
+          result,
+        });
+        setSourceResults((previous) => ({ ...previous, [plan.planId]: result }));
+        if (result.status !== "applied") {
+          const updated = await client().recordReviewExecution({
+            requestId: request.requestId,
+            preparationId: current.preparationId,
+            executedBy: reviewer().trim(),
+            documentApplied: false,
+            sourceResults: recordedSourceResults,
+          });
+          replaceRequest(updated);
+          setConfirmedPreparationId("");
+          setStatus(`Fresh source plan completed with ${result.status}; the document effect was not applied.`);
+          return;
+        }
       }
     }
 
@@ -204,13 +264,14 @@ export function ReviewInboxWorkbench() {
           executedBy: reviewer().trim(),
           documentApplied: false,
           sourceResults: recordedSourceResults,
+          ...(transactionResult ? { transactionResult } : {}),
         });
         replaceRequest(updated);
         setConfirmedPreparationId("");
         if (error instanceof LiveProjectDocumentExecutionError) {
           throw new LiveProjectDocumentExecutionError(
             error.code,
-            `${error.message} Source effects, if any, are recorded as a partial execution. Prepare again against the current session.`,
+            `${error.message} Source effects are recorded as a partial execution. Prepare again against the current session.`,
           );
         }
         throw error;
@@ -226,6 +287,7 @@ export function ReviewInboxWorkbench() {
       ...(documentRevision === undefined ? {} : { documentRevision }),
       ...(documentVersionAfter ? { documentVersionAfter } : {}),
       sourceResults: recordedSourceResults,
+      ...(transactionResult ? { transactionResult } : {}),
     });
     replaceRequest(updated);
     setConfirmedPreparationId("");
@@ -261,7 +323,11 @@ export function ReviewInboxWorkbench() {
               <For each={requests()}>{(request) => (
                 <button
                   classList={{ active: selectedId() === request.requestId }}
-                  onClick={() => { setSelectedId(request.requestId); setConfirmedPreparationId(""); }}
+                  onClick={() => {
+                    setSelectedId(request.requestId);
+                    setConfirmedPreparationId("");
+                    setLatestTransactionResult(undefined);
+                  }}
                 >
                   <strong>{request.command.type}</strong>
                   <span>{request.actor} · {request.execution?.status ?? request.status}</span>
@@ -328,7 +394,6 @@ export function ReviewInboxWorkbench() {
                   <Show when={request.preparation}>
                     {(preparedAccessor) => {
                       const prepared = preparedAccessor();
-                      const freshChanged = prepared.plan.sourcePlans.filter((plan) => plan.changed);
                       return (
                         <section class={`review-card execution-review ${prepared.comparison.exactMatch ? "exact-match" : "drifted"}`}>
                           <div class="section-heading"><h2>Prepared execution</h2><span>{prepared.comparison.exactMatch ? "exact match" : "fresh drift"}</span></div>
@@ -357,6 +422,30 @@ export function ReviewInboxWorkbench() {
                             )}
                           </Show>
 
+                          <Show when={prepared.transaction}>
+                            {(transactionAccessor) => {
+                              const transaction = transactionAccessor();
+                              return (
+                                <section class="fresh-transaction-plan">
+                                  <div class="section-heading"><h3>Atomic source transaction</h3><span>{transaction.changedFiles} files</span></div>
+                                  <code>{transaction.transactionId}</code>
+                                  <p>Every file below will be staged, committed, verified, and either kept together or restored together.</p>
+                                  <div class="transaction-file-versions">
+                                    <For each={transaction.files}>{(file) => (
+                                      <div><strong>{file.repositoryPath}</strong><code>{file.sourceVersion}</code></div>
+                                    )}</For>
+                                  </div>
+                                  <For each={transaction.verification}>{(step) => (
+                                    <p class="verification-step"><strong>{step.kind}</strong><code>{step.command}</code></p>
+                                  )}</For>
+                                  <Show when={latestTransactionResult()}>{(result) => (
+                                    <p class={`source-result status-${result().status}`}>Transaction result: {result().status}</p>
+                                  )}</Show>
+                                </section>
+                              );
+                            }}
+                          </Show>
+
                           <For each={prepared.plan.sourcePlans}>{(plan) => (
                             <section class="fresh-source-plan">
                               <div class="section-heading"><h3>{plan.repositoryPath}</h3><span>{plan.changed ? "changed" : "unchanged"}</span></div>
@@ -371,10 +460,6 @@ export function ReviewInboxWorkbench() {
                             </section>
                           )}</For>
 
-                          <Show when={freshChanged.length > 1}>
-                            <p class="diagnostics">Multi-source reviewed execution is blocked in v1. Use a reviewed transaction in a later slice.</p>
-                          </Show>
-
                           <label class="approval-check">
                             <input
                               type="checkbox"
@@ -382,7 +467,7 @@ export function ReviewInboxWorkbench() {
                               disabled={preparationBlocked() || Boolean(request.execution)}
                               onChange={(event) => setConfirmedPreparationId(event.currentTarget.checked ? prepared.preparationId : "")}
                             />
-                            I reviewed this fresh preparation, its current document revision, and every exact source version.
+                            I reviewed this fresh preparation, its current document revision, and {prepared.transaction ? "the complete atomic transaction" : "every exact source version"}.
                           </label>
                           <button
                             class="primary"
@@ -395,24 +480,41 @@ export function ReviewInboxWorkbench() {
                   </Show>
 
                   <Show when={request.execution}>
-                    {(execution) => (
-                      <section class={`review-card execution-record status-${execution().status}`}>
-                        <div class="section-heading"><h2>Execution record</h2><span>{execution().status}</span></div>
-                        <code>{execution().executionId} · {execution().preparationId}</code>
-                        <p>{execution().executedBy} · {new Date(execution().executedAt).toLocaleString()}</p>
-                        <Show when={execution().documentApplied}>
-                          <p>Reversible Studio command <code>{execution().documentCommandId}</code> created revision {execution().documentRevision}.</p>
-                        </Show>
-                        <For each={execution().sourceResults}>{(entry) => (
-                          <div class="execution-source-result">
-                            <strong>{entry.repositoryPath}</strong><span>{entry.result.status}</span>
-                            <For each={entry.result.verification}>{(verification) => (
-                              <small>{verification.step.kind}: {verification.ok ? "passed" : "failed"}</small>
-                            )}</For>
-                          </div>
-                        )}</For>
-                      </section>
-                    )}
+                    {(execution) => {
+                      const transactionReceipt = execution().sourceResults.find((entry) => entry.transactionResult)?.transactionResult;
+                      return (
+                        <section class={`review-card execution-record status-${execution().status}`}>
+                          <div class="section-heading"><h2>Execution record</h2><span>{execution().status}</span></div>
+                          <code>{execution().executionId} · {execution().preparationId}</code>
+                          <p>{execution().executedBy} · {new Date(execution().executedAt).toLocaleString()}</p>
+                          <Show when={execution().documentApplied}>
+                            <p>Reversible Studio command <code>{execution().documentCommandId}</code> created revision {execution().documentRevision}.</p>
+                          </Show>
+                          <Show when={transactionReceipt}>
+                            {(receipt) => (
+                              <section class={`transaction-receipt status-${receipt().status}`}>
+                                <div class="section-heading"><h3>Atomic transaction receipt</h3><span>{receipt().status}</span></div>
+                                <code>{receipt().transactionId}</code>
+                                <For each={receipt().verification}>{(verification) => (
+                                  <small>{verification.step.kind}: {verification.ok ? "passed" : "failed"}</small>
+                                )}</For>
+                              </section>
+                            )}
+                          </Show>
+                          <For each={execution().sourceResults}>{(entry) => (
+                            <div class="execution-source-result">
+                              <strong>{entry.repositoryPath}</strong><span>{entry.result.status}</span>
+                              <Show when={entry.transactionId}><small>transaction {entry.transactionId}</small></Show>
+                              <Show when={!entry.transactionId}>
+                                <For each={entry.result.verification}>{(verification) => (
+                                  <small>{verification.step.kind}: {verification.ok ? "passed" : "failed"}</small>
+                                )}</For>
+                              </Show>
+                            </div>
+                          )}</For>
+                        </section>
+                      );
+                    }}
                   </Show>
 
                   <Show when={(request.executionHistory?.length ?? 0) > 0}>
