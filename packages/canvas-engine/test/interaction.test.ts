@@ -76,8 +76,8 @@ describe("manual interaction commands", () => {
     expect(changed.appearance?.borderRadius).toBe(18);
 
     state = undoCommand(state);
-    expect(state.present.root.children[0]?.position).toEqual({ x: 0, y: 0 });
-    expect(state.present.root.children[0]?.appearance?.borderRadius).toBe(0);
+    expect(state.present.root.children[0]?.position).toBeUndefined();
+    expect(state.present.root.children[0]?.appearance).toBeUndefined();
   });
 
   it("edits a static label without changing the node identity", () => {
