@@ -7,6 +7,9 @@ import {
   bridgeSourceResponseSchema,
   bridgeTransactionApplyResponseSchema,
   bridgeTransactionPlanResponseSchema,
+  humanReviewListResponseSchema,
+  humanReviewResponseSchema,
+  liveSessionResponseSchema,
   screenImportResponseSchema,
   semanticPlanResponseSchema,
   type BindingDiscoveryRequest,
@@ -24,6 +27,8 @@ import {
   type BridgeTransactionPlanView,
   type BridgeTransactionSourceApproval,
   type BridgeVariantOperation,
+  type HumanReviewRequest,
+  type LiveSessionSnapshot,
   type ScreenImportRequest,
   type ScreenImportResult,
   type SemanticOperationCommand,
@@ -56,6 +61,63 @@ export class ProjectBridgeClient {
 
   health(): Promise<BridgeHealthResponse> {
     return this.#request("/api/health", { method: "GET" }, bridgeHealthResponseSchema);
+  }
+
+  async publishLiveSession(
+    sessionId: string,
+    revision: number,
+    document: UiDocument,
+  ): Promise<LiveSessionSnapshot> {
+    const response = await this.#request(
+      "/api/session/publish",
+      { method: "POST", body: JSON.stringify({ sessionId, revision, document }) },
+      liveSessionResponseSchema,
+    );
+    if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
+    return response.session;
+  }
+
+  async readLiveSession(): Promise<LiveSessionSnapshot> {
+    const response = await this.#request(
+      "/api/session/current",
+      { method: "GET" },
+      liveSessionResponseSchema,
+    );
+    if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
+    return response.session;
+  }
+
+  async listReviewRequests(): Promise<readonly HumanReviewRequest[]> {
+    const response = await this.#request(
+      "/api/review/list",
+      { method: "GET" },
+      humanReviewListResponseSchema,
+    );
+    if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
+    return response.requests;
+  }
+
+  async decideReviewRequest(
+    requestId: string,
+    decision: "approved" | "rejected",
+    decidedBy: string,
+    note?: string,
+  ): Promise<HumanReviewRequest> {
+    const response = await this.#request(
+      "/api/review/decide",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          requestId,
+          decision,
+          decidedBy,
+          ...(note?.trim() ? { note: note.trim() } : {}),
+        }),
+      },
+      humanReviewResponseSchema,
+    );
+    if (!response.ok) throw new ProjectBridgeClientError(response.error.code, response.error.message);
+    return response.request;
   }
 
   async readSource(repositoryPath: string): Promise<BridgeSourceSnapshot> {
