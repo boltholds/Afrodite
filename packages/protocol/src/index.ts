@@ -80,8 +80,15 @@ export {
   bridgeVariantPlanRequestSchema,
 } from "./variant";
 export {
+  bridgeMotionApplyRequestSchema,
+  bridgeMotionApplyResponseSchema,
   bridgeMotionOperationSchema,
   bridgeMotionPlanRequestSchema,
+  bridgeMotionPlanResponseSchema,
+  bridgeMotionPlanViewSchema,
+  bridgeMotionRuntimeEvidenceRecordRequestSchema,
+  bridgeMotionRuntimeEvidenceRecordResponseSchema,
+  bridgeMotionRuntimeEvidenceSchema,
   motionOwnershipSchema,
 } from "./motion";
 export {
@@ -207,8 +214,15 @@ export type {
   BridgeVariantPlanRequest,
 } from "./variant";
 export type {
+  BridgeMotionApplyRequest,
+  BridgeMotionApplyResponse,
   BridgeMotionOperation,
   BridgeMotionPlanRequest,
+  BridgeMotionPlanResponse,
+  BridgeMotionPlanView,
+  BridgeMotionRuntimeEvidence,
+  BridgeMotionRuntimeEvidenceRecordRequest,
+  BridgeMotionRuntimeEvidenceRecordResponse,
   MotionOwnership,
 } from "./motion";
 export type {
