@@ -15,7 +15,7 @@ import {
   ProjectCollaborationError,
   type ProjectCollaborationStore,
 } from "./collaboration.js";
-import { planProjectSemanticOperation } from "./semantic.js";
+import { planProjectSemanticOperationBundle } from "./semantic.js";
 import type { ProjectBridgeService } from "./service.js";
 
 export interface ReviewedExecutionServiceOptions {
@@ -58,11 +58,25 @@ export class ReviewedExecutionService {
     }
 
     const live = await this.#collaboration.readSession();
-    const freshPlan = await planProjectSemanticOperation(
+    const fresh = await planProjectSemanticOperationBundle(
       this.#projectBridge,
       live.document,
       review.command,
     );
+    const changedPlans = fresh.plan.sourcePlans.filter((plan) => plan.changed);
+    if (changedPlans.length > 1 && !fresh.transaction) {
+      throw new ProjectCollaborationError(
+        "REVIEW_TRANSACTION_REQUIRED",
+        "A fresh preparation with several changed source files must be bound to one bridge transaction.",
+      );
+    }
+    if (fresh.transaction && fresh.transaction.changedFiles !== changedPlans.length) {
+      throw new ProjectCollaborationError(
+        "REVIEW_TRANSACTION_PLAN_MISMATCH",
+        "The fresh transaction does not contain every changed source effect from the semantic plan.",
+      );
+    }
+
     const preparation = reviewedExecutionPreparationSchema.parse({
       preparationId: `preparation_${this.#idFactory()}`,
       preparedAt: new Date(this.#now()).toISOString(),
@@ -70,8 +84,9 @@ export class ReviewedExecutionService {
       liveSessionId: live.sessionId,
       liveRevision: live.revision,
       liveDocumentVersion: live.documentVersion,
-      plan: freshPlan,
-      comparison: compareReviewedEffects(review, freshPlan),
+      plan: fresh.plan,
+      comparison: compareReviewedEffects(review, fresh.plan),
+      ...(fresh.transaction ? { transaction: fresh.transaction } : {}),
     });
     return this.#collaboration.saveExecutionPreparation(review.requestId, preparation);
   }
