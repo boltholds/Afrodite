@@ -96,7 +96,7 @@ jobs:
             log=".ci-logs/docker-build-${service}.log"
             if ! docker compose build "$service" > "$log" 2>&1; then
               echo "Docker build failed for service: $service" >&2
-              tail -n 80 "$log" | cut -c1-220
+              tail -n 25 "$log" | cut -c1-220
               exit 1
             fi
           done
