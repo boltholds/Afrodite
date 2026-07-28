@@ -17,7 +17,7 @@ export {
   uiNodeSchema,
   uiVariantsSchema,
   parseUiDocument,
-} from "./schema";
+} from "./schema.js";
 
 export {
   animationClipSchema,
@@ -31,19 +31,19 @@ export {
   motionTrackPropertySchema,
   motionTrackSchema,
   motionTriggerSchema,
-} from "./motion";
+} from "./motion.js";
 
 export {
   decodeUiDocument,
   serializeUiDocument,
   validateUiDocument,
-} from "./serialization";
+} from "./serialization.js";
 
 export type {
   DecodeUiDocumentResult,
   UiDiagnostic,
   UiDiagnosticCode,
-} from "./serialization";
+} from "./serialization.js";
 
 export type {
   Appearance,
@@ -66,7 +66,7 @@ export type {
   UiNodeInput,
   UiNodeInputBase,
   UiVariants,
-} from "./schema";
+} from "./schema.js";
 
 export type {
   AnimationClip,
@@ -79,4 +79,4 @@ export type {
   MotionTrack,
   MotionTrackProperty,
   MotionTrigger,
-} from "./motion";
+} from "./motion.js";
