@@ -16,8 +16,8 @@
       "import": "./src/interaction.ts"
     },
     "./motion": {
-      "types": "./src/motion.ts",
-      "import": "./src/motion.ts"
+      "types": "./src/motion-compat.ts",
+      "import": "./src/motion-compat.ts"
     },
     "./style": {
       "types": "./src/style.ts",
