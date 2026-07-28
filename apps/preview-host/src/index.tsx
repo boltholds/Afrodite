@@ -249,6 +249,10 @@ function RuntimeNode(props: {
   const adapter = () => runtimeAdapterMap.get(framework());
   const key = () => componentKeyForFramework(props.node, framework());
   const registered = () => Boolean(adapter()?.has(key()));
+  const renderableAdapter = () => {
+    const candidate = adapter();
+    return candidate && registered() ? candidate : undefined;
+  };
 
   return (
     <div
@@ -271,16 +275,17 @@ function RuntimeNode(props: {
         }
       >
         <Show
-          when={adapter() && registered()}
+          when={renderableAdapter()}
+          keyed
           fallback={
             <div class="missing-component">
               Missing {framework()} component: {props.node.kind === "component" ? props.node.component : "unknown"}
             </div>
           }
         >
-          {() => (
+          {(resolvedAdapter) => (
             <>
-              {adapter()!.render(
+              {resolvedAdapter.render(
                 key(),
                 props.node.props,
                 (error) => props.onRuntimeError(props.node, error),
@@ -407,7 +412,9 @@ function collectDiagnostics(node: UiNode): PreviewDiagnostic[] {
     });
   }
 
-  for (const child of node.children) diagnostics.push(...collectDiagnostics(child));
+  for (const child of node.children) {
+    diagnostics.push(...collectDiagnostics(child));
+  }
   return diagnostics;
 }
 
