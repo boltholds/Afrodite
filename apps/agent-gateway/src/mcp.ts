@@ -135,9 +135,10 @@ export function createAfroditeAgentMcpServer(
         requestId: z.string().min(1),
       },
     },
-    async ({ requestId }) => toolResult(() => reviewClient
-      ? reviewClient.getReview(requestId)
-      : gateway.getApprovalRequest(requestId, context)),
+    async ({ requestId }) => toolResult(async () => {
+      if (reviewClient) return reviewClient.getReview(requestId);
+      return gateway.getApprovalRequest(requestId, context);
+    }),
   );
 
   server.registerTool(
@@ -189,15 +190,16 @@ export function createAfroditeAgentMcpServer(
         requestId: z.string().min(1),
       },
     },
-    async ({ requestId }) => toolResult(() => reviewClient
-      ? reviewClient.getSemanticBatchReview(requestId)
-      : batchGateway.getSemanticBatchReview(requestId, context)),
+    async ({ requestId }) => toolResult(async () => {
+      if (reviewClient) return reviewClient.getSemanticBatchReview(requestId);
+      return batchGateway.getSemanticBatchReview(requestId, context);
+    }),
   );
 
   return server;
 }
 
-async function toolResult<T>(operation: () => T | Promise<T>) {
+async function toolResult(operation: () => unknown | Promise<unknown>) {
   try {
     const value = await operation();
     return {
