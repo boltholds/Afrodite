@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { animationClipsSchema, type AnimationClip } from "./motion";
+import { animationClipsSchema, type AnimationClip } from "./motion.js";
 
 export const layoutDirectionSchema = z.enum(["row", "column"]);
 
