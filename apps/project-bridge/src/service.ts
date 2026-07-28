@@ -63,6 +63,7 @@ import {
   type MultiFileTransactionPlan,
   type MultiFileTransactionPreview,
   type SourceRepository,
+  type VerificationExecution,
   type VerificationRunner,
 } from "@afrodite/verified-write";
 import { createUnifiedDiff } from "@afrodite/verified-write/diff";
@@ -450,13 +451,9 @@ export class ProjectBridgeService {
         sourceVersion: file.sourceVersion,
         changed: file.changed,
         diff: createUnifiedDiff({
-          planId: file.planId,
           repositoryPath: file.repositoryPath,
-          sourceVersion: file.sourceVersion,
           before: file.before,
           after: file.after,
-          changed: file.changed,
-          diagnostics: file.diagnostics,
         }),
         diagnostics: file.diagnostics.map((diagnostic) => ({ ...diagnostic })),
       })),
@@ -481,13 +478,7 @@ function cloneBinding<T extends { readonly styleOwnership?: unknown }>(binding: 
   return cloneJson(binding);
 }
 
-function cloneVerificationExecution<T extends {
-  readonly step: object;
-  readonly ok: boolean;
-  readonly exitCode?: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}>(execution: T) {
+function cloneVerificationExecution(execution: VerificationExecution): VerificationExecution {
   return {
     step: { ...execution.step },
     ok: execution.ok,
