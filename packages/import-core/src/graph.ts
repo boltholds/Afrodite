@@ -82,7 +82,7 @@ interface GraphState {
   readonly adapter: ScreenImportAdapter;
   readonly request: Required<Pick<
     ScreenImportGraphRequest,
-    "maxFiles" | "maxNodes" | "maxGraphDepth" | "expansionMode"
+    "maxDepth" | "maxFiles" | "maxNodes" | "maxGraphDepth" | "expansionMode"
   >> & ScreenImportGraphRequest;
   readonly provider: ScreenImportSourceProvider;
   readonly diagnostics: AdapterDiagnostic[];
@@ -112,6 +112,7 @@ interface PrunedTree {
   readonly truncated: boolean;
 }
 
+const DEFAULT_MAX_DEPTH = 32;
 const DEFAULT_MAX_FILES = 24;
 const DEFAULT_MAX_NODES = 1200;
 const DEFAULT_MAX_GRAPH_DEPTH = 8;
@@ -214,6 +215,7 @@ export async function importScreenGraph(
 function normalizeGraphRequest(request: ScreenImportGraphRequest): GraphState["request"] {
   return {
     ...request,
+    maxDepth: clampInteger(request.maxDepth, DEFAULT_MAX_DEPTH, 1, 128),
     maxFiles: clampInteger(request.maxFiles, DEFAULT_MAX_FILES, 1, 128),
     maxNodes: clampInteger(request.maxNodes, DEFAULT_MAX_NODES, 1, 20_000),
     maxGraphDepth: clampInteger(request.maxGraphDepth, DEFAULT_MAX_GRAPH_DEPTH, 0, 32),
