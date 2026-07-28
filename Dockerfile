@@ -7,7 +7,8 @@ RUN corepack enable
 WORKDIR /app
 COPY . .
 RUN pnpm install --no-frozen-lockfile
-RUN pnpm build
+RUN pnpm --filter @afrodite/studio exec vite build \
+    && pnpm --filter @afrodite/preview-host exec vite build
 
 FROM nginx:1.27-alpine AS studio
 COPY deploy/nginx/studio.conf /etc/nginx/conf.d/default.conf
