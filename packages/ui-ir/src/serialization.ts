@@ -1,4 +1,4 @@
-import { uiDocumentSchema, type UiDocument, type UiNode } from "./schema";
+import { uiDocumentSchema, type UiDocument, type UiNode } from "./schema.js";
 
 export type UiDiagnosticCode =
   | "invalid-json"
