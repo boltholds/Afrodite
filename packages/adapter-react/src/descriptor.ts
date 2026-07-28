@@ -1,6 +1,6 @@
 import type { FrameworkDescriptor } from "@afrodite/framework-core";
 
-export const reactFrameworkDescriptor: FrameworkDescriptor = {
+export const reactFrameworkDescriptor = {
   frameworkId: "react",
   adapterId: "afrodite.adapter.react",
   displayName: "React",
@@ -14,4 +14,4 @@ export const reactFrameworkDescriptor: FrameworkDescriptor = {
     sourcePatching: true,
     propEditing: true,
   },
-};
+} satisfies FrameworkDescriptor;
