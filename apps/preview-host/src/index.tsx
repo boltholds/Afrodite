@@ -26,10 +26,9 @@ import {
   type PreviewRuntime,
 } from "@afrodite/protocol";
 import type { Layout, UiNode } from "@afrodite/ui-ir";
-import { ActionCard } from "../../../packages/indexer-react/test/fixtures/react-app/src/ActionCard";
-import { ContextBadge } from "../../../packages/indexer-react/test/fixtures/react-app/src/ContextBadge";
 import { Button } from "../../../packages/project-indexer/test/fixtures/solid-app/src/Button";
 import Panel from "../../../packages/project-indexer/test/fixtures/solid-app/src/Panel";
+import { ActionCard, ContextBadge } from "./reactRuntimeComponents.js";
 import "./styles.css";
 
 type SolidRegistryComponent = SolidComponent<Record<string, unknown>>;
