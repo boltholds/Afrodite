@@ -3,6 +3,9 @@ import {
   type SemanticBatchPlan as CoreSemanticBatchPlan,
 } from "@afrodite/semantic-ops/batch";
 import type {
+  SemanticOperationCommand as CoreSemanticOperationCommand,
+} from "@afrodite/semantic-ops";
+import type {
   SemanticBatchPlanView,
 } from "@afrodite/protocol/semantic-batch";
 import type {
@@ -21,7 +24,7 @@ export async function planProjectSemanticBatch(
   document: UiDocument,
   commands: readonly SemanticOperationCommand[],
 ): Promise<SemanticBatchPlanView> {
-  const semantic = planSemanticBatch(document, commands);
+  const semantic = planSemanticBatch(document, commands.map(normalizeCommand));
   let sourcePlans: BridgePatchPlanView[] = [];
   let sourceTransaction: BridgeTransactionPlanView | undefined;
 
@@ -47,6 +50,40 @@ export async function planProjectSemanticBatch(
   }
 
   return toProtocolView(semantic, sourcePlans, sourceTransaction);
+}
+
+function normalizeCommand(command: SemanticOperationCommand): CoreSemanticOperationCommand {
+  switch (command.type) {
+    case "convert_to_grid":
+      return {
+        type: command.type,
+        nodeId: command.nodeId,
+        ...(command.gap === undefined ? {} : { gap: command.gap }),
+      };
+    case "create_responsive_variant":
+      return {
+        type: command.type,
+        nodeId: command.nodeId,
+        variantId: command.variantId,
+        ...(command.name === undefined ? {} : { name: command.name }),
+        minWidth: command.minWidth,
+        ...(command.maxWidth === undefined ? {} : { maxWidth: command.maxWidth }),
+        layout: cloneJson(command.layout),
+      };
+    case "replace_spacing_with_token":
+      return {
+        type: command.type,
+        nodeId: command.nodeId,
+        property: command.property,
+        tokenName: command.tokenName,
+        tokenFilePath: command.tokenFilePath,
+      };
+    case "explain_unpatchable_region":
+      return {
+        type: command.type,
+        nodeId: command.nodeId,
+      };
+  }
 }
 
 function toProtocolView(
