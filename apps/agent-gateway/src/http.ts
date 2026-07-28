@@ -7,6 +7,7 @@ import {
 } from "node:http";
 import { pathToFileURL } from "node:url";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { SemanticOnlyProjectBridgeClient } from "./bridgeClient.js";
 import { createAgentGatewaySession, type AgentGatewaySession } from "./runtime.js";
@@ -160,7 +161,7 @@ async function createSession(
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: randomUUID,
     enableJsonResponse: true,
-    onSessionInitialized: (sessionId) => {
+    onsessioninitialized: (sessionId: string) => {
       initializedSessionId = sessionId;
       sessions.set(sessionId, active);
       console.error(`[afrodite-agent-gateway] initialized HTTP MCP session ${sessionId} (${runtime.context.sessionId})`);
@@ -171,7 +172,9 @@ async function createSession(
     if (initializedSessionId) sessions.delete(initializedSessionId);
     void runtime.server.close();
   };
-  await runtime.server.connect(transport);
+  // MCP SDK 1.29 exposes compatible runtime transports through two declarations
+  // whose optional callback properties disagree under exactOptionalPropertyTypes.
+  await runtime.server.connect(transport as unknown as Transport);
   return active;
 }
 
