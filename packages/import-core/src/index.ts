@@ -200,7 +200,7 @@ export function importJsxScreen(
   if (returns.length === 1) {
     root = importExpression(returns[0]!, context, 0);
   } else if (returns.length > 1) {
-    const body = selected.functionLike.body;
+    const body = selected.functionLike.body ?? selected.declaration;
     root = createReadOnlyRegionNode(
       body,
       "conditional",
