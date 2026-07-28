@@ -1,5 +1,7 @@
 import type { Layout, SourceBinding } from "@afrodite/ui-ir";
 
+export type { Layout, SourceBinding };
+
 export type FrameworkId = string;
 
 export interface FrameworkCapabilities {

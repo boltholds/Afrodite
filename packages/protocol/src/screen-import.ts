@@ -1,7 +1,7 @@
-import { uiDocumentSchema } from "@afrodite/ui-ir";
 import { z } from "zod";
 import { frameworkIdSchema } from "./catalog";
 import { bridgeDiagnosticSchema, bridgeErrorSchema } from "./bridge";
+import { uiDocumentProtocolSchema } from "./ui-document";
 
 const componentBoundarySchema = z.string().min(1).max(500);
 
@@ -69,7 +69,7 @@ export const screenImportResultSchema = z.object({
   repositoryPath: z.string().min(1),
   sourceVersion: z.string().min(1),
   exportName: z.string().min(1).optional(),
-  document: uiDocumentSchema.optional(),
+  document: uiDocumentProtocolSchema.optional(),
   diagnostics: z.array(bridgeDiagnosticSchema),
   stats: screenImportStatsSchema,
   files: z.array(screenImportGraphFileSchema).optional(),

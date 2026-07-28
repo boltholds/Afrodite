@@ -1,4 +1,3 @@
-import { uiDocumentSchema } from "@afrodite/ui-ir";
 import { z } from "zod";
 import { bridgeErrorSchema, bridgePatchPlanViewSchema } from "./bridge";
 import { bridgeTransactionPlanViewSchema } from "./transaction";
@@ -7,6 +6,7 @@ import {
   semanticDiagnosticSchema,
   semanticOperationCommandSchema,
 } from "./semantic";
+import { uiDocumentProtocolSchema } from "./ui-document";
 
 export const SEMANTIC_BATCH_API_VERSION = 1 as const;
 export const SEMANTIC_BATCH_MAX_COMMANDS = 16 as const;
@@ -31,7 +31,7 @@ export const semanticBatchStepPlanSchema = z.object({
 export const semanticBatchPlanRequestSchema = z.object({
   apiVersion: z.literal(SEMANTIC_BATCH_API_VERSION).default(SEMANTIC_BATCH_API_VERSION),
   semanticApiVersion: z.literal(SEMANTIC_OPERATION_API_VERSION).default(SEMANTIC_OPERATION_API_VERSION),
-  document: uiDocumentSchema,
+  document: uiDocumentProtocolSchema,
   commands: z.array(semanticOperationCommandSchema).min(1).max(SEMANTIC_BATCH_MAX_COMMANDS),
 });
 
@@ -47,7 +47,7 @@ export const semanticBatchPlanViewSchema = z.object({
   diagnostics: z.array(semanticBatchDiagnosticSchema),
   sourcePlans: z.array(bridgePatchPlanViewSchema),
   sourceTransaction: bridgeTransactionPlanViewSchema.optional(),
-  documentAfter: uiDocumentSchema.optional(),
+  documentAfter: uiDocumentProtocolSchema.optional(),
 });
 
 export const semanticBatchPlanResponseSchema = z.discriminatedUnion("ok", [

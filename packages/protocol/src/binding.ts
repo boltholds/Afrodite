@@ -27,12 +27,37 @@ export const bindingCandidateSchema = z.object({
   diagnostics: z.array(bridgeDiagnosticSchema),
 });
 
-export const bindingDiscoveryRequestSchema = z.object({
+export interface BindingDiscoveryRequest {
+  readonly adapterId: string;
+  readonly repositoryPath: string;
+  readonly exportName?: string;
+  readonly componentId?: string;
+}
+
+interface BindingDiscoveryRequestInput {
+  readonly adapterId: string;
+  readonly repositoryPath: string;
+  readonly exportName?: string | undefined;
+  readonly componentId?: string | undefined;
+}
+
+const bindingDiscoveryRequestInputSchema = z.object({
   adapterId: z.string().min(1),
   repositoryPath: z.string().min(1),
   exportName: z.string().min(1).optional(),
   componentId: z.string().min(1).optional(),
 });
+
+export const bindingDiscoveryRequestSchema: z.ZodType<
+  BindingDiscoveryRequest,
+  z.ZodTypeDef,
+  BindingDiscoveryRequestInput
+> = bindingDiscoveryRequestInputSchema.transform((input) => ({
+  adapterId: input.adapterId,
+  repositoryPath: input.repositoryPath,
+  ...(input.exportName === undefined ? {} : { exportName: input.exportName }),
+  ...(input.componentId === undefined ? {} : { componentId: input.componentId }),
+}));
 
 export const bindingDiscoveryResultSchema = z.object({
   frameworkId: z.string().min(1),
@@ -51,7 +76,29 @@ export const bindingDiscoveryResponseSchema = z.discriminatedUnion("ok", [
   }),
 ]);
 
-export const bindingMarkerPlanRequestSchema = z.object({
+export interface BindingMarkerPlanRequest {
+  readonly nodeId: string;
+  readonly adapterId: string;
+  readonly repositoryPath: string;
+  readonly candidateId: string;
+  readonly stableMarker: string;
+  readonly expectedSourceVersion: string;
+  readonly exportName?: string;
+  readonly componentId?: string;
+}
+
+interface BindingMarkerPlanRequestInput {
+  readonly nodeId: string;
+  readonly adapterId: string;
+  readonly repositoryPath: string;
+  readonly candidateId: string;
+  readonly stableMarker: string;
+  readonly expectedSourceVersion: string;
+  readonly exportName?: string | undefined;
+  readonly componentId?: string | undefined;
+}
+
+const bindingMarkerPlanRequestInputSchema = z.object({
   nodeId: z.string().min(1),
   adapterId: z.string().min(1),
   repositoryPath: z.string().min(1),
@@ -61,6 +108,21 @@ export const bindingMarkerPlanRequestSchema = z.object({
   exportName: z.string().min(1).optional(),
   componentId: z.string().min(1).optional(),
 });
+
+export const bindingMarkerPlanRequestSchema: z.ZodType<
+  BindingMarkerPlanRequest,
+  z.ZodTypeDef,
+  BindingMarkerPlanRequestInput
+> = bindingMarkerPlanRequestInputSchema.transform((input) => ({
+  nodeId: input.nodeId,
+  adapterId: input.adapterId,
+  repositoryPath: input.repositoryPath,
+  candidateId: input.candidateId,
+  stableMarker: input.stableMarker,
+  expectedSourceVersion: input.expectedSourceVersion,
+  ...(input.exportName === undefined ? {} : { exportName: input.exportName }),
+  ...(input.componentId === undefined ? {} : { componentId: input.componentId }),
+}));
 
 export const bindingPatchPlanViewSchema = bridgePatchPlanViewSchema.extend({
   sourceWriteRequired: z.boolean(),
@@ -77,9 +139,7 @@ export const bindingMarkerPlanResponseSchema = z.discriminatedUnion("ok", [
 
 export type BindingMarkerState = z.infer<typeof bindingMarkerStateSchema>;
 export type BindingCandidate = z.infer<typeof bindingCandidateSchema>;
-export type BindingDiscoveryRequest = z.infer<typeof bindingDiscoveryRequestSchema>;
 export type BindingDiscoveryResult = z.infer<typeof bindingDiscoveryResultSchema>;
 export type BindingDiscoveryResponse = z.infer<typeof bindingDiscoveryResponseSchema>;
-export type BindingMarkerPlanRequest = z.infer<typeof bindingMarkerPlanRequestSchema>;
 export type BindingPatchPlanView = z.infer<typeof bindingPatchPlanViewSchema>;
 export type BindingMarkerPlanResponse = z.infer<typeof bindingMarkerPlanResponseSchema>;

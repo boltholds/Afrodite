@@ -1,12 +1,10 @@
-import {
-  layoutOverrideSchema,
-  uiDocumentSchema,
-} from "@afrodite/ui-ir";
+import { layoutOverrideSchema } from "@afrodite/ui-ir";
 import { z } from "zod";
 import {
   bridgeErrorSchema,
   bridgePatchPlanViewSchema,
 } from "./bridge";
+import { uiDocumentProtocolSchema } from "./ui-document";
 
 export const SEMANTIC_OPERATION_API_VERSION = 1 as const;
 
@@ -77,7 +75,7 @@ export const semanticExplanationSchema = z.object({
 
 export const semanticPlanRequestSchema = z.object({
   apiVersion: z.literal(SEMANTIC_OPERATION_API_VERSION).default(SEMANTIC_OPERATION_API_VERSION),
-  document: uiDocumentSchema,
+  document: uiDocumentProtocolSchema,
   command: semanticOperationCommandSchema,
 });
 
@@ -89,7 +87,7 @@ export const semanticPlanViewSchema = z.object({
   applicationMode: z.enum(["document-and-source", "document-only", "informational"]),
   capabilities: semanticCapabilityVerdictSchema,
   diagnostics: z.array(semanticDiagnosticSchema),
-  documentAfter: uiDocumentSchema.optional(),
+  documentAfter: uiDocumentProtocolSchema.optional(),
   explanation: semanticExplanationSchema.optional(),
   sourcePlans: z.array(bridgePatchPlanViewSchema),
 });

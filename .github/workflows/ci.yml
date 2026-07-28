@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          show-progress: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -41,11 +43,138 @@ jobs:
       - name: Build
         run: pnpm build 2>&1 | tee .ci-logs/build.log
 
+      - name: Clean declaration build
+        run: |
+          find apps packages -type d -name dist -prune -exec rm -rf {} +
+          find apps packages -type f -name '*.tsbuildinfo' -delete
+          pnpm build 2>&1 | tee .ci-logs/clean-build.log
+
       - name: Upload verification logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: verification-logs
+          path: .ci-logs
+          if-no-files-found: ignore
+          retention-days: 3
+
+  docker:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Quiet checkout for Docker diagnostics
+        run: |
+          git init -q .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch -q --depth=1 origin "${GITHUB_REF}"
+          git checkout -q FETCH_HEAD
+
+      - name: Prepare non-secret Compose environment
+        run: |
+          cat > .env <<EOF
+          AFRODITE_TARGET_PROJECT=${GITHUB_WORKSPACE}
+          AFRODITE_BRIDGE_TOKEN=ci-bridge-token-0123456789abcdef0123456789abcdef
+          AFRODITE_TARGET_INSTALL=off
+          AFRODITE_STUDIO_PORT=4173
+          AFRODITE_PREVIEW_PORT=4174
+          AFRODITE_BRIDGE_PORT=4175
+          AFRODITE_MCP_PORT=8770
+          AFRODITE_TUNNEL_HEALTH_PORT=8083
+          TUNNEL_ID=tunnel_ci_placeholder
+          CONTROL_PLANE_API_KEY=sk-ci-placeholder-not-a-real-key
+          TUNNEL_PROFILE=afrodite-mcp-ci
+          TUNNEL_CLIENT_VERSION=0.0.10
+          EOF
+
+      - name: Validate Compose model
+        run: |
+          mkdir -p .ci-logs
+          docker compose config --quiet > .ci-logs/docker-compose-config.log 2>&1
+          echo 'Compose model is valid.'
+
+      - name: Build Docker image targets
+        env:
+          DOCKER_BUILDKIT: "1"
+        run: |
+          set -euo pipefail
+          for service in studio preview-host project-bridge agent-gateway tunnel-client; do
+            echo "Building Docker service: $service"
+            log=".ci-logs/docker-build-${service}.log"
+            if ! docker compose build "$service" > "$log" 2>&1; then
+              echo "Docker build failed for service: $service" >&2
+              grep -n -B 8 -A 14 'error TS[0-9]' "$log" | tail -n 180 | cut -c1-300 || true
+              echo 'Terminal build output:' >&2
+              tail -n 35 "$log" | cut -c1-300
+              exit 1
+            fi
+          done
+          echo 'All Docker image targets built successfully.'
+
+      - name: Start and verify static services
+        run: |
+          set -euo pipefail
+          docker compose up -d --no-build preview-host studio
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/healthz >/dev/null \
+              && curl --fail --silent http://127.0.0.1:4174/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'Studio or preview-host failed to become healthy.' >&2
+          docker compose ps
+          docker compose logs --no-color preview-host studio
+          exit 1
+
+      - name: Start and verify project bridge
+        run: |
+          set -euo pipefail
+          docker compose up -d --no-build project-bridge
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent \
+                 -H 'Authorization: Bearer ci-bridge-token-0123456789abcdef0123456789abcdef' \
+                 http://127.0.0.1:4175/api/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'Project bridge failed to become healthy.' >&2
+          docker compose ps
+          docker compose logs --no-color project-bridge
+          exit 1
+
+      - name: Start and verify HTTP MCP gateway
+        run: |
+          set -euo pipefail
+          docker compose up -d --no-build agent-gateway
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8770/healthz >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo 'Agent gateway failed to become healthy.' >&2
+              docker compose ps
+              docker compose logs --no-color agent-gateway
+              exit 1
+            fi
+            sleep 2
+          done
+
+          ready_status=$(curl --silent --output .ci-logs/agent-ready.json --write-out '%{http_code}' http://127.0.0.1:8770/readyz)
+          test "$ready_status" = "503"
+          docker compose ps | tee .ci-logs/docker-compose-ps.log
+
+      - name: Capture and stop Dockerized services
+        if: always()
+        run: |
+          docker compose logs --no-color studio preview-host project-bridge agent-gateway > .ci-logs/docker-runtime.log 2>&1 || true
+          docker compose down || true
+
+      - name: Upload Docker verification logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-verification-logs
           path: .ci-logs
           if-no-files-found: ignore
           retention-days: 3

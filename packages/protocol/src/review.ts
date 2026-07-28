@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { uiDocumentSchema } from "@afrodite/ui-ir";
 import {
   bridgeApplyResultSchema,
   bridgeErrorSchema,
@@ -13,19 +12,20 @@ import {
   bridgeTransactionApplyResultSchema,
   bridgeTransactionPlanViewSchema,
 } from "./transaction";
+import { uiDocumentProtocolSchema } from "./ui-document";
 
 export const liveSessionSnapshotSchema = z.object({
   sessionId: z.string().min(1),
   revision: z.number().int().nonnegative(),
   documentVersion: z.string().min(1),
   updatedAt: z.string().datetime(),
-  document: uiDocumentSchema,
+  document: uiDocumentProtocolSchema,
 });
 
 export const liveSessionPublishRequestSchema = z.object({
   sessionId: z.string().min(1),
   revision: z.number().int().nonnegative(),
-  document: uiDocumentSchema,
+  document: uiDocumentProtocolSchema,
 });
 
 export const liveSessionResponseSchema = z.discriminatedUnion("ok", [
@@ -116,7 +116,7 @@ export const humanReviewRequestSchema = z.object({
   command: semanticOperationCommandSchema,
   rationale: z.string().max(2_000).optional(),
   applicationMode: z.enum(["document-and-source", "document-only", "informational"]),
-  documentAfter: uiDocumentSchema.optional(),
+  documentAfter: uiDocumentProtocolSchema.optional(),
   sourcePlans: z.array(bridgePatchPlanViewSchema),
   decision: humanReviewDecisionSchema.optional(),
   preparation: reviewedExecutionPreparationSchema.optional(),

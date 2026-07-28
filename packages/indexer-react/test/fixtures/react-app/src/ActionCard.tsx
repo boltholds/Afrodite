@@ -1,3 +1,4 @@
+/** @jsxImportSource react */
 import type { MouseEventHandler } from "react";
 
 export interface ActionCardProps {

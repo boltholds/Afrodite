@@ -1,13 +1,5 @@
-import { randomUUID } from "node:crypto";
-import {
-  PolicyControlledAgentGateway,
-} from "@afrodite/agent-gateway-core";
-import {
-  PolicyControlledSemanticBatchGateway,
-} from "@afrodite/agent-gateway-core/batch";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { SemanticOnlyProjectBridgeClient } from "./bridgeClient.js";
-import { createAfroditeAgentMcpServer } from "./mcp.js";
+import { createAgentGatewaySession } from "./runtime.js";
 
 interface CliOptions {
   readonly bridgeUrl: string;
@@ -22,29 +14,20 @@ async function main(): Promise<void> {
     throw new Error(`Environment variable ${options.tokenEnv} must contain the local project bridge session token.`);
   }
 
-  const bridge = new SemanticOnlyProjectBridgeClient(options.bridgeUrl, token);
-  await bridge.readDocument();
-  const gateway = new PolicyControlledAgentGateway({
-    documentProvider: bridge,
-    semanticPlanner: bridge,
-  });
-  const batchGateway = new PolicyControlledSemanticBatchGateway({
-    documentProvider: bridge,
-    batchPlanner: bridge,
-  });
-  const context = {
+  const runtime = await createAgentGatewaySession({
+    bridgeUrl: options.bridgeUrl,
+    token,
     actor: options.actor,
-    sessionId: randomUUID(),
-  };
-  const server = createAfroditeAgentMcpServer(gateway, batchGateway, context, bridge);
+    verifyLiveDocument: true,
+  });
   const transport = new StdioServerTransport();
 
-  console.error(`[afrodite-agent-gateway] policy-controlled stdio session ${context.sessionId}`);
+  console.error(`[afrodite-agent-gateway] policy-controlled stdio session ${runtime.context.sessionId}`);
   console.error(`[afrodite-agent-gateway] live Studio document from ${options.bridgeUrl}`);
   console.error("[afrodite-agent-gateway] bridge token remains process-private");
   console.error("[afrodite-agent-gateway] no filesystem, shell, apply, transaction, or approval-decision tools are exposed");
 
-  await server.connect(transport);
+  await runtime.server.connect(transport);
 }
 
 function parseArguments(args: readonly string[]): CliOptions {

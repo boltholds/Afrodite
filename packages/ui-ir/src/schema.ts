@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { animationClipsSchema, type AnimationClip } from "./motion";
+import { animationClipsSchema, type AnimationClip } from "./motion.js";
 
 export const layoutDirectionSchema = z.enum(["row", "column"]);
 
@@ -284,6 +284,35 @@ export type UiNode =
       sourceRegion: SourceRegion;
     });
 
+export interface UiNodeInputBase {
+  id: string;
+  name: string;
+  layout: z.input<typeof layoutSchema>;
+  position?: z.input<typeof positionSchema> | undefined;
+  appearance?: z.input<typeof appearanceSchema> | undefined;
+  variants?: z.input<typeof uiVariantsSchema> | undefined;
+  animations?: z.input<typeof animationClipsSchema> | undefined;
+  props?: Record<string, unknown> | undefined;
+  sourceBinding?: z.input<typeof sourceBindingSchema> | undefined;
+  sourceRegion?: z.input<typeof sourceRegionSchema> | undefined;
+  children?: UiNodeInput[] | undefined;
+}
+
+export type UiNodeInput =
+  | (UiNodeInputBase & {
+      kind: "element";
+      element: string;
+    })
+  | (UiNodeInputBase & {
+      kind: "component";
+      component: string;
+    })
+  | (UiNodeInputBase & {
+      kind: "source-region";
+      regionKind: z.input<typeof sourceRegionKindSchema>;
+      sourceRegion: z.input<typeof sourceRegionSchema>;
+    });
+
 const uiNodeBaseSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -297,7 +326,7 @@ const uiNodeBaseSchema = z.object({
   sourceRegion: sourceRegionSchema.optional(),
 });
 
-export const uiNodeSchema: z.ZodType<UiNode> = z.lazy(() =>
+export const uiNodeSchema: z.ZodType<UiNode, z.ZodTypeDef, UiNodeInput> = z.lazy(() =>
   z.intersection(
     uiNodeBaseSchema,
     z.discriminatedUnion("kind", [
@@ -321,14 +350,26 @@ export const uiNodeSchema: z.ZodType<UiNode> = z.lazy(() =>
   ),
 );
 
-export const uiDocumentSchema = z.object({
+export interface UiDocument {
+  schemaVersion: 1;
+  id: string;
+  name: string;
+  root: UiNode;
+}
+
+export interface UiDocumentInput {
+  schemaVersion: 1;
+  id: string;
+  name: string;
+  root: UiNodeInput;
+}
+
+export const uiDocumentSchema: z.ZodType<UiDocument, z.ZodTypeDef, UiDocumentInput> = z.object({
   schemaVersion: z.literal(1),
   id: z.string().min(1),
   name: z.string().min(1),
   root: uiNodeSchema,
 });
-
-export type UiDocument = z.infer<typeof uiDocumentSchema>;
 
 export function parseUiDocument(input: unknown): UiDocument {
   return uiDocumentSchema.parse(input);
