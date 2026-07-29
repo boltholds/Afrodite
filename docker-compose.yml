@@ -5,6 +5,8 @@ services:
     build:
       context: .
       target: studio
+      args:
+        VITE_GEFEST_PREVIEW_URL: http://localhost:${AFRODITE_TARGET_PREVIEW_PORT:-3000}
     restart: unless-stopped
     ports:
       - "127.0.0.1:${AFRODITE_STUDIO_PORT:-4173}:8080"
@@ -62,6 +64,41 @@ services:
       timeout: 5s
       retries: 30
       start_period: 20s
+
+  target-preview:
+    build:
+      context: .
+      target: target-preview
+    restart: unless-stopped
+    init: true
+    environment:
+      AFRODITE_PROJECT_ROOT: /workspace/project
+      AFRODITE_TARGET_PACKAGE_DIR: ${AFRODITE_TARGET_PACKAGE_DIR:-.}
+      AFRODITE_TARGET_PREVIEW_SCRIPT: ${AFRODITE_TARGET_PREVIEW_SCRIPT:-dev}
+      AFRODITE_TARGET_PREVIEW_HOST: 0.0.0.0
+      AFRODITE_TARGET_PREVIEW_PORT: 3000
+      NEXT_PUBLIC_AFRODITE_STUDIO_ORIGINS: http://localhost:${AFRODITE_STUDIO_PORT:-4173},http://127.0.0.1:${AFRODITE_STUDIO_PORT:-4173}
+    depends_on:
+      project-bridge:
+        condition: service_healthy
+    volumes:
+      - type: bind
+        source: "${AFRODITE_TARGET_PROJECT:?AFRODITE_TARGET_PROJECT is required}"
+        target: /workspace/project
+      - type: volume
+        source: afrodite-target-node-modules
+        target: /workspace/project/${AFRODITE_TARGET_PACKAGE_DIR:-.}/node_modules
+    ports:
+      - "127.0.0.1:${AFRODITE_TARGET_PREVIEW_PORT:-3000}:3000"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "fetch('http://127.0.0.1:3000').then(r=>{if(r.status>=500)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
 
   agent-gateway:
     build:
