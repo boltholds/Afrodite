@@ -25,9 +25,10 @@ const DEFAULT_BRIDGE_URL = import.meta.env.VITE_PROJECT_BRIDGE_URL ?? "http://12
 const DEFAULT_PREVIEW_URL = import.meta.env.VITE_GEFEST_PREVIEW_URL ?? "http://localhost:3000";
 
 interface GefestLiveCanvasProps {
-  readonly document: UiDocument;
+  readonly getDocument: () => UiDocument;
   readonly onImported: (document: UiDocument, status: string) => void;
-  readonly onSelectNode: (nodeId: string, status: string) => void;
+  readonly onSelectNode: (nodeId: string) => void;
+  readonly onShowSemantic: () => void;
 }
 
 interface FrameSize {
@@ -128,10 +129,10 @@ export function GefestLiveCanvas(props: GefestLiveCanvasProps) {
     setReady(false);
     setHoverTarget(undefined);
     setSelectedTarget(undefined);
-    if (next === previewUrl()) {
-      frame?.contentWindow?.location.reload();
-    } else {
-      setPreviewUrl(next);
+    const unchanged = next === previewUrl();
+    setPreviewUrl(next);
+    if (unchanged && frame) {
+      frame.src = next;
     }
   };
 
@@ -163,8 +164,9 @@ export function GefestLiveCanvas(props: GefestLiveCanvasProps) {
 
     setSelectedTarget(message.target);
     setHoverTarget(undefined);
-    const node = findBestRuntimeNode(props.document.root, message.target);
-    props.onSelectNode(node.id, selectionStatus(node, message.target));
+    const node = findBestRuntimeNode(props.getDocument().root, message.target);
+    setStatus(selectionStatus(node, message.target));
+    props.onSelectNode(node.id);
   };
 
   onMount(() => {
@@ -182,7 +184,7 @@ export function GefestLiveCanvas(props: GefestLiveCanvasProps) {
     queueMicrotask(() => {
       if (
         !automaticImportStarted
-        && shouldImportGefestTree(props.document)
+        && shouldImportGefestTree(props.getDocument())
         && readSessionToken().length >= 16
       ) {
         automaticImportStarted = true;
@@ -220,8 +222,9 @@ export function GefestLiveCanvas(props: GefestLiveCanvasProps) {
           {inspectEnabled() ? "Inspecting" : "Interact"}
         </button>
         <button disabled={busy()} onClick={() => void importTree(false)}>
-          {busy() ? "Importing…" : shouldImportGefestTree(props.document) ? "Import source tree" : "Refresh source tree"}
+          {busy() ? "Importing…" : shouldImportGefestTree(props.getDocument()) ? "Import source tree" : "Refresh source tree"}
         </button>
+        <button onClick={props.onShowSemantic}>Semantic canvas</button>
         <span classList={{ "gefest-live-state": true, ready: ready() }}>
           {ready() ? "runtime connected" : "runtime offline"}
         </span>
