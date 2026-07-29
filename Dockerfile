@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.7
 
 FROM node:22-bookworm-slim AS workspace
+ARG VITE_GEFEST_PREVIEW_URL=http://localhost:3000
+ENV VITE_GEFEST_PREVIEW_URL=$VITE_GEFEST_PREVIEW_URL
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable
@@ -32,6 +34,13 @@ RUN sed -i 's/\r$//' /usr/local/bin/afrodite-project-bridge-entrypoint \
     && chmod 0755 /usr/local/bin/afrodite-project-bridge-entrypoint
 EXPOSE 4175
 ENTRYPOINT ["afrodite-project-bridge-entrypoint"]
+
+FROM node-runtime AS target-preview
+COPY deploy/docker/target-preview-entrypoint.sh /usr/local/bin/afrodite-target-preview-entrypoint
+RUN sed -i 's/\r$//' /usr/local/bin/afrodite-target-preview-entrypoint \
+    && chmod 0755 /usr/local/bin/afrodite-target-preview-entrypoint
+EXPOSE 3000
+ENTRYPOINT ["afrodite-target-preview-entrypoint"]
 
 FROM node-runtime AS agent-gateway
 EXPOSE 8770
