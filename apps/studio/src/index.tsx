@@ -1,6 +1,7 @@
 import { createSignal, Show } from "solid-js";
 import { render } from "solid-js/web";
 import { ensureGefestProjectSeed } from "./gefestProjectSeed";
+import { GefestLiveProjectBridge } from "./GefestLiveProjectBridge";
 import { ManualProjectStudio } from "./ManualProjectStudio";
 import { MotionCompositionWorkbench } from "./MotionCompositionWorkbench";
 import { MotionRuntimeVerificationPanel } from "./MotionRuntimeVerificationPanel";
@@ -76,7 +77,12 @@ function StudioRoot() {
               <Show when={mode() === "screen-import"} fallback={
                 <Show when={mode() === "variants"} fallback={
                   <Show when={mode() === "style-ownership"} fallback={
-                    <Show when={mode() === "motion"} fallback={<ManualProjectStudio />}>
+                    <Show when={mode() === "motion"} fallback={
+                      <>
+                        <ManualProjectStudio />
+                        <GefestLiveProjectBridge />
+                      </>
+                    }>
                       <MotionCompositionWorkbench />
                     </Show>
                   }>
