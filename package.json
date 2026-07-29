@@ -25,6 +25,10 @@
     "docker:build": "docker compose build",
     "docker:up": "docker compose up --build -d",
     "docker:logs": "docker compose logs -f",
-    "docker:down": "docker compose down"
+    "docker:down": "docker compose down",
+    "docker:config:gefest": "docker compose -f docker-compose.yml -f docker-compose.gefest.yml config",
+    "docker:up:gefest": "docker compose -f docker-compose.yml -f docker-compose.gefest.yml up --build -d",
+    "docker:logs:gefest": "docker compose -f docker-compose.yml -f docker-compose.gefest.yml logs -f",
+    "docker:down:gefest": "docker compose -f docker-compose.yml -f docker-compose.gefest.yml down"
   }
 }
