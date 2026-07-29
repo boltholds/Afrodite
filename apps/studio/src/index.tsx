@@ -1,5 +1,6 @@
 import { createSignal, Show } from "solid-js";
 import { render } from "solid-js/web";
+import { ensureGefestProjectSeed } from "./gefestProjectSeed";
 import { ManualProjectStudio } from "./ManualProjectStudio";
 import { MotionCompositionWorkbench } from "./MotionCompositionWorkbench";
 import { MotionRuntimeVerificationPanel } from "./MotionRuntimeVerificationPanel";
@@ -32,6 +33,12 @@ const root = document.getElementById("root");
 
 if (!root) {
   throw new Error("Afrodite Studio root element was not found");
+}
+
+try {
+  ensureGefestProjectSeed(window.localStorage);
+} catch {
+  // Storage can be unavailable in restricted browser contexts; Studio must still start.
 }
 
 type StudioMode =
