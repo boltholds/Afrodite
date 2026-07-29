@@ -10,12 +10,20 @@ import {
 const STORAGE_KEY = "afrodite.ui-document.v1";
 const TARGET_NODE_ID = "node.canvas";
 
-export const GEFEST_SOURCE_BINDING: SourceBinding = {
-  frameworkId: "react",
+export const GEFEST_DOCUMENT_ID = "document.gefest-cad";
+export const GEFEST_PREVIEW_STORAGE_KEY = "afrodite.gefest-preview-url";
+export const GEFEST_IMPORT_ENTRY = {
   adapterId: "afrodite.adapter.react",
-  componentId: "gefest-cad.workspace-boundary",
   repositoryPath: "frontend/features/workspace/AfroditeBoundWorkspacePage.tsx",
   exportName: "default",
+} as const;
+
+export const GEFEST_SOURCE_BINDING: SourceBinding = {
+  frameworkId: "react",
+  adapterId: GEFEST_IMPORT_ENTRY.adapterId,
+  componentId: "gefest-cad.workspace-boundary",
+  repositoryPath: GEFEST_IMPORT_ENTRY.repositoryPath,
+  exportName: GEFEST_IMPORT_ENTRY.exportName,
   stableMarker: "gefest.workspace",
   styleOwnership: {
     strategy: "inline",
@@ -25,7 +33,7 @@ export const GEFEST_SOURCE_BINDING: SourceBinding = {
 
 const GEFEST_INITIAL_DOCUMENT = parseUiDocument({
   schemaVersion: 1,
-  id: "document.gefest-cad",
+  id: GEFEST_DOCUMENT_ID,
   name: "Gefest CAD live binding",
   root: {
     id: TARGET_NODE_ID,
@@ -64,13 +72,13 @@ export function ensureGefestProjectSeed(storage: ProjectSeedStorage): ProjectSee
 
   const target = findNode(decoded.document.root, TARGET_NODE_ID);
   if (!target || target.sourceBinding) return "preserved";
-  if (decoded.document.id !== "document.demo" && decoded.document.id !== "document.gefest-cad") {
+  if (decoded.document.id !== "document.demo" && decoded.document.id !== GEFEST_DOCUMENT_ID) {
     return "preserved";
   }
 
   const migrated: UiDocument = {
     ...decoded.document,
-    id: "document.gefest-cad",
+    id: GEFEST_DOCUMENT_ID,
     name: "Gefest CAD live binding",
     root: bindTargetNode(decoded.document.root),
   };
@@ -78,10 +86,32 @@ export function ensureGefestProjectSeed(storage: ProjectSeedStorage): ProjectSee
   return "migrated";
 }
 
+export function shouldImportGefestTree(document: UiDocument): boolean {
+  if (document.id !== GEFEST_DOCUMENT_ID) return false;
+  const target = findNode(document.root, TARGET_NODE_ID);
+  return target?.children.length === 0;
+}
+
+export function prepareImportedGefestDocument(imported: UiDocument): UiDocument {
+  const root: UiNode = {
+    ...imported.root,
+    id: TARGET_NODE_ID,
+    name: "Gefest CAD workspace",
+    sourceBinding: GEFEST_SOURCE_BINDING,
+    children: imported.root.children.map(cloneNode),
+  };
+  return parseUiDocument({
+    ...imported,
+    id: GEFEST_DOCUMENT_ID,
+    name: "Gefest CAD live binding",
+    root,
+  });
+}
+
 function bindTargetNode(node: UiNode): UiNode {
   const children = node.children.map(bindTargetNode);
   if (node.id !== TARGET_NODE_ID) {
-    return children === node.children ? node : { ...node, children };
+    return { ...node, children };
   }
 
   return {
@@ -90,6 +120,10 @@ function bindTargetNode(node: UiNode): UiNode {
     sourceBinding: GEFEST_SOURCE_BINDING,
     children,
   };
+}
+
+function cloneNode(node: UiNode): UiNode {
+  return { ...node, children: node.children.map(cloneNode) };
 }
 
 function findNode(node: UiNode, nodeId: string): UiNode | undefined {

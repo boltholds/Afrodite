@@ -73,6 +73,8 @@ jobs:
         run: |
           cat > .env <<EOF
           AFRODITE_TARGET_PROJECT=${GITHUB_WORKSPACE}
+          AFRODITE_TARGET_PACKAGE_DIR=.
+          AFRODITE_TARGET_PREVIEW_PORT=3000
           AFRODITE_BRIDGE_TOKEN=ci-bridge-token-0123456789abcdef0123456789abcdef
           AFRODITE_TARGET_INSTALL=off
           AFRODITE_STUDIO_PORT=4173
@@ -97,7 +99,7 @@ jobs:
           DOCKER_BUILDKIT: "1"
         run: |
           set -euo pipefail
-          for service in studio preview-host project-bridge agent-gateway tunnel-client; do
+          for service in studio preview-host project-bridge target-preview agent-gateway tunnel-client; do
             echo "Building Docker service: $service"
             log=".ci-logs/docker-build-${service}.log"
             if ! docker compose build "$service" > "$log" 2>&1; then
