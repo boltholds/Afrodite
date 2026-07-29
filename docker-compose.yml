@@ -37,6 +37,8 @@ services:
     restart: unless-stopped
     environment:
       AFRODITE_PROJECT_ROOT: /workspace/project
+      AFRODITE_TARGET_PACKAGE_DIR: ${AFRODITE_TARGET_PACKAGE_DIR:-.}
+      AFRODITE_VERIFICATION_ROOT: /workspace/project/${AFRODITE_TARGET_PACKAGE_DIR:-.}
       AFRODITE_PROJECT_BRIDGE_HOST: 0.0.0.0
       AFRODITE_PROJECT_BRIDGE_PORT: 4175
       AFRODITE_PROJECT_BRIDGE_TOKEN: ${AFRODITE_BRIDGE_TOKEN:?AFRODITE_BRIDGE_TOKEN is required}
@@ -46,7 +48,9 @@ services:
       - type: bind
         source: "${AFRODITE_TARGET_PROJECT:?AFRODITE_TARGET_PROJECT is required}"
         target: /workspace/project
-      - afrodite-target-node-modules:/workspace/project/node_modules
+      - type: volume
+        source: afrodite-target-node-modules
+        target: /workspace/project/${AFRODITE_TARGET_PACKAGE_DIR:-.}/node_modules
     ports:
       - "127.0.0.1:${AFRODITE_BRIDGE_PORT:-4175}:4175"
     healthcheck:
