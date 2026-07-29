@@ -3,6 +3,8 @@ import { decodeUiDocument, parseUiDocument, serializeUiDocument, type UiNode } f
 import {
   ensureGefestProjectSeed,
   GEFEST_SOURCE_BINDING,
+  prepareImportedGefestDocument,
+  shouldImportGefestTree,
   type ProjectSeedStorage,
 } from "./gefestProjectSeed";
 
@@ -30,6 +32,7 @@ describe("ensureGefestProjectSeed", () => {
     expect(document.id).toBe("document.gefest-cad");
     expect(document.root.id).toBe("node.canvas");
     expect(document.root.sourceBinding).toEqual(GEFEST_SOURCE_BINDING);
+    expect(shouldImportGefestTree(document)).toBe(true);
   });
 
   it("migrates the legacy demo without discarding its node tree", () => {
@@ -107,6 +110,52 @@ describe("ensureGefestProjectSeed", () => {
 
     expect(ensureGefestProjectSeed(storage)).toBe("preserved");
     expect(storage.getItem(STORAGE_KEY)).toBe(serialized);
+  });
+});
+
+describe("prepareImportedGefestDocument", () => {
+  it("keeps the imported tree and installs the verified root binding", () => {
+    const imported = parseUiDocument({
+      schemaVersion: 1,
+      id: "document.imported",
+      name: "Imported wrapper",
+      root: {
+        id: "import.root",
+        kind: "element",
+        element: "div",
+        name: "Imported div",
+        layout: {
+          display: "block",
+          direction: "column",
+          sizing: { width: "fill", height: "fill" },
+        },
+        props: { "data-afrodite-id": "gefest.workspace" },
+        children: [
+          {
+            id: "import.toolbar",
+            kind: "element",
+            element: "header",
+            name: "Toolbar",
+            layout: {
+              display: "flex",
+              direction: "row",
+              sizing: { width: "fill", height: "hug" },
+            },
+            props: { className: "commandBar" },
+            children: [],
+          },
+        ],
+      },
+    });
+
+    const document = prepareImportedGefestDocument(imported);
+
+    expect(document.id).toBe("document.gefest-cad");
+    expect(document.root.id).toBe("node.canvas");
+    expect(document.root.sourceBinding).toEqual(GEFEST_SOURCE_BINDING);
+    expect(document.root.props["data-afrodite-id"]).toBe("gefest.workspace");
+    expect(document.root.children[0]?.props.className).toBe("commandBar");
+    expect(shouldImportGefestTree(document)).toBe(false);
   });
 });
 
