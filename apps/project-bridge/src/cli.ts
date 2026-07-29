@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import path from "node:path";
+import { ProcessVerificationRunner } from "@afrodite/verified-write";
 import { ProjectCollaborationStore } from "./collaboration.js";
 import { MotionBridgeService } from "./motion.js";
 import { ReviewedExecutionService } from "./reviewExecution.js";
@@ -9,6 +10,7 @@ import { ProjectBridgeService } from "./service.js";
 
 interface CliOptions {
   readonly projectRoot: string;
+  readonly verificationRoot: string;
   readonly host: string;
   readonly port: number;
   readonly token: string;
@@ -17,7 +19,10 @@ interface CliOptions {
 }
 
 const options = parseCliOptions(process.argv.slice(2), process.env);
-const service = new ProjectBridgeService({ projectRoot: options.projectRoot });
+const service = new ProjectBridgeService({
+  projectRoot: options.projectRoot,
+  verificationRunner: new ProcessVerificationRunner({ projectRoot: options.verificationRoot }),
+});
 const motion = new MotionBridgeService({ projectRoot: options.projectRoot });
 const collaboration = new ProjectCollaborationStore(options.projectRoot);
 const batchReviews = new SemanticBatchReviewStore(options.projectRoot, collaboration);
@@ -39,6 +44,7 @@ server.listen(options.port, options.host, () => {
   const address = `http://${options.host}:${options.port}`;
   console.log(`Afrodite project bridge listening at ${address}`);
   console.log(`Project root: ${options.projectRoot}`);
+  console.log(`Verification root: ${options.verificationRoot}`);
   console.log(`Collaboration state: ${path.join(options.projectRoot, ".afrodite", "collaboration.json")}`);
   console.log(`Semantic batch reviews: ${path.join(options.projectRoot, ".afrodite", "semantic-batch-reviews.json")}`);
   console.log("Motion CSS plans use the same authenticated verified-write boundary.");
@@ -65,6 +71,12 @@ function parseCliOptions(argv: readonly string[], env: NodeJS.ProcessEnv): CliOp
       "Project root is required. Use --project ./path/to/project or AFRODITE_PROJECT_ROOT.",
     );
   }
+  const projectRoot = path.resolve(projectArgument);
+  const verificationArgument = valueAfter(argv, "--verification-root")
+    ?? env.AFRODITE_VERIFICATION_ROOT
+    ?? projectRoot;
+  const verificationRoot = path.resolve(verificationArgument);
+  assertInsideProjectRoot(projectRoot, verificationRoot);
 
   const host = valueAfter(argv, "--host") ?? env.AFRODITE_PROJECT_BRIDGE_HOST ?? "127.0.0.1";
   const portSource = valueAfter(argv, "--port") ?? env.AFRODITE_PROJECT_BRIDGE_PORT ?? "4175";
@@ -89,13 +101,21 @@ function parseCliOptions(argv: readonly string[], env: NodeJS.ProcessEnv): CliOp
       : ["http://localhost:4173", "http://127.0.0.1:4173"];
 
   return {
-    projectRoot: path.resolve(projectArgument),
+    projectRoot,
+    verificationRoot,
     host,
     port,
     token,
     allowedOrigins,
     generatedToken: configuredToken === undefined,
   };
+}
+
+function assertInsideProjectRoot(projectRoot: string, candidate: string): void {
+  const relative = path.relative(projectRoot, candidate);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error(`Verification root must stay inside the project root: ${candidate}`);
+  }
 }
 
 function valueAfter(argv: readonly string[], flag: string): string | undefined {
